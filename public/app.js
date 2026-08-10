@@ -33,6 +33,7 @@ const TIMER_CHANNEL_NAME = "cred-fasa-timer";
 const TIMER_PREP_SECONDS = 15;
 const REGISTRATION_STORAGE_KEY = "credFasaRegistrationState";
 const ROUND_SCHEDULE_STORAGE_KEY = "credFasaRoundSchedules";
+const START_ORDER_STORAGE_KEY = "credFasaStartOrders";
 const timerChannel = "BroadcastChannel" in window ? new BroadcastChannel(TIMER_CHANNEL_NAME) : null;
 let timerAudioContext = null;
 const timerAlarmMarks = new Set();
@@ -551,6 +552,18 @@ function writeRoundScheduleStore(store) {
   localStorage.setItem(ROUND_SCHEDULE_STORAGE_KEY, JSON.stringify(store || {}));
 }
 
+function readStartOrderStore() {
+  try {
+    return JSON.parse(localStorage.getItem(START_ORDER_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeStartOrderStore(store) {
+  localStorage.setItem(START_ORDER_STORAGE_KEY, JSON.stringify(store || {}));
+}
+
 function scheduleCompetitionKey() {
   return String(state.currentCompetitionId || state.user?.competition_id || "");
 }
@@ -562,6 +575,24 @@ function competitionScheduleCategories(competition = currentCompetition()) {
 
 function scheduleKey(roundKey, category, gender) {
   return `${roundKey}:${category}:${gender}`;
+}
+
+function startOrderLabel(value) {
+  if (value === "bib") return "Por nro de Bib";
+  if (value === "ranking") return "Por Ranking";
+  if (value === "previous_reverse") return "Ronda previa inversa";
+  return "Aleatorio";
+}
+
+function startOrderOptions(roundKey, selected) {
+  if (roundKey !== "clasificatoria") {
+    return `<option value="previous_reverse" selected>Ronda previa inversa</option>`;
+  }
+  return [
+    ["random", "Aleatorio"],
+    ["bib", "Por nro de Bib"],
+    ["ranking", "Por Ranking"],
+  ].map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("");
 }
 
 function boulderOptions(roundKey, includeAll = false) {
@@ -583,6 +614,7 @@ function renderBoulders() {
 }
 
 function renderConfig() {
+  const orderStore = readStartOrderStore()[scheduleCompetitionKey()] || {};
   $("#configGrid").innerHTML = Object.entries(state.rounds).map(([key, round]) => `
     <article class="config-card" data-round="${key}">
       <div class="section-head">
@@ -598,6 +630,11 @@ function renderConfig() {
       <label>Minutos por boulder
         <input type="number" min="1" max="20" data-config="minutes" value="${round.minutes}" />
       </label>
+      <label>Orden de salida
+        <select data-config="start_order" ${key !== "clasificatoria" ? "disabled" : ""}>
+          ${startOrderOptions(key, orderStore[key] || (key === "clasificatoria" ? "random" : "previous_reverse"))}
+        </select>
+      </label>
     </article>
   `).join("");
   renderRoundSchedule();
@@ -609,7 +646,7 @@ function renderRoundSchedule() {
   const competitionId = scheduleCompetitionKey();
   const competition = currentCompetition();
   if (!competitionId) {
-    table.innerHTML = '<tr><td colspan="5">Selecciona una competencia.</td></tr>';
+    table.innerHTML = '<tr><td colspan="6">Selecciona una competencia.</td></tr>';
     return;
   }
   const schedules = readRoundScheduleStore()[competitionId] || {};
@@ -626,12 +663,16 @@ function renderRoundSchedule() {
             <td>${gender}</td>
             <td><input type="date" data-schedule-field="date" value="${value.date || eventDate}" /></td>
             <td><input type="time" data-schedule-field="time" value="${value.time || ""}" /></td>
+            <td><button type="button" data-export-start-order>Exportar PDF</button></td>
           </tr>
         `;
       })
     )
   );
-  table.innerHTML = rows.join("") || '<tr><td colspan="5">No hay rondas activas.</td></tr>';
+  table.innerHTML = rows.join("") || '<tr><td colspan="6">No hay rondas activas.</td></tr>';
+  table.querySelectorAll("[data-export-start-order]").forEach((button) => {
+    button.addEventListener("click", () => exportStartOrderPdf(button.closest("[data-schedule-row]")));
+  });
 }
 
 function configRoundEntries() {
@@ -666,6 +707,171 @@ function collectRoundSchedules() {
     };
   });
   writeRoundScheduleStore(store);
+}
+
+function collectStartOrders() {
+  const competitionId = scheduleCompetitionKey();
+  if (!competitionId) return;
+  const store = readStartOrderStore();
+  store[competitionId] = store[competitionId] || {};
+  $("#configGrid").querySelectorAll("[data-round]").forEach((card) => {
+    const roundKey = card.dataset.round;
+    const select = card.querySelector('[data-config="start_order"]');
+    store[competitionId][roundKey] = select?.value || (roundKey === "clasificatoria" ? "random" : "previous_reverse");
+  });
+  writeStartOrderStore(store);
+}
+
+function startOrderForRound(roundKey) {
+  const competitionId = scheduleCompetitionKey();
+  const stored = readStartOrderStore()[competitionId]?.[roundKey];
+  if (roundKey !== "clasificatoria") return "previous_reverse";
+  return stored || "random";
+}
+
+function previousRound(roundKey) {
+  if (roundKey === "semifinal") return "clasificatoria";
+  if (roundKey === "final") return state.rounds.semifinal?.active ? "semifinal" : "clasificatoria";
+  return null;
+}
+
+function seededShuffle(rows, seed) {
+  let value = Array.from(seed).reduce((sum, char) => sum + char.charCodeAt(0), 0) || 1;
+  const next = () => {
+    value = (value * 9301 + 49297) % 233280;
+    return value / 233280;
+  };
+  return [...rows]
+    .map((row) => ({ row, sort: next() }))
+    .sort((left, right) => left.sort - right.sort)
+    .map((item) => item.row);
+}
+
+function addSecondsToDate(dateValue, timeValue, seconds) {
+  const start = new Date(`${dateValue}T${timeValue || "00:00"}`);
+  return new Date(start.getTime() + seconds * 1000);
+}
+
+function formatDateTimeForPdf(date) {
+  return date.toLocaleString("es-AR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[char]);
+}
+
+async function startOrderRows(roundKey, category, gender) {
+  const competitionId = scheduleCompetitionKey();
+  const params = new URLSearchParams({ competition_id: competitionId, category, gender });
+  let rows = mergeStoredRegistrations(await api(`/api/competition-registrants?${params}`)).filter((row) => row.accredited);
+  const order = startOrderForRound(roundKey);
+  if (order === "random") {
+    rows = seededShuffle(rows, `${competitionId}:${roundKey}:${category}:${gender}`);
+  } else if (order === "bib") {
+    rows = rows.sort((a, b) => Number(a.bib || a.bib_number || 0) - Number(b.bib || b.bib_number || 0));
+  } else if (order === "ranking") {
+    rows = rows.sort((a, b) =>
+      Number(a.ranking || a.seed_ranking || a.bib || a.bib_number || 0) - Number(b.ranking || b.seed_ranking || b.bib || b.bib_number || 0)
+    );
+  } else {
+    const previous = previousRound(roundKey);
+    if (previous) {
+      const boardParams = new URLSearchParams({ competition_id: competitionId, round: previous, category, gender });
+      const leaderboardRows = await api(`/api/leaderboard?${boardParams}`);
+      const orderByBib = new Map([...leaderboardRows].reverse().map((row, index) => [Number(row.bib_number), index]));
+      rows = rows.sort((a, b) =>
+        (orderByBib.get(Number(a.bib_number)) ?? 9999) - (orderByBib.get(Number(b.bib_number)) ?? 9999)
+      );
+    }
+  }
+  return rows;
+}
+
+async function exportStartOrderPdf(row) {
+  if (!row) return;
+  collectRoundSchedules();
+  collectStartOrders();
+  const roundKey = row.dataset.round;
+  const category = row.dataset.category;
+  const gender = row.dataset.gender;
+  const date = row.querySelector('[data-schedule-field="date"]').value;
+  const time = row.querySelector('[data-schedule-field="time"]').value;
+  if (!date || !time) {
+    $("#configStatus").textContent = "Carga fecha y hora de comienzo antes de exportar.";
+    return;
+  }
+  const competition = currentCompetition();
+  const round = state.rounds[roundKey];
+  const rows = await startOrderRows(roundKey, category, gender);
+  const intervalSeconds = Number(round.minutes || 0) * 60 + TIMER_PREP_SECONDS;
+  const titleCategory = category === "mayor" ? "Mayor" : category;
+  const bodyRows = rows.map((competitor, index) => {
+    const startAt = addSecondsToDate(date, time, intervalSeconds * index);
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(competitor.bib || competitor.bib_number || "-")}</td>
+        <td>${escapeHtml(competitor.first_name || "")}</td>
+        <td>${escapeHtml(competitor.last_name || "")}</td>
+        <td>${escapeHtml(competitor.club || "-")}</td>
+        <td>${formatDateTimeForPdf(startAt)}</td>
+      </tr>
+    `;
+  }).join("");
+  const printWindow = window.open("", "_blank", "noopener,noreferrer");
+  if (!printWindow) {
+    $("#configStatus").textContent = "El navegador bloqueo la ventana de exportacion.";
+    return;
+  }
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Orden de salida - ${escapeHtml(competition?.name || "Competencia")}</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #202124; margin: 32px; }
+          h1 { font-size: 22px; margin: 0 0 8px; }
+          .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; margin: 0 0 24px; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #c9c9c9; padding: 7px 8px; text-align: left; }
+          th { background: #f0f0f0; }
+          @media print { button { display: none; } body { margin: 18mm; } }
+        </style>
+      </head>
+      <body>
+        <h1>Orden de salida</h1>
+        <div class="meta">
+          <span><strong>Competencia:</strong> ${escapeHtml(competition?.name || "-")}</span>
+          <span><strong>Ronda:</strong> ${escapeHtml(round?.label || roundKey)}</span>
+          <span><strong>Categoria:</strong> ${escapeHtml(titleCategory)}</span>
+          <span><strong>Genero:</strong> ${escapeHtml(gender)}</span>
+          <span><strong>Comienzo:</strong> ${formatDateTimeForPdf(addSecondsToDate(date, time, 0))}</span>
+          <span><strong>Orden:</strong> ${escapeHtml(startOrderLabel(startOrderForRound(roundKey)))}</span>
+        </div>
+        <table>
+          <thead><tr><th>Orden</th><th>Bib</th><th>Nombre</th><th>Apellido</th><th>Club</th><th>Horario de salida</th></tr></thead>
+          <tbody>${bodyRows || '<tr><td colspan="6">No hay competidores acreditados.</td></tr>'}</tbody>
+        </table>
+        <script>window.addEventListener("load", () => setTimeout(() => window.print(), 150));<\/script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+  $("#configStatus").textContent = "Orden de salida generado. Usa Guardar como PDF en la ventana de impresion.";
 }
 
 function assignmentOptions(roundKey, selected) {
@@ -2216,6 +2422,7 @@ function bindEvents() {
       };
     });
     collectRoundSchedules();
+    collectStartOrders();
     const config = await api("/api/config", { method: "POST", body: JSON.stringify({ rounds }) });
     state.rounds = config.rounds;
     $("#configStatus").textContent = "Configuracion y horarios guardados.";
