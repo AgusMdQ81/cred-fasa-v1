@@ -32,6 +32,7 @@ const TIMER_STORAGE_KEY = "credFasaLocalTimer";
 const TIMER_CHANNEL_NAME = "cred-fasa-timer";
 const TIMER_PREP_SECONDS = 15;
 const REGISTRATION_STORAGE_KEY = "credFasaRegistrationState";
+const ROUND_SCHEDULE_STORAGE_KEY = "credFasaRoundSchedules";
 const timerChannel = "BroadcastChannel" in window ? new BroadcastChannel(TIMER_CHANNEL_NAME) : null;
 let timerAudioContext = null;
 const timerAlarmMarks = new Set();
@@ -538,6 +539,31 @@ function canManageRegistrations() {
   return state.role === "competition_admin" || state.role === "organizer";
 }
 
+function readRoundScheduleStore() {
+  try {
+    return JSON.parse(localStorage.getItem(ROUND_SCHEDULE_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeRoundScheduleStore(store) {
+  localStorage.setItem(ROUND_SCHEDULE_STORAGE_KEY, JSON.stringify(store || {}));
+}
+
+function scheduleCompetitionKey() {
+  return String(state.currentCompetitionId || state.user?.competition_id || "");
+}
+
+function competitionScheduleCategories(competition = currentCompetition()) {
+  if (competition?.category === "Juveniles") return ["U17", "U19"];
+  return ["mayor"];
+}
+
+function scheduleKey(roundKey, category, gender) {
+  return `${roundKey}:${category}:${gender}`;
+}
+
 function boulderOptions(roundKey, includeAll = false) {
   const count = state.rounds[roundKey]?.boulders || 1;
   const all = includeAll ? '<option value="">Todos</option>' : "";
@@ -574,6 +600,72 @@ function renderConfig() {
       </label>
     </article>
   `).join("");
+  renderRoundSchedule();
+}
+
+function renderRoundSchedule() {
+  const table = $("#roundScheduleTable");
+  if (!table) return;
+  const competitionId = scheduleCompetitionKey();
+  const competition = currentCompetition();
+  if (!competitionId) {
+    table.innerHTML = '<tr><td colspan="5">Selecciona una competencia.</td></tr>';
+    return;
+  }
+  const schedules = readRoundScheduleStore()[competitionId] || {};
+  const eventDate = competition?.event_date || "";
+  const categories = competitionScheduleCategories(competition);
+  const rows = configRoundEntries().flatMap(([roundKey, round]) =>
+    categories.flatMap((category) =>
+      ["Mujer", "Hombre"].map((gender) => {
+        const value = schedules[scheduleKey(roundKey, category, gender)] || {};
+        return `
+          <tr data-schedule-row data-round="${roundKey}" data-category="${category}" data-gender="${gender}">
+            <td>${round.label}</td>
+            <td>${category === "mayor" ? "Mayor" : category}</td>
+            <td>${gender}</td>
+            <td><input type="date" data-schedule-field="date" value="${value.date || eventDate}" /></td>
+            <td><input type="time" data-schedule-field="time" value="${value.time || ""}" /></td>
+          </tr>
+        `;
+      })
+    )
+  );
+  table.innerHTML = rows.join("") || '<tr><td colspan="5">No hay rondas activas.</td></tr>';
+}
+
+function configRoundEntries() {
+  const cards = Array.from($("#configGrid")?.querySelectorAll("[data-round]") || []);
+  if (!cards.length) return activeRounds();
+  return cards
+    .map((card) => {
+      const roundKey = card.dataset.round;
+      const round = {
+        ...(state.rounds[roundKey] || {}),
+        active: card.querySelector('[data-config="active"]').checked,
+        boulders: Number(card.querySelector('[data-config="boulders"]').value),
+        minutes: Number(card.querySelector('[data-config="minutes"]').value),
+      };
+      return [roundKey, round];
+    })
+    .filter(([, round]) => round.active);
+}
+
+function collectRoundSchedules() {
+  const competitionId = scheduleCompetitionKey();
+  if (!competitionId) return;
+  const store = readRoundScheduleStore();
+  store[competitionId] = store[competitionId] || {};
+  $("#roundScheduleTable").querySelectorAll("[data-schedule-row]").forEach((row) => {
+    store[competitionId][scheduleKey(row.dataset.round, row.dataset.category, row.dataset.gender)] = {
+      round: row.dataset.round,
+      category: row.dataset.category,
+      gender: row.dataset.gender,
+      date: row.querySelector('[data-schedule-field="date"]').value,
+      time: row.querySelector('[data-schedule-field="time"]').value,
+    };
+  });
+  writeRoundScheduleStore(store);
 }
 
 function assignmentOptions(roundKey, selected) {
@@ -2123,12 +2215,14 @@ function bindEvents() {
         minutes: Number(card.querySelector('[data-config="minutes"]').value),
       };
     });
+    collectRoundSchedules();
     const config = await api("/api/config", { method: "POST", body: JSON.stringify({ rounds }) });
     state.rounds = config.rounds;
-    $("#configStatus").textContent = "Configuracion guardada.";
+    $("#configStatus").textContent = "Configuracion y horarios guardados.";
     renderRounds();
     await refreshAll();
   });
+  $("#configGrid").addEventListener("change", renderRoundSchedule);
 
   $("#addJudgePerson").addEventListener("click", () => {
     syncJudgePersonDetail();
