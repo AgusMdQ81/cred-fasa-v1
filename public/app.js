@@ -1432,9 +1432,37 @@ async function loadCompetitions() {
 }
 
 async function loadCompetitors() {
-  const params = new URLSearchParams(state.competitorFilters);
+  applyCompetitorCategoryRules(currentCompetition());
+  const params = new URLSearchParams({
+    ...state.competitorFilters,
+    competition_id: state.currentCompetitionId || state.user?.competition_id || "",
+  });
   state.competitors = await api(`/api/competitors?${params}`);
   renderCompetitors();
+}
+
+function applyCompetitorCategoryRules(competition) {
+  const categoryControls = ["#competitorFilterCategory", "#judgeCompetitorFilterCategory"]
+    .map((selector) => $(selector))
+    .filter(Boolean);
+  if (!competition) return;
+  if (competition.category === "Mayores") {
+    state.competitorFilters.category = "mayor";
+    categoryControls.forEach((control) => {
+      control.value = "mayor";
+      control.disabled = true;
+    });
+    return;
+  }
+  categoryControls.forEach((control) => {
+    control.disabled = false;
+  });
+  if (competition.category === "Juveniles" && state.competitorFilters.category === "mayor") {
+    state.competitorFilters.category = "U17";
+    categoryControls.forEach((control) => {
+      control.value = "U17";
+    });
+  }
 }
 
 async function loadRegistrations() {

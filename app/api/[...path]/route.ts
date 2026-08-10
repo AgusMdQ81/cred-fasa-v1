@@ -221,6 +221,8 @@ export async function GET(request: Request) {
   if (path === "competitors") {
     const category = url.searchParams.get("category") || "mayor";
     const gender = url.searchParams.get("gender") || "Mujer";
+    const competitionId = Number(url.searchParams.get("competition_id") || 0);
+    if (competitionId) return json(registeredCompetitors(competitionId, gender, category));
     return json(competitors.filter((competitor) => competitor.category === category && competitor.gender === gender));
   }
   if (path === "competition-registrants") {
