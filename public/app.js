@@ -1162,7 +1162,7 @@ function eventYearCategoryAllowed(competitor, competition) {
   if (!competitor?.birth_date) return false;
   const year = Number(competitor.birth_date.slice(0, 4));
   const eventYear = Number(competition.event_date.slice(0, 4));
-  if (competition.category === "Mayores") return year <= eventYear - 18;
+  if (competition.category === "Mayores") return competitor.category !== "U17";
   if (competition.category === "Juveniles") return year > eventYear - 19;
   return false;
 }

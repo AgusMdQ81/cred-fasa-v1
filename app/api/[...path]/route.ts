@@ -206,12 +206,22 @@ export async function GET(request: Request) {
   if (path === "competition-registrants") {
     const category = url.searchParams.get("category") || "mayor";
     const gender = url.searchParams.get("gender") || "Mujer";
-    return json(competitors.filter((competitor) => competitor.category === category && competitor.gender === gender).slice(0, 18).map((competitor, index) => {
+    const competitionId = Number(url.searchParams.get("competition_id") || 1);
+    const competition = competitions.find((item) => item.id === competitionId) || competitions[0];
+    const eligible = competitors.filter((competitor) => {
+      if (competitor.gender !== gender) return false;
+      if (competition.category === "Mayores") return competitor.category !== "U17" && category === "mayor";
+      if (competition.category === "Juveniles") return competitor.category === category && category !== "mayor";
+      return competitor.category === category;
+    });
+    return json(eligible.slice(0, 18).map((competitor, index) => {
       const payment_validated = index % 3 !== 0;
       return {
         registration_id: index + 1,
-        competition_id: 1,
+        competition_id: competition.id,
         ...competitor,
+        category: competition.category === "Mayores" ? "mayor" : competitor.category,
+        original_category: competitor.category,
         payment_validated,
         accredited: payment_validated && index % 4 !== 0,
         registered_at: "2026-08-10",
@@ -298,8 +308,8 @@ export async function POST(request: Request) {
   if (path === "regional-representatives") return json([]);
   if (path === "judge-portal-login") return json({ profile: judgePeople[0], assignments: competitions });
   if (path === "judge-portal-profile") return json({ profile: payload.profile || judgePeople[0], assignments: competitions });
-  if (path === "competitor-login" || path === "competitor-register" || path === "competitor-profile") return json({ competitor: competitors[0], competitions, registrations: [] });
-  if (path === "competition-registrations") return json({ competitor: competitors[0], competitions, registrations: [{ competition_id: payload.competition_id }] });
+  if (path === "competitor-login" || path === "competitor-register" || path === "competitor-profile") return json({ competitor: competitors[1], competitions, registrations: [] });
+  if (path === "competition-registrations") return json({ competitor: competitors[1], competitions, registrations: [{ competition_id: payload.competition_id }] });
   if (path === "competition-registration-status") return json({ ok: true });
   return json({ ok: true });
 }
