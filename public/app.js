@@ -2055,6 +2055,11 @@ function assignRandomBibs() {
   loadRegistrations();
 }
 
+function boulderAttemptTooltip(row, index) {
+  const detail = row.boulder_details?.[index] || {};
+  return `z: ${detail.zone_attempt || "-"}, t: ${detail.top_attempt || "-"}`;
+}
+
 async function loadLeaderboard() {
   applyResultsCategoryRules(currentCompetition());
   const round = $("#resultsRound").value || activeRounds()[0]?.[0] || "clasificatoria";
@@ -2080,8 +2085,8 @@ async function loadLeaderboard() {
       <td>${row.last_name}, ${row.first_name}</td>
       <td>${row.club || "-"}</td>
       ${row.boulders.map((value, index) => `
-        <td>
-          <span class="score-cell">
+        <td title="${boulderAttemptTooltip(row, index)}">
+          <span class="score-cell" title="${boulderAttemptTooltip(row, index)}">
             <span class="active-light ${activeBoulderForOrder(orderMap.get(Number(row.bib_number)) || 0, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
             ${Number(value).toFixed(1)}
           </span>

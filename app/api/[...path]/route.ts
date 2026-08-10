@@ -191,7 +191,15 @@ function leaderboard(url: URL) {
   return registeredCompetitors(competitionId, gender, category)
     .map((competitor) => {
       const rows = savedScores.filter((score) => score.competitor_id === competitor.id && score.round === round);
-      const boulders = Array.from({ length: rounds[round].boulders }, (_, index) => rows.find((row) => row.boulder === index + 1)?.score || 0);
+      const boulderDetails = Array.from({ length: rounds[round].boulders }, (_, index) => {
+        const row = rows.find((score) => score.boulder === index + 1);
+        return {
+          score: row?.score || 0,
+          zone_attempt: row?.zone_attempt || null,
+          top_attempt: row?.top_attempt || null,
+        };
+      });
+      const boulders = boulderDetails.map((detail) => detail.score);
       return {
         rank: 0,
         bib_number: competitor.bib_number,
@@ -203,6 +211,7 @@ function leaderboard(url: URL) {
         zones: rows.filter((row) => row.zone_attempt).length,
         attempts: rows.reduce((sum, row) => sum + row.attempts, 0),
         boulders,
+        boulder_details: boulderDetails,
       };
     })
     .sort((a, b) => b.total_score - a.total_score)
