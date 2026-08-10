@@ -309,9 +309,10 @@ function handleTimerAlarms(timer) {
     return;
   }
   const previous = state.lastTimerAlarmSnapshot;
-  const crossed = (target) => {
+  const isSameClimbCycle = previous?.phase === "climb" && timer.phase === "climb" && previous.cycle === timer.cycle;
+  const crossed = (target, firstReadTolerance = 0) => {
     if (!previous || previous.phase !== timer.phase || previous.cycle !== timer.cycle) {
-      return timer.phase === "climb" && timer.remaining_seconds <= target;
+      return timer.phase === "climb" && timer.remaining_seconds <= target && timer.remaining_seconds >= target - firstReadTolerance;
     }
     return previous.remaining_seconds > target && timer.remaining_seconds <= target;
   };
@@ -331,15 +332,15 @@ function handleTimerAlarms(timer) {
     state.lastTimerAlarmSnapshot = { ...timer };
     return;
   }
-  const justStartedClimb = previous?.phase === "prep" || timer.remaining_seconds >= Number(timer.duration_seconds || 0) - 1;
+  const justStartedClimb = previous?.phase === "prep" || (!isSameClimbCycle && timer.remaining_seconds >= Number(timer.duration_seconds || 0) - 1);
   if (justStartedClimb) {
     markOnce("start", () => timerBeep(880, 0.18, 3));
   }
-  if (crossed(60)) {
+  if (crossed(60, 1)) {
     markOnce("one-minute", () => timerBeep(660, 0.24, 2, 0.28));
   }
   [3, 2, 1, 0].forEach((second) => {
-    if (crossed(second)) {
+    if (crossed(second, 0)) {
       markOnce(`last-${second}`, () => {
         if (second === 0) timerBeep(420, 0.28, 2, 0.18);
         else timerBeep(1040, 0.14, 1);

@@ -99,9 +99,10 @@ function handleAlarms(snapshot) {
     return;
   }
   const previous = lastAlarmSnapshot;
-  const crossed = (target) => {
+  const isSameClimbCycle = previous?.phase === "climb" && snapshot.phase === "climb" && previous.cycle === snapshot.cycle;
+  const crossed = (target, firstReadTolerance = 0) => {
     if (!previous || previous.phase !== snapshot.phase || previous.cycle !== snapshot.cycle) {
-      return snapshot.phase === "climb" && snapshot.remaining_seconds <= target;
+      return snapshot.phase === "climb" && snapshot.remaining_seconds <= target && snapshot.remaining_seconds >= target - firstReadTolerance;
     }
     return previous.remaining_seconds > target && snapshot.remaining_seconds <= target;
   };
@@ -121,15 +122,15 @@ function handleAlarms(snapshot) {
     lastAlarmSnapshot = { ...snapshot };
     return;
   }
-  const justStartedClimb = previous?.phase === "prep" || snapshot.remaining_seconds >= Number(snapshot.duration_seconds || 0) - 1;
+  const justStartedClimb = previous?.phase === "prep" || (!isSameClimbCycle && snapshot.remaining_seconds >= Number(snapshot.duration_seconds || 0) - 1);
   if (justStartedClimb) {
     markOnce("start", () => beep(880, 0.18, 3));
   }
-  if (crossed(60)) {
+  if (crossed(60, 1)) {
     markOnce("one-minute", () => beep(660, 0.24, 2, 0.28));
   }
   [3, 2, 1, 0].forEach((second) => {
-    if (crossed(second)) {
+    if (crossed(second, 0)) {
       markOnce(`last-${second}`, () => {
         if (second === 0) beep(420, 0.28, 2, 0.18);
         else beep(1040, 0.14, 1);
