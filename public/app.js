@@ -34,6 +34,7 @@ const TIMER_PREP_SECONDS = 15;
 const REGISTRATION_STORAGE_KEY = "credFasaRegistrationState";
 const ROUND_SCHEDULE_STORAGE_KEY = "credFasaRoundSchedules";
 const START_ORDER_STORAGE_KEY = "credFasaStartOrders";
+const ROUND_COMPLETION_STORAGE_KEY = "credFasaRoundCompletion";
 const timerChannel = "BroadcastChannel" in window ? new BroadcastChannel(TIMER_CHANNEL_NAME) : null;
 let timerAudioContext = null;
 const timerAlarmMarks = new Set();
@@ -489,6 +490,8 @@ function syncRequiredTableFilters() {
     ["#registrationsGender", state.registrationFilters.gender || "Mujer"],
     ["#resultsCategory", $("#resultsCategory")?.value || "mayor"],
     ["#resultsGender", $("#resultsGender")?.value || "Mujer"],
+    ["#computosCategory", $("#computosCategory")?.value || "mayor"],
+    ["#computosGender", $("#computosGender")?.value || "Mujer"],
   ];
   defaults.forEach(([selector, value]) => {
     const control = $(selector);
@@ -564,6 +567,18 @@ function writeStartOrderStore(store) {
   localStorage.setItem(START_ORDER_STORAGE_KEY, JSON.stringify(store || {}));
 }
 
+function readRoundCompletionStore() {
+  try {
+    return JSON.parse(localStorage.getItem(ROUND_COMPLETION_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeRoundCompletionStore(store) {
+  localStorage.setItem(ROUND_COMPLETION_STORAGE_KEY, JSON.stringify(store || {}));
+}
+
 function scheduleCompetitionKey() {
   return String(state.currentCompetitionId || state.user?.competition_id || "");
 }
@@ -575,6 +590,24 @@ function competitionScheduleCategories(competition = currentCompetition()) {
 
 function scheduleKey(roundKey, category, gender) {
   return `${roundKey}:${category}:${gender}`;
+}
+
+function roundCompletionKey(roundKey, category, gender) {
+  return `${scheduleCompetitionKey()}:${roundKey}:${category}:${gender}`;
+}
+
+function roundClosed(roundKey, category, gender) {
+  return Boolean(readRoundCompletionStore()[roundCompletionKey(roundKey, category, gender)]);
+}
+
+function canOpenRound(roundKey, category, gender) {
+  if (roundKey === "clasificatoria") return true;
+  if (roundKey === "semifinal") return roundClosed("clasificatoria", category, gender);
+  if (roundKey === "final") {
+    const previous = state.rounds.semifinal?.active ? "semifinal" : "clasificatoria";
+    return roundClosed(previous, category, gender);
+  }
+  return true;
 }
 
 function startOrderLabel(value) {
@@ -609,7 +642,6 @@ function renderBoulders() {
   $("#boulderSelect").innerHTML = assigned
     ? `<option value="${assigned}">Boulder ${assigned}</option>`
     : boulderOptions(selectedRound());
-  $("#computosBoulder").innerHTML = boulderOptions($("#computosRound").value || selectedRound(), true);
   renderScore();
 }
 
@@ -831,11 +863,12 @@ async function exportStartOrderPdf(row) {
       </tr>
     `;
   }).join("");
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
+  const printWindow = window.open("about:blank", "_blank");
   if (!printWindow) {
     $("#configStatus").textContent = "El navegador bloqueo la ventana de exportacion.";
     return;
   }
+  printWindow.document.open();
   printWindow.document.write(`
     <!doctype html>
     <html>
@@ -1983,48 +2016,101 @@ function applyResultsCategoryRules(competition) {
   }
 }
 
+function applyComputosCategoryRules(competition) {
+  const categoryControl = $("#computosCategory");
+  if (!categoryControl || !competition) return;
+  if (competition.category === "Mayores") {
+    categoryControl.value = "mayor";
+    categoryControl.disabled = true;
+    return;
+  }
+  categoryControl.disabled = false;
+  if (competition.category === "Juveniles" && categoryControl.value === "mayor") {
+    categoryControl.value = "U17";
+  }
+}
+
+function updateComputosRoundOptions() {
+  const select = $("#computosRound");
+  if (!select) return;
+  const current = select.value || "clasificatoria";
+  const category = $("#computosCategory")?.value || "mayor";
+  const gender = $("#computosGender")?.value || "Mujer";
+  select.innerHTML = activeRounds().map(([key, round]) => {
+    const disabled = canOpenRound(key, category, gender) ? "" : "disabled";
+    return `<option value="${key}" ${key === current ? "selected" : ""} ${disabled}>${round.label}</option>`;
+  }).join("");
+  if (select.selectedOptions[0]?.disabled) {
+    const firstOpen = Array.from(select.options).find((option) => !option.disabled);
+    if (firstOpen) select.value = firstOpen.value;
+  }
+}
+
 async function loadScores() {
+  applyComputosCategoryRules(currentCompetition());
+  updateComputosRoundOptions();
   const round = $("#computosRound").value || activeRounds()[0]?.[0] || "clasificatoria";
-  const boulder = $("#computosBoulder").value;
-  const params = new URLSearchParams({ round, boulder });
-  const rows = await api(`/api/scores?${params}`);
+  const category = $("#computosCategory").value || "mayor";
+  const gender = $("#computosGender").value || "Mujer";
+  if (!canOpenRound(round, category, gender)) {
+    $("#scoresHead").innerHTML = "";
+    $("#scoresTable").innerHTML = '<tr><td>La ronda previa todavia no fue cerrada para esta categoria y genero.</td></tr>';
+    $("#computosStatus").textContent = "No se puede abrir esta ronda hasta tener resultados definitivos de la ronda previa.";
+    return;
+  }
+  const params = new URLSearchParams({ round, category, gender, competition_id: state.currentCompetitionId || state.user?.competition_id || 1 });
+  const leaderboardRows = await api(`/api/leaderboard?${params}`);
+  const orderedCompetitors = await startOrderRows(round, category, gender);
+  const orderMap = new Map(orderedCompetitors.map((row, index) => [Number(row.bib_number), index]));
+  const leaderboardByBib = new Map(leaderboardRows.map((row) => [Number(row.bib_number), row]));
+  const rows = orderedCompetitors.map((competitor) => ({
+    ...competitor,
+    ...(leaderboardByBib.get(Number(competitor.bib_number)) || {}),
+    boulders: leaderboardByBib.get(Number(competitor.bib_number))?.boulders || Array.from({ length: state.rounds[round]?.boulders || 1 }, () => 0),
+    total_score: leaderboardByBib.get(Number(competitor.bib_number))?.total_score || 0,
+    tops: leaderboardByBib.get(Number(competitor.bib_number))?.tops || 0,
+    zones: leaderboardByBib.get(Number(competitor.bib_number))?.zones || 0,
+    attempts: leaderboardByBib.get(Number(competitor.bib_number))?.attempts || 0,
+  }));
   const readonly = state.role === "general_admin";
-  const disabled = readonly ? "disabled" : "";
+  const boulderCount = state.rounds[round]?.boulders || 1;
+  $("#scoresHead").innerHTML = `
+    <tr>
+      <th>Orden</th><th>Bib</th><th>Nro.</th><th>Competidor</th><th>Club</th>
+      ${Array.from({ length: boulderCount }, (_, index) => `<th>B${index + 1}</th>`).join("")}
+      <th>Total</th><th>Tops</th><th>Zonas</th><th>Intentos</th>
+    </tr>
+  `;
   $("#scoresTable").innerHTML = rows.map((row) => `
-    <tr data-score-row data-competitor="${row.competitor_id}" data-round="${row.round}" data-boulder="${row.boulder}" data-judge-username="${row.judge_username || ""}" data-official="${row.official ? 1 : 0}">
+    <tr>
+      <td>${orderMap.has(Number(row.bib_number)) ? orderMap.get(Number(row.bib_number)) + 1 : "-"}</td>
+      <td>${orderedCompetitors.find((item) => Number(item.bib_number) === Number(row.bib_number))?.bib || "-"}</td>
       <td>${row.bib_number}</td>
       <td>${row.last_name}, ${row.first_name}</td>
-      <td>${state.rounds[row.round]?.label || row.round}</td>
-      <td>${row.boulder}</td>
-      <td><input type="number" min="0" data-field="attempts" value="${row.attempts}" ${disabled} /></td>
-      <td><input type="number" min="1" data-field="zone_attempt" value="${row.zone_attempt || ""}" ${disabled} /></td>
-      <td><input type="number" min="1" data-field="top_attempt" value="${row.top_attempt || ""}" ${disabled} /></td>
-      <td><strong>${Number(row.score).toFixed(1)}</strong></td>
-      <td>
-        <input data-field="judge_name" value="${row.judge_name || ""}" ${disabled} />
-        <span class="score-kind ${row.official ? "official" : "backup"}">${row.official ? "Oficial" : "Backup"}</span>
-      </td>
-      <td>${readonly ? "" : "<button data-save-score>Guardar</button>"}</td>
+      <td>${row.club || "-"}</td>
+      ${row.boulders.map((value) => `<td>${Number(value).toFixed(1)}</td>`).join("")}
+      <td><strong>${Number(row.total_score).toFixed(1)}</strong></td>
+      <td>${row.tops}</td>
+      <td>${row.zones}</td>
+      <td>${row.attempts}</td>
     </tr>
   `).join("");
-  $("#scoresTable").querySelectorAll("[data-save-score]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const row = button.closest("[data-score-row]");
-      const payload = {
-        competitor_id: Number(row.dataset.competitor),
-        round: row.dataset.round,
-        boulder: Number(row.dataset.boulder),
-        attempts: Number(row.querySelector('[data-field="attempts"]').value || 0),
-        zone_attempt: row.querySelector('[data-field="zone_attempt"]').value || null,
-        top_attempt: row.querySelector('[data-field="top_attempt"]').value || null,
-        judge_name: row.querySelector('[data-field="judge_name"]').value,
-        judge_username: row.dataset.judgeUsername,
-        official: row.dataset.official === "1",
-      };
-      await api("/api/scores", { method: "POST", body: JSON.stringify(payload) });
-      await refreshComputed();
-    });
-  });
+  $("#computosStatus").textContent = roundClosed(round, category, gender)
+    ? "Ronda cerrada para esta categoria y genero."
+    : "Ronda abierta. Al cerrarla se habilita la ronda siguiente.";
+  $("#closeComputosRound").disabled = readonly || roundClosed(round, category, gender);
+}
+
+function closeComputosRound() {
+  const round = $("#computosRound").value || "clasificatoria";
+  const category = $("#computosCategory").value || "mayor";
+  const gender = $("#computosGender").value || "Mujer";
+  if (!canOpenRound(round, category, gender)) return;
+  if (!confirm("Cerrar esta ronda para la categoria y genero seleccionados? Esto habilita la ronda siguiente.")) return;
+  const store = readRoundCompletionStore();
+  store[roundCompletionKey(round, category, gender)] = true;
+  writeRoundCompletionStore(store);
+  loadScores();
 }
 
 async function loadTimer() {
@@ -2285,10 +2371,11 @@ function bindEvents() {
   $("#assignRandomBibs").addEventListener("click", assignRandomBibs);
   $("#timerRound").addEventListener("change", renderBoulders);
   $("#computosRound").addEventListener("change", () => {
-    renderBoulders();
     loadScores();
   });
-  $("#computosBoulder").addEventListener("change", loadScores);
+  $("#computosCategory").addEventListener("change", loadScores);
+  $("#computosGender").addEventListener("change", loadScores);
+  $("#closeComputosRound").addEventListener("click", closeComputosRound);
   $("#refreshScores").addEventListener("click", refreshComputed);
 
   $("#attemptPlus").addEventListener("click", () => {

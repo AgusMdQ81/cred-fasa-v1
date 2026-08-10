@@ -605,12 +605,24 @@
           </div>
           <div class="filters">
             <label>Ronda <select id="computosRound"></select></label>
-            <label>Boulder <select id="computosBoulder"></select></label>
+            <label>Categoria
+              <select id="computosCategory">
+                <option value="mayor">Mayor</option>
+                <option value="U17">U17</option>
+                <option value="U19">U19</option>
+              </select>
+            </label>
+            <label>Genero
+              <select id="computosGender">
+                <option>Mujer</option>
+                <option>Hombre</option>
+              </select>
+            </label>
+            <button id="closeComputosRound" type="button">Cerrar ronda</button>
           </div>
+          <p id="computosStatus" class="hint" aria-live="polite"></p>
           <table>
-            <thead>
-              <tr><th>Nro.</th><th>Competidor</th><th>Ronda</th><th>Boulder</th><th>Intentos</th><th>Zona</th><th>Top</th><th>Puntaje</th><th>Juez</th><th></th></tr>
-            </thead>
+            <thead id="scoresHead"></thead>
             <tbody id="scoresTable"></tbody>
           </table>
         </section>
@@ -822,6 +834,6 @@
       </div>
     </main>
 
-    <script src="/app.js?v=20260810-start-order-pdf46"></script>
+    <script src="/app.js?v=20260810-computos-start-order47"></script>
   </body>
 </html>
