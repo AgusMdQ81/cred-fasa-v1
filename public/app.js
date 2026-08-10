@@ -1004,7 +1004,6 @@ function renderCompetitions() {
         <td>${competition.region || "-"}</td>
         <td>${competition.modality}</td>
         <td>${competition.category}</td>
-        <td>${competition.gender || "Mujer"}</td>
         <td>${competition.organizer_club}</td>
         <td>${president.id ? `${president.last_name}, ${president.first_name}` : "-"}</td>
         <td>${adminUser}</td>
@@ -1062,7 +1061,7 @@ function renderPublicCalendar() {
       <time>${competition.event_date}</time>
       <div>
         <strong>${competition.name}</strong>
-        <span>${competition.competition_type} - ${competition.modality} - ${competition.category} - ${competition.gender || "Mujer"}</span>
+        <span>${competition.competition_type} - ${competition.modality} - ${competition.category}</span>
         <span>${competition.organizer_club}${competition.region ? ` - ${competition.region}` : ""}</span>
       </div>
     </article>
@@ -1180,7 +1179,7 @@ function renderCompetitorPortal() {
   renderPhotoPreview($("#competitorPhotoPreview"), competitor.photo_url, "Foto del competidor");
   const registered = new Set((data.registrations || []).map((row) => Number(row.competition_id)));
   $("#competitorCompetitionTable").innerHTML = state.competitions.map((competition) => {
-  const genderOk = competition.gender === competitor.gender;
+  const genderOk = true;
     const ageOk = eventYearCategoryAllowed(competitor, competition);
     const isRegistered = registered.has(Number(competition.id));
     const status = isRegistered ? "Inscripto" : (genderOk && ageOk ? "Disponible" : "No habilitada");
@@ -1189,7 +1188,6 @@ function renderCompetitorPortal() {
         <td>${competition.event_date}</td>
         <td>${competition.name}</td>
         <td>${competition.category}</td>
-        <td>${competition.gender || "Mujer"}</td>
         <td>${status}</td>
         <td>${!isRegistered && genderOk && ageOk ? `<button data-register-competition="${competition.id}">Inscribirme</button>` : ""}</td>
       </tr>
@@ -1250,7 +1248,6 @@ function editCompetition(id) {
   form.elements.region.value = competition.region || "Buenos Aires";
   form.elements.modality.value = competition.modality;
   form.elements.category.value = competition.category;
-  form.elements.gender.value = competition.gender || "Mujer";
   form.elements.organizer_club.value = competition.organizer_club;
   form.elements.organizer_last_name.value = competition.organizer_user?.last_name || "";
   form.elements.organizer_name.value = competition.organizer_user?.first_name || competition.organizer_user?.display_name || competition.organizer_club;
@@ -1434,7 +1431,7 @@ async function loadRegistrations() {
         <td>${row.category}</td>
         <td>${row.gender}</td>
         <td><input type="checkbox" data-registration-field="payment_validated" ${row.payment_validated ? "checked" : ""} /></td>
-        <td><input type="checkbox" data-registration-field="accredited" ${row.accredited ? "checked" : ""} /></td>
+        <td><input type="checkbox" data-registration-field="accredited" ${row.accredited ? "checked" : ""} ${row.payment_validated ? "" : "disabled"} /></td>
         <td>${row.registered_at || "-"}</td>
       </tr>
     `).join("")
@@ -1446,13 +1443,25 @@ async function loadRegistrations() {
 
 async function saveRegistrationStatus(row) {
   if (!row) return;
+  const paid = row.querySelector('[data-registration-field="payment_validated"]');
+  const accredited = row.querySelector('[data-registration-field="accredited"]');
+  if (!paid.checked) {
+    accredited.checked = false;
+    accredited.disabled = true;
+  } else {
+    accredited.disabled = false;
+  }
+  if (accredited.checked && !paid.checked) {
+    accredited.checked = false;
+    return;
+  }
   await api("/api/competition-registration-status", {
     method: "POST",
     body: JSON.stringify({
       competition_id: state.currentCompetitionId,
       registration_id: Number(row.dataset.registrationId),
-      payment_validated: row.querySelector('[data-registration-field="payment_validated"]').checked,
-      accredited: row.querySelector('[data-registration-field="accredited"]').checked,
+      payment_validated: paid.checked,
+      accredited: accredited.checked,
     }),
   });
 }

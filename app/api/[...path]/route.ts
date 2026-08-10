@@ -27,7 +27,6 @@ const competitions = [
     competition_type: "CRED",
     modality: "Boulder",
     category: "Mayores",
-    gender: "Mujer",
     organizer_club: "AEBA",
     jury_president_id: 2,
     region: "Buenos Aires",
@@ -50,7 +49,6 @@ const competitions = [
     competition_type: "CRED",
     modality: "Boulder",
     category: "Juveniles",
-    gender: "Hombre",
     organizer_club: "Club Andino",
     jury_president_id: 5,
     region: "Patagonia Norte",
@@ -65,7 +63,6 @@ const competitions = [
     competition_type: "CAED",
     modality: "Dificultad",
     category: "Mayores",
-    gender: "Mujer",
     organizer_club: "FASA",
     jury_president_id: 8,
     region: "",
@@ -209,14 +206,17 @@ export async function GET(request: Request) {
   if (path === "competition-registrants") {
     const category = url.searchParams.get("category") || "mayor";
     const gender = url.searchParams.get("gender") || "Mujer";
-    return json(competitors.filter((competitor) => competitor.category === category && competitor.gender === gender).slice(0, 18).map((competitor, index) => ({
-      registration_id: index + 1,
-      competition_id: 1,
-      ...competitor,
-      payment_validated: index % 3 !== 0,
-      accredited: index % 4 !== 0,
-      registered_at: "2026-08-10",
-    })));
+    return json(competitors.filter((competitor) => competitor.category === category && competitor.gender === gender).slice(0, 18).map((competitor, index) => {
+      const payment_validated = index % 3 !== 0;
+      return {
+        registration_id: index + 1,
+        competition_id: 1,
+        ...competitor,
+        payment_validated,
+        accredited: payment_validated && index % 4 !== 0,
+        registered_at: "2026-08-10",
+      };
+    }));
   }
   if (path === "leaderboard") return json(leaderboard(url));
   if (path === "scores") {
