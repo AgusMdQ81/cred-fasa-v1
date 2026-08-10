@@ -2054,24 +2054,32 @@ async function loadLeaderboard() {
   const gender = $("#resultsGender").value;
   const params = new URLSearchParams({ round, category, gender, competition_id: state.currentCompetitionId || state.user?.competition_id || 1 });
   const rows = await api(`/api/leaderboard?${params}`);
+  const orderedCompetitors = await startOrderRows(round, category, gender);
+  const orderMap = new Map(orderedCompetitors.map((row, index) => [Number(row.bib_number), index + 1]));
+  const timer = computedLocalTimer();
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#leaderboardHead").innerHTML = `
     <tr>
-      <th>Puesto</th><th>Nro.</th><th>Competidor</th><th>Club</th><th>Total</th><th>Tops</th><th>Zonas</th><th>Intentos</th>
+      <th>Puesto</th><th>Nro.</th><th>Competidor</th><th>Club</th>
       ${Array.from({ length: boulderCount }, (_, index) => `<th>B${index + 1}</th>`).join("")}
+      <th>Total</th>
     </tr>
   `;
   $("#leaderboardBody").innerHTML = rows.map((row) => `
-    <tr>
+    <tr data-results-row data-order="${orderMap.get(Number(row.bib_number)) || 0}">
       <td>${row.rank}</td>
       <td>${row.bib_number}</td>
       <td>${row.last_name}, ${row.first_name}</td>
       <td>${row.club || "-"}</td>
+      ${row.boulders.map((value, index) => `
+        <td>
+          <span class="score-cell">
+            <span class="active-light ${activeBoulderForOrder(orderMap.get(Number(row.bib_number)) || 0, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
+            ${Number(value).toFixed(1)}
+          </span>
+        </td>
+      `).join("")}
       <td><strong>${Number(row.total_score).toFixed(1)}</strong></td>
-      <td>${row.tops}</td>
-      <td>${row.zones}</td>
-      <td>${row.attempts}</td>
-      ${row.boulders.map((value) => `<td>${Number(value).toFixed(1)}</td>`).join("")}
     </tr>
   `).join("");
   $("#exportCsv").href = `/api/export.csv?${params}`;
@@ -2192,12 +2200,17 @@ async function loadScores() {
 }
 
 function refreshComputosActiveLights() {
-  const table = $("#scoresTable");
+  refreshActiveLights("#scoresTable", "[data-computos-row]", "#computosRound", "#computosGender");
+  refreshActiveLights("#leaderboardBody", "[data-results-row]", "#resultsRound", "#resultsGender");
+}
+
+function refreshActiveLights(tableSelector, rowSelector, roundSelector, genderSelector) {
+  const table = $(tableSelector);
   if (!table) return;
   const timer = computedLocalTimer();
-  const round = $("#computosRound")?.value || "clasificatoria";
-  const gender = $("#computosGender")?.value || "Mujer";
-  table.querySelectorAll("[data-computos-row]").forEach((row) => {
+  const round = $(roundSelector)?.value || "clasificatoria";
+  const gender = $(genderSelector)?.value || "Mujer";
+  table.querySelectorAll(rowSelector).forEach((row) => {
     const order = Number(row.dataset.order || 0);
     row.querySelectorAll("[data-boulder-index]").forEach((light) => {
       light.classList.toggle("on", activeBoulderForOrder(order, Number(light.dataset.boulderIndex), timer, gender, round));
