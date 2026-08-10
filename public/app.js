@@ -84,6 +84,12 @@ function selectedTimerGenders() {
   return genders.length ? genders : ["Mujer", "Hombre"];
 }
 
+function requestedTimerCycle(defaultCycle = 1) {
+  const value = Number($("#timerCycle")?.value);
+  if (!Number.isFinite(value) || value < 1) return Math.max(1, Number(defaultCycle || 1));
+  return Math.floor(value);
+}
+
 function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) {
   return {
     round: roundKey,
@@ -217,6 +223,7 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerPlayPause") && timer.mode === "automatic" && timer.armed) $("#timerPlayPause").textContent = "Armado";
   if ($("#timerRound")) $("#timerRound").value = timer.round;
   if ($("#timerMode")) $("#timerMode").value = timer.mode || "manual";
+  if ($("#timerCycle") && document.activeElement !== $("#timerCycle")) $("#timerCycle").value = Math.max(1, Number(timer.cycle || 1));
   if ($("#timerGenderWomen")) $("#timerGenderWomen").checked = (timer.genders || []).includes("Mujer");
   if ($("#timerGenderMen")) $("#timerGenderMen").checked = (timer.genders || []).includes("Hombre");
 }
@@ -340,11 +347,24 @@ async function runTimerAction(action) {
   const mode = $("#timerMode")?.value || "manual";
   const genders = selectedTimerGenders();
   let timer = computedLocalTimer() || newLocalTimer(round, boulder);
+  const requestedCycle = requestedTimerCycle(timer.cycle || 1);
+  const cycleChanged = requestedCycle !== Number(timer.cycle || 1);
   const roundChanged = timer.round !== round || timer.mode !== mode || JSON.stringify(timer.genders || []) !== JSON.stringify(genders);
 
-  if (action === "select" || roundChanged) {
+  if (roundChanged || cycleChanged) {
     timer = newLocalTimer(round, boulder);
-    timer = { ...timer, mode, genders };
+    timer = { ...timer, mode, genders, cycle: requestedCycle };
+    if (cycleChanged && !roundChanged) {
+      timer = {
+        ...timer,
+        armed: false,
+        scheduled_start_at: null,
+        phase: "climb",
+        remaining_seconds: timer.duration_seconds,
+        running: false,
+        started_at: null,
+      };
+    }
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
@@ -365,7 +385,7 @@ async function runTimerAction(action) {
         started_at: null,
         phase: "prep",
         remaining_seconds: TIMER_PREP_SECONDS,
-        cycle: 1,
+        cycle: requestedCycle,
       };
     } else {
       const phaseSeconds = timer.phase === "prep" ? timer.prep_seconds : timer.duration_seconds;
@@ -2144,7 +2164,7 @@ function updateComputosRoundOptions() {
 }
 
 function activeBoulderForOrder(orderIndex, boulderIndex, timer, gender, round) {
-  if (!timer?.running || timer.phase !== "climb") return false;
+  if (!timer || timer.phase !== "climb") return false;
   if (timer.round !== round) return false;
   if (!(timer.genders || ["Mujer", "Hombre"]).includes(gender)) return false;
   return Number(timer.cycle || 1) === orderIndex + 2 * boulderIndex;
@@ -2506,6 +2526,7 @@ function bindEvents() {
     runTimerAction("select");
   });
   $("#timerMode").addEventListener("change", () => runTimerAction("select"));
+  $("#timerCycle").addEventListener("change", () => runTimerAction("select"));
   $("#timerGenderWomen").addEventListener("change", () => runTimerAction("select"));
   $("#timerGenderMen").addEventListener("change", () => runTimerAction("select"));
   $("#computosRound").addEventListener("change", () => {
