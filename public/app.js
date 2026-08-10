@@ -15,8 +15,8 @@ const state = {
   registrations: [],
   currentCompetitionId: null,
   loginCompetitionId: null,
-  competitorFilters: { category: "", gender: "" },
-  registrationFilters: { category: "", gender: "" },
+  competitorFilters: { category: "mayor", gender: "Mujer" },
+  registrationFilters: { category: "mayor", gender: "Mujer" },
   publicCalendarFilters: { category: "", type: "", modality: "", region: "" },
   judgePortal: null,
   judgePortalCredentials: null,
@@ -336,7 +336,7 @@ function allowedViews(role) {
   if (role === "general_admin") return ["competitions", "regionalRepresentatives", "judgePeople", "computos", "admin", "registrations", "config", "results", "judge"];
   if (role === "regional_representative") return ["competitions"];
   if (role === "competition_admin") return ["computos", "admin", "registrations", "config", "results"];
-  if (role === "organizer") return ["registrations", "results"];
+  if (role === "organizer") return ["registrations"];
   if (role === "judge") return ["judge", "admin", "results"];
   if (role === "judge_portal") return ["judgePortal"];
   if (role === "competitor") return ["competitorPortal"];
@@ -470,9 +470,27 @@ function renderRounds() {
   ["roundSelect", "resultsRound", "computosRound", "timerRound"].forEach((id) => {
     $(`#${id}`).innerHTML = optionsForRounds(current);
   });
+  syncRequiredTableFilters();
   renderBoulders();
   renderConfig();
   renderJudges();
+}
+
+function syncRequiredTableFilters() {
+  const defaults = [
+    ["#competitorFilterCategory", state.competitorFilters.category || "mayor"],
+    ["#competitorFilterGender", state.competitorFilters.gender || "Mujer"],
+    ["#judgeCompetitorFilterCategory", state.competitorFilters.category || "mayor"],
+    ["#judgeCompetitorFilterGender", state.competitorFilters.gender || "Mujer"],
+    ["#registrationsCategory", state.registrationFilters.category || "mayor"],
+    ["#registrationsGender", state.registrationFilters.gender || "Mujer"],
+    ["#resultsCategory", $("#resultsCategory")?.value || "mayor"],
+    ["#resultsGender", $("#resultsGender")?.value || "Mujer"],
+  ];
+  defaults.forEach(([selector, value]) => {
+    const control = $(selector);
+    if (control && !control.value) control.value = value;
+  });
 }
 
 function boulderOptions(roundKey, includeAll = false) {
@@ -986,7 +1004,7 @@ function renderCompetitions() {
         <td>${competition.region || "-"}</td>
         <td>${competition.modality}</td>
         <td>${competition.category}</td>
-        <td>${competition.gender || "Mixto"}</td>
+        <td>${competition.gender || "Mujer"}</td>
         <td>${competition.organizer_club}</td>
         <td>${president.id ? `${president.last_name}, ${president.first_name}` : "-"}</td>
         <td>${adminUser}</td>
@@ -1044,7 +1062,7 @@ function renderPublicCalendar() {
       <time>${competition.event_date}</time>
       <div>
         <strong>${competition.name}</strong>
-        <span>${competition.competition_type} - ${competition.modality} - ${competition.category} - ${competition.gender || "Mixto"}</span>
+        <span>${competition.competition_type} - ${competition.modality} - ${competition.category} - ${competition.gender || "Mujer"}</span>
         <span>${competition.organizer_club}${competition.region ? ` - ${competition.region}` : ""}</span>
       </div>
     </article>
@@ -1162,7 +1180,7 @@ function renderCompetitorPortal() {
   renderPhotoPreview($("#competitorPhotoPreview"), competitor.photo_url, "Foto del competidor");
   const registered = new Set((data.registrations || []).map((row) => Number(row.competition_id)));
   $("#competitorCompetitionTable").innerHTML = state.competitions.map((competition) => {
-    const genderOk = !competition.gender || competition.gender === "Mixto" || competition.gender === competitor.gender;
+  const genderOk = competition.gender === competitor.gender;
     const ageOk = eventYearCategoryAllowed(competitor, competition);
     const isRegistered = registered.has(Number(competition.id));
     const status = isRegistered ? "Inscripto" : (genderOk && ageOk ? "Disponible" : "No habilitada");
@@ -1171,7 +1189,7 @@ function renderCompetitorPortal() {
         <td>${competition.event_date}</td>
         <td>${competition.name}</td>
         <td>${competition.category}</td>
-        <td>${competition.gender || "Mixto"}</td>
+        <td>${competition.gender || "Mujer"}</td>
         <td>${status}</td>
         <td>${!isRegistered && genderOk && ageOk ? `<button data-register-competition="${competition.id}">Inscribirme</button>` : ""}</td>
       </tr>
@@ -1232,7 +1250,7 @@ function editCompetition(id) {
   form.elements.region.value = competition.region || "Buenos Aires";
   form.elements.modality.value = competition.modality;
   form.elements.category.value = competition.category;
-  form.elements.gender.value = competition.gender || "Mixto";
+  form.elements.gender.value = competition.gender || "Mujer";
   form.elements.organizer_club.value = competition.organizer_club;
   form.elements.organizer_last_name.value = competition.organizer_user?.last_name || "";
   form.elements.organizer_name.value = competition.organizer_user?.first_name || competition.organizer_user?.display_name || competition.organizer_club;

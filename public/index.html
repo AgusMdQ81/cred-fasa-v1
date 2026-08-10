@@ -155,7 +155,7 @@
         <button class="tab role-hidden" data-view="admin" data-roles="competition_admin judge" hidden>Competidores</button>
         <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
         <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuracion</button>
-        <button class="tab role-hidden" data-view="results" data-roles="competition_admin judge organizer guest" hidden>Resultados</button>
+        <button class="tab role-hidden" data-view="results" data-roles="competition_admin judge guest" hidden>Resultados</button>
         <button id="logoutButton" class="tab" type="button">Salir</button>
       </nav>
     </header>
@@ -209,9 +209,8 @@
             </label>
             <label>Genero
               <select name="gender" required>
-                <option>Mixto</option>
-                <option>Hombre</option>
                 <option>Mujer</option>
+                <option>Hombre</option>
               </select>
             </label>
             <label>Club organizador
@@ -536,7 +535,6 @@
           <div class="filters">
             <label>Categoria
               <select id="judgeCompetitorFilterCategory">
-                <option value="">Todas</option>
                 <option value="mayor">Mayor</option>
                 <option value="U17">U17</option>
                 <option value="U19">U19</option>
@@ -544,9 +542,8 @@
             </label>
             <label>Genero
               <select id="judgeCompetitorFilterGender">
-                <option value="">Todos</option>
-                <option>Hombre</option>
                 <option>Mujer</option>
+                <option>Hombre</option>
               </select>
             </label>
           </div>
@@ -674,7 +671,6 @@
           <div class="filters">
             <label>Categoria
               <select id="competitorFilterCategory">
-                <option value="">Todas</option>
                 <option value="mayor">Mayor</option>
                 <option value="U17">U17</option>
                 <option value="U19">U19</option>
@@ -682,9 +678,8 @@
             </label>
             <label>Genero
               <select id="competitorFilterGender">
-                <option value="">Todos</option>
-                <option>Hombre</option>
                 <option>Mujer</option>
+                <option>Hombre</option>
               </select>
             </label>
           </div>
@@ -748,7 +743,6 @@
           <div class="filters">
             <label>Categoria
               <select id="registrationsCategory">
-                <option value="">Todas</option>
                 <option value="mayor">Mayor</option>
                 <option value="U17">U17</option>
                 <option value="U19">U19</option>
@@ -756,9 +750,8 @@
             </label>
             <label>Genero
               <select id="registrationsGender">
-                <option value="">Todos</option>
-                <option>Hombre</option>
                 <option>Mujer</option>
+                <option>Hombre</option>
               </select>
             </label>
           </div>
@@ -777,7 +770,6 @@
             <label>Ronda <select id="resultsRound"></select></label>
             <label>Categoria
               <select id="resultsCategory">
-                <option value="">Todas</option>
                 <option value="mayor">Mayor</option>
                 <option value="U17">U17</option>
                 <option value="U19">U19</option>
@@ -785,9 +777,8 @@
             </label>
             <label>Genero
               <select id="resultsGender">
-                <option value="">Todos</option>
-                <option>Hombre</option>
                 <option>Mujer</option>
+                <option>Hombre</option>
               </select>
             </label>
             <a id="exportCsv" class="button-link" href="#">Exportar CSV</a>

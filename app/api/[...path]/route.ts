@@ -27,7 +27,7 @@ const competitions = [
     competition_type: "CRED",
     modality: "Boulder",
     category: "Mayores",
-    gender: "Mixto",
+    gender: "Mujer",
     organizer_club: "AEBA",
     jury_president_id: 2,
     region: "Buenos Aires",
@@ -50,7 +50,7 @@ const competitions = [
     competition_type: "CRED",
     modality: "Boulder",
     category: "Juveniles",
-    gender: "Mixto",
+    gender: "Hombre",
     organizer_club: "Club Andino",
     jury_president_id: 5,
     region: "Patagonia Norte",
@@ -65,7 +65,7 @@ const competitions = [
     competition_type: "CAED",
     modality: "Dificultad",
     category: "Mayores",
-    gender: "Mixto",
+    gender: "Mujer",
     organizer_club: "FASA",
     jury_president_id: 8,
     region: "",
@@ -167,8 +167,8 @@ function getJudges() {
 
 function leaderboard(url: URL) {
   const round = (url.searchParams.get("round") || "clasificatoria") as RoundKey;
-  const category = url.searchParams.get("category") || "";
-  const gender = url.searchParams.get("gender") || "";
+  const category = url.searchParams.get("category") || "mayor";
+  const gender = url.searchParams.get("gender") || "Mujer";
   return competitors
     .filter((competitor) => !category || competitor.category === category)
     .filter((competitor) => !gender || competitor.gender === gender)
@@ -201,9 +201,15 @@ export async function GET(request: Request) {
   if (path === "regional-representatives") return json([]);
   if (path === "judges") return json(getJudges());
   if (path === "timer") return json(timerState);
-  if (path === "competitors") return json(competitors);
+  if (path === "competitors") {
+    const category = url.searchParams.get("category") || "mayor";
+    const gender = url.searchParams.get("gender") || "Mujer";
+    return json(competitors.filter((competitor) => competitor.category === category && competitor.gender === gender));
+  }
   if (path === "competition-registrants") {
-    return json(competitors.slice(0, 18).map((competitor, index) => ({
+    const category = url.searchParams.get("category") || "mayor";
+    const gender = url.searchParams.get("gender") || "Mujer";
+    return json(competitors.filter((competitor) => competitor.category === category && competitor.gender === gender).slice(0, 18).map((competitor, index) => ({
       registration_id: index + 1,
       competition_id: 1,
       ...competitor,
@@ -233,6 +239,17 @@ export async function POST(request: Request) {
     const password = String(payload.password || "");
     if (username === "admin" && password === "admin") {
       return json({ role: "general_admin", user: { display_name: "Administrador general", username: "admin", competition_id: payload.competition_id || null } });
+    }
+    if (username === "organizador@fasa.test" || username.includes("organizador")) {
+      return json({
+        role: "organizer",
+        user: {
+          display_name: "Organizador demo",
+          username,
+          competition_id: payload.competition_id || 1,
+          competition_name: competitions[0].name,
+        },
+      });
     }
     return json({ role: "competition_admin", user: { display_name: "Presidente demo", username, competition_id: payload.competition_id || 1, competition_name: competitions[0].name } });
   }
