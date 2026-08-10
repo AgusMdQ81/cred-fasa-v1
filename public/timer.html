@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cronometro de competencia</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111111;
+        --ink: #f8f5f0;
+        --accent: #b86f2a;
+        --muted: #c9c1b8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, Arial, sans-serif;
+      }
+
+      .projector {
+        width: min(1600px, 96vw);
+        text-align: center;
+      }
+
+      .time {
+        margin: 0;
+        display: block;
+        font-size: clamp(180px, 34vw, 520px);
+        font-weight: 950;
+        line-height: 0.9;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="projector">
+      <strong id="projectTimerDisplay" class="time">00:00</strong>
+    </main>
+    <script src="/timer.js?v=20260810-timer-audio39"></script>
+  </body>
+</html>
