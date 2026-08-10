@@ -100,11 +100,19 @@ let timerState = {
   id: 1,
   round: "clasificatoria",
   boulder: 1,
+  timer_schema: 3,
+  mode: "manual",
+  genders: ["Mujer", "Hombre"],
+  armed: false,
+  scheduled_start_at: null as string | null,
+  phase: "prep",
+  prep_seconds: 15,
+  cycle: 1,
   duration_seconds: 300,
   remaining_seconds: 300,
   running: false,
   started_at: null as number | null,
-  updated_at: new Date().toISOString(),
+  updated_at: Date.now(),
 };
 
 let savedScores = competitors.slice(0, 12).flatMap((competitor, index) =>
@@ -287,15 +295,42 @@ export async function POST(request: Request) {
   if (path === "timer-authorize") return json({ ok: true, test_mode: true });
   if (path === "timer") {
     const round = (payload.round || timerState.round) as RoundKey;
+    if (payload.state && typeof payload.state === "object") {
+      const snapshot = payload.state as Record<string, unknown>;
+      const snapshotRound = (snapshot.round || round) as RoundKey;
+      timerState = {
+        ...timerState,
+        ...snapshot,
+        round: snapshotRound,
+        boulder: Number(snapshot.boulder || 1),
+        timer_schema: 3,
+        mode: String(snapshot.mode || "manual"),
+        genders: Array.isArray(snapshot.genders) && snapshot.genders.length ? snapshot.genders.map(String) : ["Mujer", "Hombre"],
+        armed: Boolean(snapshot.armed),
+        scheduled_start_at: snapshot.scheduled_start_at ? String(snapshot.scheduled_start_at) : null,
+        phase: snapshot.phase === "climb" ? "climb" : "prep",
+        prep_seconds: Number(snapshot.prep_seconds || 15),
+        duration_seconds: Number(snapshot.duration_seconds || rounds[snapshotRound].minutes * 60),
+        remaining_seconds: Number(snapshot.remaining_seconds || 0),
+        running: Boolean(snapshot.running),
+        started_at: snapshot.started_at ? Number(snapshot.started_at) : null,
+        cycle: Math.max(1, Number(snapshot.cycle || 1)),
+        updated_at: Date.now(),
+      };
+      return json(timerState);
+    }
     timerState = {
       ...timerState,
       round,
       boulder: Number(payload.boulder || 1),
+      timer_schema: 3,
+      phase: payload.action === "start" ? "prep" : timerState.phase,
+      prep_seconds: 15,
       duration_seconds: rounds[round].minutes * 60,
       remaining_seconds: rounds[round].minutes * 60,
       running: payload.action === "start",
-      started_at: payload.action === "start" ? Date.now() / 1000 : null,
-      updated_at: new Date().toISOString(),
+      started_at: payload.action === "start" ? Date.now() : null,
+      updated_at: Date.now(),
     };
     return json(timerState);
   }

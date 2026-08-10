@@ -38,6 +38,9 @@ const ROUND_COMPLETION_STORAGE_KEY = "credFasaRoundCompletion";
 const timerChannel = "BroadcastChannel" in window ? new BroadcastChannel(TIMER_CHANNEL_NAME) : null;
 let timerAudioContext = null;
 const timerAlarmMarks = new Set();
+let lastTimerPublishAt = 0;
+let lastRemoteTimerFetchAt = 0;
+let remoteTimerFetchInFlight = false;
 
 const api = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -110,24 +113,35 @@ function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) 
   };
 }
 
+function normalizeTimerSnapshot(stored) {
+  if (!stored) return null;
+  if (stored.timer_schema && stored.timer_schema !== 2 && stored.timer_schema !== 3) return null;
+  const startedAt = stored.started_at ? Number(stored.started_at) : null;
+  return {
+    ...stored,
+    timer_schema: 3,
+    mode: stored.mode || "manual",
+    genders: Array.isArray(stored.genders) && stored.genders.length ? stored.genders : ["Mujer", "Hombre"],
+    armed: Boolean(stored.armed),
+    scheduled_start_at: stored.scheduled_start_at || null,
+    phase: stored.phase || "prep",
+    prep_seconds: Number(stored.prep_seconds || TIMER_PREP_SECONDS),
+    duration_seconds: Number(stored.duration_seconds || timerRoundDuration(stored.round)),
+    remaining_seconds: Number(stored.remaining_seconds || 0),
+    boulder: Number(stored.boulder || 1),
+    cycle: Number(stored.cycle || 1),
+    running: Boolean(stored.running),
+    started_at: startedAt && startedAt < 100000000000 ? startedAt * 1000 : startedAt,
+  };
+}
+
 function readLocalTimer() {
   try {
     const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || "null");
-    if (!stored) return null;
-    if (stored.timer_schema !== 2 && stored.timer_schema !== 3) return null;
+    const normalized = normalizeTimerSnapshot(stored);
+    if (!normalized) return null;
     return {
-      ...stored,
-      timer_schema: 3,
-      mode: stored.mode || "manual",
-      genders: Array.isArray(stored.genders) && stored.genders.length ? stored.genders : ["Mujer", "Hombre"],
-      armed: Boolean(stored.armed),
-      scheduled_start_at: stored.scheduled_start_at || null,
-      prep_seconds: Number(stored.prep_seconds || TIMER_PREP_SECONDS),
-      duration_seconds: Number(stored.duration_seconds || timerRoundDuration(stored.round)),
-      remaining_seconds: Number(stored.remaining_seconds || 0),
-      boulder: Number(stored.boulder || 1),
-      cycle: Number(stored.cycle || 1),
-      running: Boolean(stored.running),
+      ...normalized,
     };
   } catch {
     return null;
@@ -141,6 +155,39 @@ function writeLocalTimer(timer, broadcast = true) {
   if (broadcast && timerChannel) timerChannel.postMessage(next);
   renderTimer(next);
   return next;
+}
+
+function roleControlsTimer() {
+  return state.role === "competition_admin";
+}
+
+function shouldReadRemoteTimer() {
+  return !roleControlsTimer();
+}
+
+function publishTimerSnapshot(timer, force = false) {
+  if (!roleControlsTimer() || !timer) return;
+  const now = Date.now();
+  if (!force && now - lastTimerPublishAt < 1000) return;
+  lastTimerPublishAt = now;
+  api("/api/timer", {
+    method: "POST",
+    body: JSON.stringify({ action: "sync", round: timer.round, boulder: timer.boulder || 1, state: timer }),
+  }).catch(() => {});
+}
+
+async function fetchRemoteTimerSnapshot(force = false) {
+  const now = Date.now();
+  if (!force && (remoteTimerFetchInFlight || now - lastRemoteTimerFetchAt < 1000)) return null;
+  remoteTimerFetchInFlight = true;
+  lastRemoteTimerFetchAt = now;
+  try {
+    return normalizeTimerSnapshot(await api("/api/timer"));
+  } catch {
+    return null;
+  } finally {
+    remoteTimerFetchInFlight = false;
+  }
 }
 
 function computedLocalTimer(timer = state.timer || readLocalTimer()) {
@@ -419,7 +466,7 @@ async function runTimerAction(action) {
   }
 
   writeLocalTimer(timer, true);
-  api("/api/timer", { method: "POST", body: JSON.stringify({ action, round, boulder }) }).catch(() => {});
+  publishTimerSnapshot(timer, true);
 }
 
 function selectedRound() {
@@ -2266,13 +2313,26 @@ function closeComputosRound() {
 
 async function loadTimer() {
   let timer = computedLocalTimer();
+  if (shouldReadRemoteTimer()) {
+    const remoteTimer = await fetchRemoteTimerSnapshot();
+    if (remoteTimer) {
+      timer = computedLocalTimer(remoteTimer);
+      state.timer = timer;
+    }
+  }
   if (!timer) {
     const serverTimer = await api("/api/timer");
-    timer = writeLocalTimer(newLocalTimer(serverTimer.round, 1), false);
+    timer = normalizeTimerSnapshot(serverTimer) || writeLocalTimer(newLocalTimer(serverTimer.round, 1), false);
   }
   if (timer.running || timer.armed) {
-    handleTimerAlarms(timer);
-    writeLocalTimer(timer, true);
+    if (roleControlsTimer()) {
+      handleTimerAlarms(timer);
+      writeLocalTimer(timer, true);
+      publishTimerSnapshot(timer);
+    } else {
+      state.timer = timer;
+      renderTimer(timer);
+    }
   } else {
     renderTimer(timer);
   }
