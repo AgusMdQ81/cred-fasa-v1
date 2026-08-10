@@ -121,7 +121,8 @@ function handleAlarms(snapshot) {
     lastAlarmSnapshot = { ...snapshot };
     return;
   }
-  if (previous?.phase === "prep" && snapshot.phase === "climb") {
+  const justStartedClimb = previous?.phase === "prep" || snapshot.remaining_seconds >= Number(snapshot.duration_seconds || 0) - 1;
+  if (justStartedClimb) {
     markOnce("start", () => beep(880, 0.18, 3));
   }
   if (crossed(60)) {

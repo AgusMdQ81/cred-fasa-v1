@@ -277,7 +277,8 @@ function handleTimerAlarms(timer) {
     state.lastTimerAlarmSnapshot = { ...timer };
     return;
   }
-  if (previous?.phase === "prep" && timer.phase === "climb") {
+  const justStartedClimb = previous?.phase === "prep" || timer.remaining_seconds >= Number(timer.duration_seconds || 0) - 1;
+  if (justStartedClimb) {
     markOnce("start", () => timerBeep(880, 0.18, 3));
   }
   if (crossed(60)) {
