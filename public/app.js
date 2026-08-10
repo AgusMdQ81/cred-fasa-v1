@@ -257,17 +257,18 @@ function handleTimerAlarms(timer) {
     callback();
   };
 
+  if (timer.phase !== "climb") {
+    state.lastTimerAlarmSnapshot = { ...timer };
+    return;
+  }
   if (previous?.phase === "prep" && timer.phase === "climb") {
     markOnce("start", () => timerBeep(880, 0.18, 3));
   }
-  if (previous?.phase === "climb" && timer.phase === "prep") {
-    markOnce("end", () => timerBeep(440, 0.32, 4, 0.34));
-  }
-  if (timer.phase === "climb" && crossed(60)) {
+  if (crossed(60)) {
     markOnce("one-minute", () => timerBeep(660, 0.24, 2, 0.28));
   }
-  [3, 2, 1].forEach((second) => {
-    if (timer.phase === "climb" && crossed(second)) {
+  [3, 2, 1, 0].forEach((second) => {
+    if (crossed(second)) {
       markOnce(`last-${second}`, () => timerBeep(1040, 0.14, 1));
     }
   });
@@ -358,7 +359,6 @@ async function runTimerAction(action) {
     }
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = { ...timer };
-    timerBeep(740, 0.16, 2);
   }
   if (action === "pause") {
     timer = {

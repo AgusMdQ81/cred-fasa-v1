@@ -112,17 +112,18 @@ function handleAlarms(snapshot) {
     callback();
   };
 
+  if (snapshot.phase !== "climb") {
+    lastAlarmSnapshot = { ...snapshot };
+    return;
+  }
   if (previous?.phase === "prep" && snapshot.phase === "climb") {
     markOnce("start", () => beep(880, 0.18, 3));
   }
-  if (previous?.phase === "climb" && snapshot.phase === "prep") {
-    markOnce("end", () => beep(440, 0.32, 4, 0.34));
-  }
-  if (snapshot.phase === "climb" && crossed(60)) {
+  if (crossed(60)) {
     markOnce("one-minute", () => beep(660, 0.24, 2, 0.28));
   }
-  [3, 2, 1].forEach((second) => {
-    if (snapshot.phase === "climb" && crossed(second)) {
+  [3, 2, 1, 0].forEach((second) => {
+    if (crossed(second)) {
       markOnce(`last-${second}`, () => beep(1040, 0.14, 1));
     }
   });
