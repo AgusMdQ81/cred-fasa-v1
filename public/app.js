@@ -81,7 +81,12 @@ function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) 
   return {
     round: roundKey,
     boulder: Number(boulder || 1),
-    timer_schema: 2,
+    timer_schema: 3,
+    mode: $("#timerMode")?.value || "manual",
+    category: $("#timerCategory")?.value || "mayor",
+    gender: $("#timerGender")?.value || "Mujer",
+    armed: false,
+    scheduled_start_at: null,
     phase: "prep",
     prep_seconds: TIMER_PREP_SECONDS,
     duration_seconds: timerRoundDuration(roundKey),
@@ -97,9 +102,15 @@ function readLocalTimer() {
   try {
     const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || "null");
     if (!stored) return null;
-    if (stored.timer_schema !== 2) return null;
+    if (stored.timer_schema !== 2 && stored.timer_schema !== 3) return null;
     return {
       ...stored,
+      timer_schema: 3,
+      mode: stored.mode || "manual",
+      category: stored.category || "mayor",
+      gender: stored.gender || "Mujer",
+      armed: Boolean(stored.armed),
+      scheduled_start_at: stored.scheduled_start_at || null,
       prep_seconds: Number(stored.prep_seconds || TIMER_PREP_SECONDS),
       duration_seconds: Number(stored.duration_seconds || timerRoundDuration(stored.round)),
       remaining_seconds: Number(stored.remaining_seconds || 0),
@@ -124,6 +135,17 @@ function writeLocalTimer(timer, broadcast = true) {
 function computedLocalTimer(timer = state.timer || readLocalTimer()) {
   if (!timer) return null;
   let next = { ...timer };
+  if (next.mode === "automatic" && next.armed && !next.running && next.scheduled_start_at) {
+    const startAt = new Date(next.scheduled_start_at).getTime();
+    if (Date.now() >= startAt) {
+      next = {
+        ...next,
+        armed: false,
+        running: true,
+        started_at: startAt,
+      };
+    }
+  }
   if (!next.running || !next.started_at) return next;
 
   let elapsed = Math.floor((Date.now() - next.started_at) / 1000);
@@ -147,12 +169,24 @@ function computedLocalTimer(timer = state.timer || readLocalTimer()) {
   return next;
 }
 
+function scheduledStartForTimer(roundKey, category, gender) {
+  const competitionId = scheduleCompetitionKey();
+  const stored = readRoundScheduleStore()[competitionId]?.[scheduleKey(roundKey, category, gender)];
+  if (!stored?.date || !stored?.time) return null;
+  const date = new Date(`${stored.date}T${stored.time}`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
 function timerPhaseLabel(timer) {
   return timer?.phase === "prep" ? "Preparacion" : "Escalada";
 }
 
 function timerStatusText(timer) {
   if (!timer) return "Cronometro local sin iniciar";
+  if (timer.mode === "automatic" && timer.armed && timer.scheduled_start_at) {
+    return `${timerRoundLabel(timer.round)} / automatico armado / inicia ${formatDateTimeForPdf(new Date(timer.scheduled_start_at))}`;
+  }
   const stateText = timer.running ? "corriendo" : "pausado";
   return `${timerRoundLabel(timer.round)} / ${timerPhaseLabel(timer)} / intervalo ${timer.cycle || 1} - ${stateText}`;
 }
@@ -172,7 +206,11 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerRoundTitle")) $("#timerRoundTitle").textContent = roundText;
   if ($("#timerPhaseLabel")) $("#timerPhaseLabel").textContent = timerPhaseLabel(timer);
   if ($("#timerPlayPause")) $("#timerPlayPause").textContent = timer.running ? "Pause" : "Play";
+  if ($("#timerPlayPause") && timer.mode === "automatic" && timer.armed) $("#timerPlayPause").textContent = "Armado";
   if ($("#timerRound")) $("#timerRound").value = timer.round;
+  if ($("#timerMode")) $("#timerMode").value = timer.mode || "manual";
+  if ($("#timerCategory")) $("#timerCategory").value = timer.category || "mayor";
+  if ($("#timerGender")) $("#timerGender").value = timer.gender || "Mujer";
 }
 
 function timerBeep(frequency = 880, duration = 0.18, repeats = 1, gap = 0.22) {
@@ -279,24 +317,55 @@ async function authorizeTimerAction() {
 }
 
 async function runTimerAction(action) {
+  applyTimerCategoryRules(currentCompetition());
   const round = $("#timerRound").value;
   const boulder = 1;
+  const mode = $("#timerMode")?.value || "manual";
+  const category = $("#timerCategory")?.value || "mayor";
+  const gender = $("#timerGender")?.value || "Mujer";
   let timer = computedLocalTimer() || newLocalTimer(round, boulder);
-  const roundChanged = timer.round !== round;
+  const roundChanged = timer.round !== round || timer.mode !== mode || timer.category !== category || timer.gender !== gender;
 
   if (action === "select" || roundChanged) {
     timer = newLocalTimer(round, boulder);
+    timer = { ...timer, mode, category, gender };
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
   if (action === "start") {
-    const phaseSeconds = timer.phase === "prep" ? timer.prep_seconds : timer.duration_seconds;
-    const elapsedBeforePause = Math.max(0, phaseSeconds - Number(timer.remaining_seconds || phaseSeconds));
-    timer = {
-      ...timer,
-      running: true,
-      started_at: Date.now() - elapsedBeforePause * 1000,
-    };
+    if (mode === "automatic") {
+      const scheduledStart = scheduledStartForTimer(round, category, gender);
+      if (!scheduledStart) {
+        $("#timerStatus").textContent = "Carga fecha y hora de comienzo para esta ronda, categoria y genero en Configuracion.";
+        return;
+      }
+      timer = {
+        ...timer,
+        mode,
+        category,
+        gender,
+        armed: true,
+        scheduled_start_at: scheduledStart,
+        running: false,
+        started_at: null,
+        phase: "prep",
+        remaining_seconds: TIMER_PREP_SECONDS,
+        cycle: 1,
+      };
+    } else {
+      const phaseSeconds = timer.phase === "prep" ? timer.prep_seconds : timer.duration_seconds;
+      const elapsedBeforePause = Math.max(0, phaseSeconds - Number(timer.remaining_seconds || phaseSeconds));
+      timer = {
+        ...timer,
+        mode,
+        category,
+        gender,
+        armed: false,
+        scheduled_start_at: null,
+        running: true,
+        started_at: Date.now() - elapsedBeforePause * 1000,
+      };
+    }
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = { ...timer };
     timerBeep(740, 0.16, 2);
@@ -305,11 +374,13 @@ async function runTimerAction(action) {
     timer = {
       ...timer,
       running: false,
+      armed: false,
       started_at: null,
     };
   }
   if (action === "reset") {
     timer = newLocalTimer(round, boulder);
+    timer = { ...timer, mode, category, gender };
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
@@ -2030,6 +2101,20 @@ function applyComputosCategoryRules(competition) {
   }
 }
 
+function applyTimerCategoryRules(competition) {
+  const categoryControl = $("#timerCategory");
+  if (!categoryControl || !competition) return;
+  if (competition.category === "Mayores") {
+    categoryControl.value = "mayor";
+    categoryControl.disabled = true;
+    return;
+  }
+  categoryControl.disabled = false;
+  if (competition.category === "Juveniles" && categoryControl.value === "mayor") {
+    categoryControl.value = "U17";
+  }
+}
+
 function updateComputosRoundOptions() {
   const select = $("#computosRound");
   if (!select) return;
@@ -2119,7 +2204,7 @@ async function loadTimer() {
     const serverTimer = await api("/api/timer");
     timer = writeLocalTimer(newLocalTimer(serverTimer.round, 1), false);
   }
-  if (timer.running) {
+  if (timer.running || timer.armed) {
     handleTimerAlarms(timer);
     writeLocalTimer(timer, true);
   } else {
@@ -2370,6 +2455,9 @@ function bindEvents() {
   $("#closeAccreditations").addEventListener("click", closeAccreditations);
   $("#assignRandomBibs").addEventListener("click", assignRandomBibs);
   $("#timerRound").addEventListener("change", renderBoulders);
+  $("#timerMode").addEventListener("change", () => openTimerAuthorization("select"));
+  $("#timerCategory").addEventListener("change", () => openTimerAuthorization("select"));
+  $("#timerGender").addEventListener("change", () => openTimerAuthorization("select"));
   $("#computosRound").addEventListener("change", () => {
     loadScores();
   });
@@ -2584,7 +2672,7 @@ function bindEvents() {
   $("#timerSelect").addEventListener("click", () => openTimerAuthorization("select"));
   $("#timerPlayPause").addEventListener("click", () => {
     const timer = computedLocalTimer();
-    openTimerAuthorization(timer?.running ? "pause" : "start");
+    openTimerAuthorization(timer?.running || timer?.armed ? "pause" : "start");
   });
   $("#timerStop").addEventListener("click", () => openTimerAuthorization("reset"));
   $("#closeTimerAuthorization").addEventListener("click", closeTimerAuthorization);

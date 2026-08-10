@@ -19,7 +19,7 @@ function formatTime(seconds) {
 function readTimer() {
   try {
     const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || "null");
-    return stored?.timer_schema === 2 ? stored : null;
+    return stored?.timer_schema === 2 || stored?.timer_schema === 3 ? stored : null;
   } catch {
     return null;
   }
@@ -33,6 +33,16 @@ function computedTimer(source = timer) {
   next.remaining_seconds = Number(next.remaining_seconds || 0);
   next.cycle = Number(next.cycle || 1);
   next.running = Boolean(next.running);
+  next.armed = Boolean(next.armed);
+
+  if (next.mode === "automatic" && next.armed && !next.running && next.scheduled_start_at) {
+    const startAt = new Date(next.scheduled_start_at).getTime();
+    if (Date.now() >= startAt) {
+      next.armed = false;
+      next.running = true;
+      next.started_at = startAt;
+    }
+  }
 
   if (!next.running || !next.started_at) return next;
 

@@ -589,7 +589,26 @@
             </div>
           </div>
           <div class="filters">
+            <label>Funcionamiento
+              <select id="timerMode">
+                <option value="manual">Manual</option>
+                <option value="automatic">Automatico</option>
+              </select>
+            </label>
             <label>Ronda <select id="timerRound"></select></label>
+            <label>Categoria
+              <select id="timerCategory">
+                <option value="mayor">Mayor</option>
+                <option value="U17">U17</option>
+                <option value="U19">U19</option>
+              </select>
+            </label>
+            <label>Genero
+              <select id="timerGender">
+                <option>Mujer</option>
+                <option>Hombre</option>
+              </select>
+            </label>
             <button id="timerSelect" class="computos-write">Aplicar</button>
             <button id="timerPlayPause" class="primary computos-write">Play</button>
             <button id="timerStop" class="computos-write">Stop</button>
@@ -834,6 +853,6 @@
       </div>
     </main>
 
-    <script src="/app.js?v=20260810-computos-start-order47"></script>
+    <script src="/app.js?v=20260810-auto-timer48"></script>
   </body>
 </html>
