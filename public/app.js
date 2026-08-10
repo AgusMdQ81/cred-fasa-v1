@@ -334,11 +334,11 @@ function judgeRole(roundKey) {
 }
 
 function allowedViews(role) {
-  if (role === "general_admin") return ["competitions", "regionalRepresentatives", "judgePeople", "computos", "admin", "registrations", "config", "results", "judge"];
+  if (role === "general_admin") return ["competitions", "regionalRepresentatives", "judgePeople"];
   if (role === "regional_representative") return ["competitions"];
-  if (role === "competition_admin") return ["computos", "admin", "registrations", "config", "results"];
+  if (role === "competition_admin") return ["computos", "registrations", "config", "results"];
   if (role === "organizer") return ["registrations"];
-  if (role === "judge") return ["judge", "admin", "results"];
+  if (role === "judge") return ["judge", "results"];
   if (role === "judge_portal") return ["judgePortal"];
   if (role === "competitor") return ["competitorPortal"];
   return ["results"];
@@ -361,7 +361,7 @@ function activateView(view, options = {}) {
   document.querySelectorAll(".tab, .view").forEach((element) => element.classList.remove("active"));
   document.querySelectorAll(`.tab[data-view="${safeView}"]`).forEach((element) => element.classList.add("active"));
   $(`#${safeView}`).classList.add("active");
-  if (safeView === "admin") loadCompetitors();
+  if (safeView === "judge") loadCompetitors();
   if (safeView === "judgePeople") loadJudgePeople();
   if (safeView === "regionalRepresentatives") loadRegionalRepresentatives();
   if (safeView === "results") loadLeaderboard();
@@ -384,7 +384,7 @@ function applyRole(role) {
   $("#appMain").classList.remove("hidden");
   document.querySelectorAll(".tab[data-view]").forEach((button) => {
     const roles = button.dataset.roles.split(" ");
-    const allowed = role === "general_admin" || roles.includes(role);
+    const allowed = allowedViews(role).includes(button.dataset.view) && roles.includes(role);
     button.hidden = !allowed;
     button.classList.toggle("role-hidden", !allowed);
     button.removeAttribute("aria-hidden");
@@ -496,9 +496,9 @@ function syncRequiredTableFilters() {
 
 function readRegistrationStore() {
   try {
-    return JSON.parse(localStorage.getItem(REGISTRATION_STORAGE_KEY) || '{"statuses":{},"deleted":[]}');
+    return JSON.parse(localStorage.getItem(REGISTRATION_STORAGE_KEY) || '{"statuses":{},"deleted":[],"closed":{},"bibs":{}}');
   } catch {
-    return { statuses: {}, deleted: [] };
+    return { statuses: {}, deleted: [], closed: {}, bibs: {} };
   }
 }
 
@@ -506,6 +506,8 @@ function writeRegistrationStore(store) {
   localStorage.setItem(REGISTRATION_STORAGE_KEY, JSON.stringify({
     statuses: store.statuses || {},
     deleted: store.deleted || [],
+    closed: store.closed || {},
+    bibs: store.bibs || {},
   }));
 }
 
@@ -519,9 +521,21 @@ function mergeStoredRegistrations(rows) {
   return rows
     .map((row) => {
       const key = registrationKey(row);
-      return { ...row, ...(store.statuses?.[key] || {}), _registration_key: key };
+      return { ...row, ...(store.statuses?.[key] || {}), bib: store.bibs?.[key] || "", _registration_key: key };
     })
     .filter((row) => !deleted.has(row._registration_key));
+}
+
+function registrationCompetitionKey() {
+  return String(state.currentCompetitionId || state.user?.competition_id || "");
+}
+
+function registrationsClosed() {
+  return Boolean(readRegistrationStore().closed?.[registrationCompetitionKey()]);
+}
+
+function canManageRegistrations() {
+  return state.role === "competition_admin" || state.role === "organizer";
 }
 
 function boulderOptions(roundKey, includeAll = false) {
@@ -1040,7 +1054,6 @@ function renderCompetitions() {
         <td>${adminUser}</td>
         <td>${organizerUser}</td>
         <td class="row-actions">
-          ${state.role === "general_admin" ? `<button data-open-competition-view="admin" data-competition-id="${competition.id}">Competidores</button>` : ""}
           ${state.role === "general_admin" ? `<button data-open-competition-view="registrations" data-competition-id="${competition.id}">Inscriptos</button>` : ""}
           ${state.role === "general_admin" ? `<button data-open-competition-view="computos" data-competition-id="${competition.id}">Computos</button>` : ""}
           ${state.role === "general_admin" ? `<button data-open-competition-view="results" data-competition-id="${competition.id}">Resultados</button>` : ""}
@@ -1469,7 +1482,8 @@ async function loadRegistrations() {
   const competitionId = state.currentCompetitionId || state.user?.competition_id;
   if (!competitionId) {
     $("#registrationsTitle").textContent = "Inscriptos";
-    $("#registrationsTable").innerHTML = '<tr><td colspan="12">Selecciona una competencia.</td></tr>';
+    $("#registrationsTable").innerHTML = '<tr><td colspan="14">Selecciona una competencia.</td></tr>';
+    renderRegistrationActions();
     return;
   }
   state.currentCompetitionId = Number(competitionId);
@@ -1478,9 +1492,12 @@ async function loadRegistrations() {
   $("#registrationsTitle").textContent = competition ? `Inscriptos - ${competition.name}` : "Inscriptos";
   const params = new URLSearchParams({ competition_id: state.currentCompetitionId, ...state.registrationFilters });
   state.registrations = mergeStoredRegistrations(await api(`/api/competition-registrants?${params}`));
+  const closed = registrationsClosed();
+  const writable = canManageRegistrations() && !closed;
   $("#registrationsTable").innerHTML = state.registrations.length
     ? state.registrations.map((row) => `
       <tr data-registration-id="${row.registration_id}" data-registration-key="${row._registration_key}">
+        <td>${row.bib || "-"}</td>
         <td>${row.bib_number}</td>
         <td>${row.last_name}, ${row.first_name}</td>
         <td>${row.dni}</td>
@@ -1490,19 +1507,37 @@ async function loadRegistrations() {
         <td>${row.region || "-"}</td>
         <td>${row.category}</td>
         <td>${row.gender}</td>
-        <td><input type="checkbox" data-registration-field="payment_validated" ${row.payment_validated ? "checked" : ""} /></td>
-        <td><input type="checkbox" data-registration-field="accredited" ${row.accredited ? "checked" : ""} ${row.payment_validated ? "" : "disabled"} /></td>
+        <td><input type="checkbox" data-registration-field="payment_validated" ${row.payment_validated ? "checked" : ""} ${writable ? "" : "disabled"} /></td>
+        <td><input type="checkbox" data-registration-field="accredited" ${row.accredited ? "checked" : ""} ${writable && row.payment_validated ? "" : "disabled"} /></td>
         <td>${row.registered_at || "-"}</td>
-        <td><button class="delete" data-delete-registration>Eliminar</button></td>
+        <td>${writable ? '<button class="delete" data-delete-registration>Eliminar</button>' : ""}</td>
       </tr>
     `).join("")
-    : '<tr><td colspan="13">No hay inscriptos para los filtros seleccionados.</td></tr>';
+    : '<tr><td colspan="14">No hay inscriptos para los filtros seleccionados.</td></tr>';
   $("#registrationsTable").querySelectorAll("[data-registration-field]").forEach((control) => {
     control.addEventListener("change", () => saveRegistrationStatus(control.closest("[data-registration-id]")));
   });
   $("#registrationsTable").querySelectorAll("[data-delete-registration]").forEach((button) => {
     button.addEventListener("click", () => deleteRegistration(button.closest("[data-registration-id]")));
   });
+  renderRegistrationActions();
+}
+
+function renderRegistrationActions() {
+  const closed = registrationsClosed();
+  const writable = canManageRegistrations();
+  const closeButton = $("#closeAccreditations");
+  const assignButton = $("#assignRandomBibs");
+  const status = $("#registrationsStatus");
+  if (!closeButton || !assignButton || !status) return;
+  closeButton.hidden = !writable;
+  assignButton.hidden = !writable;
+  closeButton.disabled = !writable || closed || !registrationCompetitionKey();
+  assignButton.disabled = !writable || !closed || !registrationCompetitionKey();
+  closeButton.textContent = closed ? "Acreditaciones cerradas" : "Cerrar acreditaciones";
+  status.textContent = closed
+    ? "Acreditaciones cerradas. Ya se puede asignar Bib aleatorio a los acreditados del filtro actual."
+    : "Las acreditaciones siguen abiertas. El Bib se habilita despues del cierre.";
 }
 
 function applyRegistrationCategoryRules(competition) {
@@ -1560,8 +1595,50 @@ function deleteRegistration(row) {
   writeRegistrationStore(store);
   row.remove();
   if (!$("#registrationsTable").children.length) {
-    $("#registrationsTable").innerHTML = '<tr><td colspan="13">No hay inscriptos para los filtros seleccionados.</td></tr>';
+    $("#registrationsTable").innerHTML = '<tr><td colspan="14">No hay inscriptos para los filtros seleccionados.</td></tr>';
   }
+}
+
+function closeAccreditations() {
+  if (!canManageRegistrations() || !registrationCompetitionKey()) return;
+  if (!confirm("Cerrar acreditaciones para esta competencia? Despues no se podran modificar pagos ni acreditaciones.")) return;
+  const store = readRegistrationStore();
+  store.closed = store.closed || {};
+  store.closed[registrationCompetitionKey()] = true;
+  writeRegistrationStore(store);
+  renderRegistrationActions();
+  loadRegistrations();
+}
+
+function shuffledRows(rows) {
+  return [...rows]
+    .map((row) => ({ row, sort: Math.random() }))
+    .sort((left, right) => left.sort - right.sort)
+    .map((item) => item.row);
+}
+
+function assignRandomBibs() {
+  if (!canManageRegistrations() || !registrationsClosed()) return;
+  const rows = state.registrations.filter((row) => row.accredited && !row.bib);
+  if (!rows.length) {
+    $("#registrationsStatus").textContent = "No hay acreditados sin Bib para el filtro seleccionado.";
+    return;
+  }
+  const store = readRegistrationStore();
+  store.bibs = store.bibs || {};
+  const competitionPrefix = `${registrationCompetitionKey()}:`;
+  const used = Object.entries(store.bibs)
+    .filter(([key]) => key.startsWith(competitionPrefix))
+    .map(([, value]) => Number(value))
+    .filter(Boolean);
+  let nextBib = used.length ? Math.max(...used) + 1 : 1;
+  shuffledRows(rows).forEach((row) => {
+    store.bibs[row._registration_key] = nextBib;
+    nextBib += 1;
+  });
+  writeRegistrationStore(store);
+  $("#registrationsStatus").textContent = `Bibs asignados a ${rows.length} acreditados.`;
+  loadRegistrations();
 }
 
 async function loadLeaderboard() {
@@ -1906,6 +1983,8 @@ function bindEvents() {
     });
   });
   $("#refreshRegistrations").addEventListener("click", loadRegistrations);
+  $("#closeAccreditations").addEventListener("click", closeAccreditations);
+  $("#assignRandomBibs").addEventListener("click", assignRandomBibs);
   $("#timerRound").addEventListener("change", renderBoulders);
   $("#computosRound").addEventListener("change", () => {
     renderBoulders();

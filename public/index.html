@@ -152,7 +152,6 @@
         <button class="tab role-hidden" data-view="judgePortal" data-roles="judge_portal" hidden>Mi perfil</button>
         <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Mi cuenta</button>
         <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Computos</button>
-        <button class="tab role-hidden" data-view="admin" data-roles="competition_admin judge" hidden>Competidores</button>
         <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
         <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuracion</button>
         <button class="tab role-hidden" data-view="results" data-roles="competition_admin judge guest" hidden>Resultados</button>
@@ -732,8 +731,13 @@
               <p class="eyebrow">Competencia</p>
               <h2 id="registrationsTitle">Inscriptos</h2>
             </div>
-            <button id="refreshRegistrations" type="button">Actualizar</button>
+            <div class="save-row">
+              <button id="closeAccreditations" type="button">Cerrar acreditaciones</button>
+              <button id="assignRandomBibs" class="primary" type="button" disabled>Asignar Bib aleatorio</button>
+              <button id="refreshRegistrations" type="button">Actualizar</button>
+            </div>
           </div>
+          <p id="registrationsStatus" class="hint" aria-live="polite"></p>
           <div class="filters">
             <label>Categoria
               <select id="registrationsCategory">
@@ -751,7 +755,7 @@
           </div>
           <table>
             <thead>
-              <tr><th>Nro.</th><th>Competidor</th><th>DNI</th><th>Mail</th><th>Celular</th><th>Club</th><th>Region</th><th>Categoria</th><th>Genero</th><th>Pago</th><th>Acreditado</th><th>Inscripcion</th><th></th></tr>
+              <tr><th>Bib</th><th>Nro.</th><th>Competidor</th><th>DNI</th><th>Mail</th><th>Celular</th><th>Club</th><th>Region</th><th>Categoria</th><th>Genero</th><th>Pago</th><th>Acreditado</th><th>Inscripcion</th><th></th></tr>
             </thead>
             <tbody id="registrationsTable"></tbody>
           </table>
@@ -806,6 +810,6 @@
       </div>
     </main>
 
-    <script src="/app.js?v=20260810-competition-competitors43"></script>
+    <script src="/app.js?v=20260810-registrations-bibs44"></script>
   </body>
 </html>
