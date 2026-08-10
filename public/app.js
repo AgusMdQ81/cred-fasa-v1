@@ -23,6 +23,7 @@ const state = {
   competitorPortal: null,
   competitorCredentials: null,
   pendingTimerAction: null,
+  pendingTimerControls: null,
   lastTimerAlarmSnapshot: null,
 };
 
@@ -287,6 +288,12 @@ function timerActionLabel(action) {
 
 function openTimerAuthorization(action) {
   state.pendingTimerAction = action;
+  state.pendingTimerControls = {
+    round: $("#timerRound")?.value || "clasificatoria",
+    mode: $("#timerMode")?.value || "manual",
+    category: $("#timerCategory")?.value || "mayor",
+    gender: $("#timerGender")?.value || "Mujer",
+  };
   $("#timerAuthorizationMessage").textContent = `Esta seguro que desea ${timerActionLabel(action)} el cronometro? Esta accion requiere autorizacion del Presidente de Jurado.`;
   $("#timerAuthorizationPassword").value = "";
   $("#timerAuthorizationStatus").textContent = "";
@@ -297,6 +304,7 @@ function openTimerAuthorization(action) {
 
 function closeTimerAuthorization() {
   state.pendingTimerAction = null;
+  state.pendingTimerControls = null;
   $("#timerAuthorizationModal").classList.add("hidden");
   document.body.classList.remove("modal-open");
 }
@@ -312,17 +320,18 @@ async function authorizeTimerAction() {
       body: JSON.stringify({ password, competition_id: state.currentCompetitionId || state.user?.competition_id }),
     });
   }
-  closeTimerAuthorization();
   await runTimerAction(action);
+  closeTimerAuthorization();
 }
 
 async function runTimerAction(action) {
   applyTimerCategoryRules(currentCompetition());
-  const round = $("#timerRound").value;
+  const controls = state.pendingTimerControls || {};
+  const round = controls.round || $("#timerRound").value;
   const boulder = 1;
-  const mode = $("#timerMode")?.value || "manual";
-  const category = $("#timerCategory")?.value || "mayor";
-  const gender = $("#timerGender")?.value || "Mujer";
+  const mode = controls.mode || $("#timerMode")?.value || "manual";
+  const category = controls.category || $("#timerCategory")?.value || "mayor";
+  const gender = controls.gender || $("#timerGender")?.value || "Mujer";
   let timer = computedLocalTimer() || newLocalTimer(round, boulder);
   const roundChanged = timer.round !== round || timer.mode !== mode || timer.category !== category || timer.gender !== gender;
 
