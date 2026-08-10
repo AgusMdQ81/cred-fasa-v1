@@ -31,6 +31,7 @@ const REGIONS = ["Buenos Aires", "Centro", "Cuyo", "Noa", "Litoral", "Patagonia 
 const TIMER_STORAGE_KEY = "credFasaLocalTimer";
 const TIMER_CHANNEL_NAME = "cred-fasa-timer";
 const TIMER_PREP_SECONDS = 15;
+const REGISTRATION_STORAGE_KEY = "credFasaRegistrationState";
 const timerChannel = "BroadcastChannel" in window ? new BroadcastChannel(TIMER_CHANNEL_NAME) : null;
 let timerAudioContext = null;
 const timerAlarmMarks = new Set();
@@ -491,6 +492,36 @@ function syncRequiredTableFilters() {
     const control = $(selector);
     if (control && !control.value) control.value = value;
   });
+}
+
+function readRegistrationStore() {
+  try {
+    return JSON.parse(localStorage.getItem(REGISTRATION_STORAGE_KEY) || '{"statuses":{},"deleted":[]}');
+  } catch {
+    return { statuses: {}, deleted: [] };
+  }
+}
+
+function writeRegistrationStore(store) {
+  localStorage.setItem(REGISTRATION_STORAGE_KEY, JSON.stringify({
+    statuses: store.statuses || {},
+    deleted: store.deleted || [],
+  }));
+}
+
+function registrationKey(row) {
+  return `${state.currentCompetitionId || row.competition_id}:${row.dni || row.id || row.registration_id}`;
+}
+
+function mergeStoredRegistrations(rows) {
+  const store = readRegistrationStore();
+  const deleted = new Set(store.deleted || []);
+  return rows
+    .map((row) => {
+      const key = registrationKey(row);
+      return { ...row, ...(store.statuses?.[key] || {}), _registration_key: key };
+    })
+    .filter((row) => !deleted.has(row._registration_key));
 }
 
 function boulderOptions(roundKey, includeAll = false) {
@@ -1418,10 +1449,10 @@ async function loadRegistrations() {
   applyRegistrationCategoryRules(competition);
   $("#registrationsTitle").textContent = competition ? `Inscriptos - ${competition.name}` : "Inscriptos";
   const params = new URLSearchParams({ competition_id: state.currentCompetitionId, ...state.registrationFilters });
-  state.registrations = await api(`/api/competition-registrants?${params}`);
+  state.registrations = mergeStoredRegistrations(await api(`/api/competition-registrants?${params}`));
   $("#registrationsTable").innerHTML = state.registrations.length
     ? state.registrations.map((row) => `
-      <tr data-registration-id="${row.registration_id}">
+      <tr data-registration-id="${row.registration_id}" data-registration-key="${row._registration_key}">
         <td>${row.bib_number}</td>
         <td>${row.last_name}, ${row.first_name}</td>
         <td>${row.dni}</td>
@@ -1434,11 +1465,15 @@ async function loadRegistrations() {
         <td><input type="checkbox" data-registration-field="payment_validated" ${row.payment_validated ? "checked" : ""} /></td>
         <td><input type="checkbox" data-registration-field="accredited" ${row.accredited ? "checked" : ""} ${row.payment_validated ? "" : "disabled"} /></td>
         <td>${row.registered_at || "-"}</td>
+        <td><button class="delete" data-delete-registration>Eliminar</button></td>
       </tr>
     `).join("")
-    : '<tr><td colspan="12">No hay inscriptos para los filtros seleccionados.</td></tr>';
+    : '<tr><td colspan="13">No hay inscriptos para los filtros seleccionados.</td></tr>';
   $("#registrationsTable").querySelectorAll("[data-registration-field]").forEach((control) => {
     control.addEventListener("change", () => saveRegistrationStatus(control.closest("[data-registration-id]")));
+  });
+  $("#registrationsTable").querySelectorAll("[data-delete-registration]").forEach((button) => {
+    button.addEventListener("click", () => deleteRegistration(button.closest("[data-registration-id]")));
   });
 }
 
@@ -1472,6 +1507,13 @@ async function saveRegistrationStatus(row) {
     accredited.checked = false;
     return;
   }
+  const store = readRegistrationStore();
+  store.statuses = store.statuses || {};
+  store.statuses[row.dataset.registrationKey] = {
+    payment_validated: paid.checked,
+    accredited: accredited.checked,
+  };
+  writeRegistrationStore(store);
   await api("/api/competition-registration-status", {
     method: "POST",
     body: JSON.stringify({
@@ -1481,6 +1523,17 @@ async function saveRegistrationStatus(row) {
       accredited: accredited.checked,
     }),
   });
+}
+
+function deleteRegistration(row) {
+  if (!row) return;
+  const store = readRegistrationStore();
+  store.deleted = Array.from(new Set([...(store.deleted || []), row.dataset.registrationKey]));
+  writeRegistrationStore(store);
+  row.remove();
+  if (!$("#registrationsTable").children.length) {
+    $("#registrationsTable").innerHTML = '<tr><td colspan="13">No hay inscriptos para los filtros seleccionados.</td></tr>';
+  }
 }
 
 async function loadLeaderboard() {
