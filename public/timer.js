@@ -101,7 +101,7 @@ function handleAlarms(snapshot) {
   const previous = lastAlarmSnapshot;
   const crossed = (target) => {
     if (!previous || previous.phase !== snapshot.phase || previous.cycle !== snapshot.cycle) {
-      return snapshot.remaining_seconds === target;
+      return snapshot.phase === "climb" && snapshot.remaining_seconds <= target;
     }
     return previous.remaining_seconds > target && snapshot.remaining_seconds <= target;
   };
@@ -112,6 +112,11 @@ function handleAlarms(snapshot) {
     callback();
   };
 
+  if (previous?.phase === "climb" && snapshot.phase === "prep") {
+    markOnce("last-0", () => beep(420, 0.28, 2, 0.18));
+    lastAlarmSnapshot = { ...snapshot };
+    return;
+  }
   if (snapshot.phase !== "climb") {
     lastAlarmSnapshot = { ...snapshot };
     return;
@@ -124,7 +129,10 @@ function handleAlarms(snapshot) {
   }
   [3, 2, 1, 0].forEach((second) => {
     if (crossed(second)) {
-      markOnce(`last-${second}`, () => beep(1040, 0.14, 1));
+      markOnce(`last-${second}`, () => {
+        if (second === 0) beep(420, 0.28, 2, 0.18);
+        else beep(1040, 0.14, 1);
+      });
     }
   });
   lastAlarmSnapshot = { ...snapshot };

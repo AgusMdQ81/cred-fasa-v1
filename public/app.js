@@ -257,7 +257,7 @@ function handleTimerAlarms(timer) {
   const previous = state.lastTimerAlarmSnapshot;
   const crossed = (target) => {
     if (!previous || previous.phase !== timer.phase || previous.cycle !== timer.cycle) {
-      return timer.remaining_seconds === target;
+      return timer.phase === "climb" && timer.remaining_seconds <= target;
     }
     return previous.remaining_seconds > target && timer.remaining_seconds <= target;
   };
@@ -268,6 +268,11 @@ function handleTimerAlarms(timer) {
     callback();
   };
 
+  if (previous?.phase === "climb" && timer.phase === "prep") {
+    markOnce("last-0", () => timerBeep(420, 0.28, 2, 0.18));
+    state.lastTimerAlarmSnapshot = { ...timer };
+    return;
+  }
   if (timer.phase !== "climb") {
     state.lastTimerAlarmSnapshot = { ...timer };
     return;
@@ -280,7 +285,10 @@ function handleTimerAlarms(timer) {
   }
   [3, 2, 1, 0].forEach((second) => {
     if (crossed(second)) {
-      markOnce(`last-${second}`, () => timerBeep(1040, 0.14, 1));
+      markOnce(`last-${second}`, () => {
+        if (second === 0) timerBeep(420, 0.28, 2, 0.18);
+        else timerBeep(1040, 0.14, 1);
+      });
     }
   });
   state.lastTimerAlarmSnapshot = { ...timer };
