@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f7f4ef;
+  --ink: #303033;
+  --muted: #726b63;
+  --line: #ded7ce;
+  --accent: #b46f2a;
+  --accent-dark: #85511f;
+  --panel: #fffdfa;
+  --charcoal: #3b3b3d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    linear-gradient(rgba(247, 244, 239, 0.9), rgba(247, 244, 239, 0.96)),
+    url("/assets/fasa-wall-bg.jpg") center top / cover fixed;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+.primary {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button.primary,
+.primary {
+  color: white;
+  border-color: var(--accent-dark);
+  background: var(--accent);
+}
+
+button.active {
+  color: white;
+  background: var(--charcoal);
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: white;
+}
+
+main {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+.hero {
+  min-height: 260px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 36px 0 24px;
+}
+
+.hero h1 {
+  max-width: 780px;
+  margin: 8px 0 0;
+  font-size: clamp(42px, 8vw, 88px);
+  line-height: 0.92;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.hero img {
+  width: clamp(120px, 16vw, 210px);
+  height: auto;
+  object-fit: contain;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.access,
+.tabs,
+.buttonRow,
+.filters,
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.access,
+.tabs,
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 253, 250, 0.94);
+  box-shadow: 0 16px 40px rgba(48, 48, 51, 0.08);
+}
+
+.access {
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.tabs {
+  margin-bottom: 14px;
+  padding: 10px;
+}
+
+.panel {
+  margin-bottom: 14px;
+  padding: 18px;
+}
+
+.compact {
+  max-width: 680px;
+}
+
+.sectionHead {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+h2,
+h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.calendarGrid article {
+  min-height: 150px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.calendarGrid strong,
+.calendarGrid span {
+  color: var(--accent);
+  font-weight: 900;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 8px;
+  background: white;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  color: white;
+  background: var(--charcoal);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+tbody tr:hover {
+  background: #fff6eb;
+}
+
+.timerBox {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111;
+  color: white;
+}
+
+.timerBox select {
+  width: min(360px, 90%);
+}
+
+.timerBox strong {
+  font-size: clamp(96px, 20vw, 240px);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.timerBox span {
+  color: #e7c39e;
+  font-size: 20px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.scoring {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.scoring strong {
+  font-size: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  main {
+    width: min(100% - 20px, 1180px);
+    padding-top: 12px;
+  }
+
+  .hero {
+    min-height: 220px;
+  }
+
+  .hero img {
+    width: 120px;
+  }
+
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
