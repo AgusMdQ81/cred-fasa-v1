@@ -77,12 +77,20 @@ function timerRoundDuration(roundKey) {
   return roundKey === "clasificatoria" ? 300 : 240;
 }
 
+function selectedTimerGenders() {
+  const genders = [];
+  if ($("#timerGenderWomen")?.checked) genders.push("Mujer");
+  if ($("#timerGenderMen")?.checked) genders.push("Hombre");
+  return genders.length ? genders : ["Mujer", "Hombre"];
+}
+
 function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) {
   return {
     round: roundKey,
     boulder: Number(boulder || 1),
     timer_schema: 3,
     mode: $("#timerMode")?.value || "manual",
+    genders: selectedTimerGenders(),
     armed: false,
     scheduled_start_at: null,
     phase: "prep",
@@ -105,6 +113,7 @@ function readLocalTimer() {
       ...stored,
       timer_schema: 3,
       mode: stored.mode || "manual",
+      genders: Array.isArray(stored.genders) && stored.genders.length ? stored.genders : ["Mujer", "Hombre"],
       armed: Boolean(stored.armed),
       scheduled_start_at: stored.scheduled_start_at || null,
       prep_seconds: Number(stored.prep_seconds || TIMER_PREP_SECONDS),
@@ -208,6 +217,8 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerPlayPause") && timer.mode === "automatic" && timer.armed) $("#timerPlayPause").textContent = "Armado";
   if ($("#timerRound")) $("#timerRound").value = timer.round;
   if ($("#timerMode")) $("#timerMode").value = timer.mode || "manual";
+  if ($("#timerGenderWomen")) $("#timerGenderWomen").checked = (timer.genders || []).includes("Mujer");
+  if ($("#timerGenderMen")) $("#timerGenderMen").checked = (timer.genders || []).includes("Hombre");
 }
 
 function timerBeep(frequency = 880, duration = 0.18, repeats = 1, gap = 0.22) {
@@ -318,12 +329,13 @@ async function runTimerAction(action) {
   const round = $("#timerRound").value;
   const boulder = 1;
   const mode = $("#timerMode")?.value || "manual";
+  const genders = selectedTimerGenders();
   let timer = computedLocalTimer() || newLocalTimer(round, boulder);
-  const roundChanged = timer.round !== round || timer.mode !== mode;
+  const roundChanged = timer.round !== round || timer.mode !== mode || JSON.stringify(timer.genders || []) !== JSON.stringify(genders);
 
   if (action === "select" || roundChanged) {
     timer = newLocalTimer(round, boulder);
-    timer = { ...timer, mode };
+    timer = { ...timer, mode, genders };
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
@@ -337,6 +349,7 @@ async function runTimerAction(action) {
       timer = {
         ...timer,
         mode,
+        genders,
         armed: true,
         scheduled_start_at: scheduledStart,
         running: false,
@@ -351,6 +364,7 @@ async function runTimerAction(action) {
       timer = {
         ...timer,
         mode,
+        genders,
         armed: false,
         scheduled_start_at: null,
         running: true,
@@ -370,7 +384,7 @@ async function runTimerAction(action) {
   }
   if (action === "reset") {
     timer = newLocalTimer(round, boulder);
-    timer = { ...timer, mode };
+    timer = { ...timer, mode, genders };
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
@@ -2107,6 +2121,13 @@ function updateComputosRoundOptions() {
   }
 }
 
+function activeBoulderForOrder(orderIndex, boulderIndex, timer, gender, round) {
+  if (!timer?.running || timer.phase !== "climb") return false;
+  if (timer.round !== round) return false;
+  if (!(timer.genders || ["Mujer", "Hombre"]).includes(gender)) return false;
+  return Number(timer.cycle || 1) === orderIndex + 2 * boulderIndex;
+}
+
 async function loadScores() {
   applyComputosCategoryRules(currentCompetition());
   updateComputosRoundOptions();
@@ -2133,6 +2154,7 @@ async function loadScores() {
     zones: leaderboardByBib.get(Number(competitor.bib_number))?.zones || 0,
     attempts: leaderboardByBib.get(Number(competitor.bib_number))?.attempts || 0,
   }));
+  const timer = computedLocalTimer();
   const readonly = state.role === "general_admin";
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#scoresHead").innerHTML = `
@@ -2143,13 +2165,20 @@ async function loadScores() {
     </tr>
   `;
   $("#scoresTable").innerHTML = rows.map((row) => `
-    <tr>
+    <tr data-computos-row data-order="${orderMap.get(Number(row.bib_number)) + 1}">
       <td>${orderMap.has(Number(row.bib_number)) ? orderMap.get(Number(row.bib_number)) + 1 : "-"}</td>
       <td>${orderedCompetitors.find((item) => Number(item.bib_number) === Number(row.bib_number))?.bib || "-"}</td>
       <td>${row.bib_number}</td>
       <td>${row.last_name}, ${row.first_name}</td>
       <td>${row.club || "-"}</td>
-      ${row.boulders.map((value) => `<td>${Number(value).toFixed(1)}</td>`).join("")}
+      ${row.boulders.map((value, index) => `
+        <td>
+          <span class="score-cell">
+            <span class="active-light ${activeBoulderForOrder(orderMap.get(Number(row.bib_number)) + 1, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
+            ${Number(value).toFixed(1)}
+          </span>
+        </td>
+      `).join("")}
       <td><strong>${Number(row.total_score).toFixed(1)}</strong></td>
       <td>${row.tops}</td>
       <td>${row.zones}</td>
@@ -2160,6 +2189,20 @@ async function loadScores() {
     ? "Ronda cerrada para esta categoria y genero."
     : "Ronda abierta. Al cerrarla se habilita la ronda siguiente.";
   $("#closeComputosRound").disabled = readonly || roundClosed(round, category, gender);
+}
+
+function refreshComputosActiveLights() {
+  const table = $("#scoresTable");
+  if (!table) return;
+  const timer = computedLocalTimer();
+  const round = $("#computosRound")?.value || "clasificatoria";
+  const gender = $("#computosGender")?.value || "Mujer";
+  table.querySelectorAll("[data-computos-row]").forEach((row) => {
+    const order = Number(row.dataset.order || 0);
+    row.querySelectorAll("[data-boulder-index]").forEach((light) => {
+      light.classList.toggle("on", activeBoulderForOrder(order, Number(light.dataset.boulderIndex), timer, gender, round));
+    });
+  });
 }
 
 function closeComputosRound() {
@@ -2186,6 +2229,7 @@ async function loadTimer() {
   } else {
     renderTimer(timer);
   }
+  refreshComputosActiveLights();
 }
 
 async function refreshComputed() {
@@ -2435,6 +2479,8 @@ function bindEvents() {
     runTimerAction("select");
   });
   $("#timerMode").addEventListener("change", () => runTimerAction("select"));
+  $("#timerGenderWomen").addEventListener("change", () => runTimerAction("select"));
+  $("#timerGenderMen").addEventListener("change", () => runTimerAction("select"));
   $("#computosRound").addEventListener("change", () => {
     loadScores();
   });

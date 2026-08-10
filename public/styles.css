@@ -722,6 +722,26 @@ td select {
   min-width: 92px;
 }
 
+.score-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.active-light {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #d5d8d2;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.active-light.on {
+  background: #19b957;
+  box-shadow: 0 0 0 3px rgba(25, 185, 87, 0.14), 0 0 12px rgba(25, 185, 87, 0.55);
+}
+
 #judgesGrid td input,
 #judgesGrid td select {
   min-height: 34px;
