@@ -162,13 +162,33 @@ function getJudges() {
   }));
 }
 
+function competitionById(competitionId: number) {
+  return competitions.find((item) => item.id === competitionId) || competitions[0];
+}
+
+function registeredCompetitors(competitionId: number, gender = "Mujer", category = "mayor") {
+  const competition = competitionById(competitionId);
+  return competitors
+    .filter((competitor) => competitor.gender === gender)
+    .filter((competitor) => {
+      if (competition.category === "Mayores") return competitor.category !== "U17";
+      if (competition.category === "Juveniles") return competitor.category === category && category !== "mayor";
+      return competitor.category === category;
+    })
+    .map((competitor) => ({
+      ...competitor,
+      competition_id: competition.id,
+      category: competition.category === "Mayores" ? "mayor" : competitor.category,
+      original_category: competitor.category,
+    }));
+}
+
 function leaderboard(url: URL) {
   const round = (url.searchParams.get("round") || "clasificatoria") as RoundKey;
   const category = url.searchParams.get("category") || "mayor";
   const gender = url.searchParams.get("gender") || "Mujer";
-  return competitors
-    .filter((competitor) => !category || competitor.category === category)
-    .filter((competitor) => !gender || competitor.gender === gender)
+  const competitionId = Number(url.searchParams.get("competition_id") || 1);
+  return registeredCompetitors(competitionId, gender, category)
     .map((competitor) => {
       const rows = savedScores.filter((score) => score.competitor_id === competitor.id && score.round === round);
       const boulders = Array.from({ length: rounds[round].boulders }, (_, index) => rows.find((row) => row.boulder === index + 1)?.score || 0);
@@ -207,21 +227,11 @@ export async function GET(request: Request) {
     const category = url.searchParams.get("category") || "mayor";
     const gender = url.searchParams.get("gender") || "Mujer";
     const competitionId = Number(url.searchParams.get("competition_id") || 1);
-    const competition = competitions.find((item) => item.id === competitionId) || competitions[0];
-    const eligible = competitors.filter((competitor) => {
-      if (competitor.gender !== gender) return false;
-      if (competition.category === "Mayores") return competitor.category !== "U17";
-      if (competition.category === "Juveniles") return competitor.category === category && category !== "mayor";
-      return competitor.category === category;
-    });
-    return json(eligible.slice(0, 18).map((competitor, index) => {
+    return json(registeredCompetitors(competitionId, gender, category).slice(0, 18).map((competitor, index) => {
       const payment_validated = index % 3 !== 0;
       return {
         registration_id: index + 1,
-        competition_id: competition.id,
         ...competitor,
-        category: competition.category === "Mayores" ? "mayor" : competitor.category,
-        original_category: competitor.category,
         payment_validated,
         accredited: payment_validated && index % 4 !== 0,
         registered_at: "2026-08-10",

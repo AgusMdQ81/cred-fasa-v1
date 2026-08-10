@@ -1537,10 +1537,11 @@ function deleteRegistration(row) {
 }
 
 async function loadLeaderboard() {
+  applyResultsCategoryRules(currentCompetition());
   const round = $("#resultsRound").value || activeRounds()[0]?.[0] || "clasificatoria";
   const category = $("#resultsCategory").value;
   const gender = $("#resultsGender").value;
-  const params = new URLSearchParams({ round, category, gender });
+  const params = new URLSearchParams({ round, category, gender, competition_id: state.currentCompetitionId || state.user?.competition_id || 1 });
   const rows = await api(`/api/leaderboard?${params}`);
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#leaderboardHead").innerHTML = `
@@ -1563,6 +1564,20 @@ async function loadLeaderboard() {
     </tr>
   `).join("");
   $("#exportCsv").href = `/api/export.csv?${params}`;
+}
+
+function applyResultsCategoryRules(competition) {
+  const categoryControl = $("#resultsCategory");
+  if (!categoryControl || !competition) return;
+  if (competition.category === "Mayores") {
+    categoryControl.value = "mayor";
+    categoryControl.disabled = true;
+    return;
+  }
+  categoryControl.disabled = false;
+  if (competition.category === "Juveniles" && categoryControl.value === "mayor") {
+    categoryControl.value = "U17";
+  }
 }
 
 async function loadScores() {
