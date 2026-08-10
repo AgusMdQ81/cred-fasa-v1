@@ -210,7 +210,7 @@ export async function GET(request: Request) {
     const competition = competitions.find((item) => item.id === competitionId) || competitions[0];
     const eligible = competitors.filter((competitor) => {
       if (competitor.gender !== gender) return false;
-      if (competition.category === "Mayores") return competitor.category !== "U17" && category === "mayor";
+      if (competition.category === "Mayores") return competitor.category !== "U17";
       if (competition.category === "Juveniles") return competitor.category === category && category !== "mayor";
       return competitor.category === category;
     });

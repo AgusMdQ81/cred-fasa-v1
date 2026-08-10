@@ -1415,6 +1415,7 @@ async function loadRegistrations() {
   }
   state.currentCompetitionId = Number(competitionId);
   const competition = currentCompetition();
+  applyRegistrationCategoryRules(competition);
   $("#registrationsTitle").textContent = competition ? `Inscriptos - ${competition.name}` : "Inscriptos";
   const params = new URLSearchParams({ competition_id: state.currentCompetitionId, ...state.registrationFilters });
   state.registrations = await api(`/api/competition-registrants?${params}`);
@@ -1439,6 +1440,22 @@ async function loadRegistrations() {
   $("#registrationsTable").querySelectorAll("[data-registration-field]").forEach((control) => {
     control.addEventListener("change", () => saveRegistrationStatus(control.closest("[data-registration-id]")));
   });
+}
+
+function applyRegistrationCategoryRules(competition) {
+  const categoryControl = $("#registrationsCategory");
+  if (!categoryControl || !competition) return;
+  if (competition.category === "Mayores") {
+    state.registrationFilters.category = "mayor";
+    categoryControl.value = "mayor";
+    categoryControl.disabled = true;
+    return;
+  }
+  categoryControl.disabled = false;
+  if (competition.category === "Juveniles" && state.registrationFilters.category === "mayor") {
+    state.registrationFilters.category = "U17";
+    categoryControl.value = "U17";
+  }
 }
 
 async function saveRegistrationStatus(row) {
