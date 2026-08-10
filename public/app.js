@@ -23,7 +23,6 @@ const state = {
   competitorPortal: null,
   competitorCredentials: null,
   pendingTimerAction: null,
-  pendingTimerControls: null,
   lastTimerAlarmSnapshot: null,
 };
 
@@ -84,8 +83,6 @@ function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) 
     boulder: Number(boulder || 1),
     timer_schema: 3,
     mode: $("#timerMode")?.value || "manual",
-    category: $("#timerCategory")?.value || "mayor",
-    gender: $("#timerGender")?.value || "Mujer",
     armed: false,
     scheduled_start_at: null,
     phase: "prep",
@@ -108,8 +105,6 @@ function readLocalTimer() {
       ...stored,
       timer_schema: 3,
       mode: stored.mode || "manual",
-      category: stored.category || "mayor",
-      gender: stored.gender || "Mujer",
       armed: Boolean(stored.armed),
       scheduled_start_at: stored.scheduled_start_at || null,
       prep_seconds: Number(stored.prep_seconds || TIMER_PREP_SECONDS),
@@ -170,9 +165,12 @@ function computedLocalTimer(timer = state.timer || readLocalTimer()) {
   return next;
 }
 
-function scheduledStartForTimer(roundKey, category, gender) {
+function scheduledStartForTimer(roundKey) {
   const competitionId = scheduleCompetitionKey();
-  const stored = readRoundScheduleStore()[competitionId]?.[scheduleKey(roundKey, category, gender)];
+  const schedules = readRoundScheduleStore()[competitionId] || {};
+  const stored = Object.values(schedules)
+    .filter((item) => item?.round === roundKey && item.date && item.time)
+    .sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`))[0];
   if (!stored?.date || !stored?.time) return null;
   const date = new Date(`${stored.date}T${stored.time}`);
   if (Number.isNaN(date.getTime())) return null;
@@ -210,8 +208,6 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerPlayPause") && timer.mode === "automatic" && timer.armed) $("#timerPlayPause").textContent = "Armado";
   if ($("#timerRound")) $("#timerRound").value = timer.round;
   if ($("#timerMode")) $("#timerMode").value = timer.mode || "manual";
-  if ($("#timerCategory")) $("#timerCategory").value = timer.category || "mayor";
-  if ($("#timerGender")) $("#timerGender").value = timer.gender || "Mujer";
 }
 
 function timerBeep(frequency = 880, duration = 0.18, repeats = 1, gap = 0.22) {
@@ -288,12 +284,6 @@ function timerActionLabel(action) {
 
 function openTimerAuthorization(action) {
   state.pendingTimerAction = action;
-  state.pendingTimerControls = {
-    round: $("#timerRound")?.value || "clasificatoria",
-    mode: $("#timerMode")?.value || "manual",
-    category: $("#timerCategory")?.value || "mayor",
-    gender: $("#timerGender")?.value || "Mujer",
-  };
   $("#timerAuthorizationMessage").textContent = `Esta seguro que desea ${timerActionLabel(action)} el cronometro? Esta accion requiere autorizacion del Presidente de Jurado.`;
   $("#timerAuthorizationPassword").value = "";
   $("#timerAuthorizationStatus").textContent = "";
@@ -304,7 +294,6 @@ function openTimerAuthorization(action) {
 
 function closeTimerAuthorization() {
   state.pendingTimerAction = null;
-  state.pendingTimerControls = null;
   $("#timerAuthorizationModal").classList.add("hidden");
   document.body.classList.remove("modal-open");
 }
@@ -325,34 +314,28 @@ async function authorizeTimerAction() {
 }
 
 async function runTimerAction(action) {
-  applyTimerCategoryRules(currentCompetition());
-  const controls = state.pendingTimerControls || {};
-  const round = controls.round || $("#timerRound").value;
+  const round = $("#timerRound").value;
   const boulder = 1;
-  const mode = controls.mode || $("#timerMode")?.value || "manual";
-  const category = controls.category || $("#timerCategory")?.value || "mayor";
-  const gender = controls.gender || $("#timerGender")?.value || "Mujer";
+  const mode = $("#timerMode")?.value || "manual";
   let timer = computedLocalTimer() || newLocalTimer(round, boulder);
-  const roundChanged = timer.round !== round || timer.mode !== mode || timer.category !== category || timer.gender !== gender;
+  const roundChanged = timer.round !== round || timer.mode !== mode;
 
   if (action === "select" || roundChanged) {
     timer = newLocalTimer(round, boulder);
-    timer = { ...timer, mode, category, gender };
+    timer = { ...timer, mode };
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
   if (action === "start") {
     if (mode === "automatic") {
-      const scheduledStart = scheduledStartForTimer(round, category, gender);
+      const scheduledStart = scheduledStartForTimer(round);
       if (!scheduledStart) {
-        $("#timerStatus").textContent = "Carga fecha y hora de comienzo para esta ronda, categoria y genero en Configuracion.";
+        $("#timerStatus").textContent = "Carga fecha y hora de comienzo para esta ronda en Configuracion.";
         return;
       }
       timer = {
         ...timer,
         mode,
-        category,
-        gender,
         armed: true,
         scheduled_start_at: scheduledStart,
         running: false,
@@ -367,8 +350,6 @@ async function runTimerAction(action) {
       timer = {
         ...timer,
         mode,
-        category,
-        gender,
         armed: false,
         scheduled_start_at: null,
         running: true,
@@ -389,7 +370,7 @@ async function runTimerAction(action) {
   }
   if (action === "reset") {
     timer = newLocalTimer(round, boulder);
-    timer = { ...timer, mode, category, gender };
+    timer = { ...timer, mode };
     timerAlarmMarks.clear();
     state.lastTimerAlarmSnapshot = null;
   }
@@ -2110,20 +2091,6 @@ function applyComputosCategoryRules(competition) {
   }
 }
 
-function applyTimerCategoryRules(competition) {
-  const categoryControl = $("#timerCategory");
-  if (!categoryControl || !competition) return;
-  if (competition.category === "Mayores") {
-    categoryControl.value = "mayor";
-    categoryControl.disabled = true;
-    return;
-  }
-  categoryControl.disabled = false;
-  if (competition.category === "Juveniles" && categoryControl.value === "mayor") {
-    categoryControl.value = "U17";
-  }
-}
-
 function updateComputosRoundOptions() {
   const select = $("#computosRound");
   if (!select) return;
@@ -2463,10 +2430,11 @@ function bindEvents() {
   $("#refreshRegistrations").addEventListener("click", loadRegistrations);
   $("#closeAccreditations").addEventListener("click", closeAccreditations);
   $("#assignRandomBibs").addEventListener("click", assignRandomBibs);
-  $("#timerRound").addEventListener("change", renderBoulders);
-  $("#timerMode").addEventListener("change", () => openTimerAuthorization("select"));
-  $("#timerCategory").addEventListener("change", () => openTimerAuthorization("select"));
-  $("#timerGender").addEventListener("change", () => openTimerAuthorization("select"));
+  $("#timerRound").addEventListener("change", () => {
+    renderBoulders();
+    runTimerAction("select");
+  });
+  $("#timerMode").addEventListener("change", () => runTimerAction("select"));
   $("#computosRound").addEventListener("change", () => {
     loadScores();
   });
@@ -2678,7 +2646,7 @@ function bindEvents() {
     $(`#${id}`).addEventListener("change", loadLeaderboard);
   });
 
-  $("#timerSelect").addEventListener("click", () => openTimerAuthorization("select"));
+  $("#timerSelect").addEventListener("click", () => runTimerAction("select"));
   $("#timerPlayPause").addEventListener("click", () => {
     const timer = computedLocalTimer();
     openTimerAuthorization(timer?.running || timer?.armed ? "pause" : "start");
