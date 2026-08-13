@@ -247,8 +247,8 @@ button:hover,
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 26px;
   align-items: start;
   margin-top: 20px;
 }
@@ -260,7 +260,7 @@ button:hover,
 .month-rail {
   display: grid;
   gap: 2px;
-  padding: 2px 8px;
+  padding: 4px 12px;
   color: var(--charcoal);
   background: transparent;
   position: sticky;
@@ -268,28 +268,28 @@ button:hover,
 }
 
 .month-year {
-  min-height: 46px;
+  min-height: 60px;
   padding: 4px 6px 10px;
-  color: #1a2a37;
+  color: #0c1c29;
   border: 0;
   background: transparent;
-  font-size: 24px;
+  font-size: 34px;
   font-weight: 900;
   line-height: 1;
   justify-content: start;
-  opacity: .82;
+  opacity: 1;
 }
 
 .month-year.active {
-  color: #7b5800;
-  font-size: 30px;
+  color: #5c3e00;
+  font-size: 42px;
   opacity: 1;
 }
 
 .month-list {
   display: grid;
   gap: 5px;
-  max-height: 292px;
+  max-height: 390px;
   overflow: auto;
   scrollbar-width: none;
 }
@@ -300,9 +300,9 @@ button:hover,
 
 .month-button,
 .month-arrow {
-  min-height: 48px;
-  padding: 4px 6px;
-  color: var(--charcoal);
+  min-height: 62px;
+  padding: 6px 8px;
+  color: #10202f;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -319,36 +319,37 @@ button:hover,
 }
 
 .month-button strong {
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .month-button:disabled {
-  color: #65717b;
+  color: #46535d;
   cursor: default;
-  opacity: .62;
+  opacity: .9;
+  text-shadow: 0 1px 0 rgba(255,255,255,.75);
 }
 
 .month-button:not(:disabled):hover {
-  color: var(--accent-dark);
+  color: #654600;
   opacity: 1;
 }
 
 .month-button.active {
-  color: #765300;
+  color: #513600;
   background: transparent;
   opacity: 1;
 }
 
 .month-button.active strong {
-  font-size: 23px;
+  font-size: 31px;
 }
 
 .month-arrow {
-  min-height: 48px;
-  color: var(--charcoal);
-  font-size: 30px;
+  min-height: 58px;
+  color: #10202f;
+  font-size: 40px;
   font-weight: 900;
   opacity: .9;
 }
