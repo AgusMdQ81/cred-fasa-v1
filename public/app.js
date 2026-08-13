@@ -13,6 +13,8 @@ const state = {
   judges: [],
   judgePeople: [],
   regionalRepresentatives: [],
+  fasaProfiles: [],
+  validatedJudgeBatch: [],
   competitions: [],
   registrations: [],
   currentCompetitionId: null,
@@ -1314,7 +1316,10 @@ function enforceSinglePrincipal(changedField) {
 
 function renderJudgePeople() {
   if (!$("#judgePeopleTable")) return;
-  if (state.judgePeople.length === 0) state.judgePeople = [defaultJudgePerson(0)];
+  if (state.judgePeople.length === 0) {
+    $("#judgePeopleTable").innerHTML = '<tr><td colspan="7">Todavía no hay jueces asignados desde FASA ID.</td></tr>';
+    return;
+  }
   $("#judgePeopleTable").innerHTML = state.judgePeople.map((person, index) => `
     <tr data-judge-person-row="${index}">
       <td>${person.last_name || "-"}</td>
@@ -1571,19 +1576,30 @@ function renderRegionalRepresentatives() {
   if (!$("#regionalRepresentativesTable")) return;
   $("#regionalRepresentativesTable").innerHTML = state.regionalRepresentatives.map((person, index) => `
     <tr data-regional-representative="${index}">
-      <td><input data-regional-field="last_name" value="${person.last_name || ""}" /></td>
-      <td><input data-regional-field="first_name" value="${person.first_name || ""}" /></td>
-      <td><input data-regional-field="dni" value="${person.dni || ""}" inputmode="numeric" pattern="\\d{8}" maxlength="8" /></td>
-      <td><input data-regional-field="mail" type="email" value="${person.mail || ""}" /></td>
-      <td><input data-regional-field="password" value="${person.password || ""}" /></td>
-      <td><select data-regional-field="region">${regionOptions(person.region)}</select></td>
-      <td><input type="checkbox" data-regional-field="active" ${person.active !== false ? "checked" : ""} /></td>
+      <td>${person.fasa_id || "—"}</td>
+      <td>${person.last_name || ""}, ${person.first_name || ""}</td>
+      <td>${person.dni || "—"}</td>
+      <td>${person.mail || person.email || "—"}</td>
+      <td>${person.region || "—"}</td>
+      <td>${person.active !== false ? "Activo" : "Inactivo"}</td>
     </tr>
   `).join("");
-  $("#regionalRepresentativesTable").querySelectorAll("input, select").forEach((field) => {
-    field.addEventListener("input", syncRegionalRepresentatives);
-    field.addEventListener("change", syncRegionalRepresentatives);
+  if (!state.regionalRepresentatives.length) $("#regionalRepresentativesTable").innerHTML = '<tr><td colspan="6">Todavía no hay referentes asignados.</td></tr>';
+}
+
+function parseJudgeBatch() {
+  return $("#judgeBatchInput").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [dni, level] = line.split(/[;,\t ]+/);
+    return { dni: String(dni || "").replace(/\D/g, ""), level: Number(level) };
   });
+}
+
+function renderJudgeBatchResults(rows = []) {
+  $("#judgeBatchResults").innerHTML = rows.length ? rows.map((row) => `
+    <div class="batch-result ${row.valid ? "valid" : "invalid"}">
+      <strong>${row.dni || "DNI faltante"} · Nivel ${row.level || "—"}</strong>
+      <span>${row.valid ? `${row.last_name}, ${row.first_name} · ${row.fasa_id}` : row.message}</span>
+    </div>`).join("") : "<p>No hay filas para validar.</p>";
 }
 
 function syncRegionalRepresentatives() {
@@ -2060,7 +2076,8 @@ async function loadJudgePeople() {
 }
 
 async function loadRegionalRepresentatives() {
-  state.regionalRepresentatives = await api("/api/regional-representatives");
+  [state.regionalRepresentatives, state.fasaProfiles] = await Promise.all([api("/api/regional-representatives"), api("/api/fasa-profiles")]);
+  $("#regionalFasaProfile").innerHTML = '<option value="">Seleccionar una persona registrada</option>' + state.fasaProfiles.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · DNI ${person.dni} · ${person.fasa_id}</option>`).join("");
   renderRegionalRepresentatives();
 }
 
@@ -2704,21 +2721,17 @@ function bindEvents() {
   $("#cancelCompetitionEdit").addEventListener("click", resetCompetitionForm);
   $("#refreshCompetitions").addEventListener("click", loadCompetitions);
 
-  $("#addRegionalRepresentative").addEventListener("click", () => {
-    syncRegionalRepresentatives();
-    state.regionalRepresentatives.push(defaultRegionalRepresentative(state.regionalRepresentatives.length));
-    renderRegionalRepresentatives();
-  });
-
-  $("#saveRegionalRepresentatives").addEventListener("click", async () => {
+  $("#assignRegionalRepresentative").addEventListener("click", async () => {
     try {
-      syncRegionalRepresentatives();
-      state.regionalRepresentatives = await api("/api/regional-representatives", {
+      const fasaId = $("#regionalFasaProfile").value;
+      const region = $("#regionalAssignmentRegion").value;
+      if (!fasaId) throw new Error("Seleccioná una persona de la base FASA ID.");
+      await api("/api/regional-representative-assignment", {
         method: "POST",
-        body: JSON.stringify({ representatives: state.regionalRepresentatives }),
+        body: JSON.stringify({ fasa_id: fasaId, region }),
       });
-      $("#regionalRepresentativesStatus").textContent = "Referentes guardados.";
-      renderRegionalRepresentatives();
+      $("#regionalRepresentativesStatus").textContent = "Rol de referente regional asignado.";
+      await loadRegionalRepresentatives();
     } catch (error) {
       $("#regionalRepresentativesStatus").textContent = error.message;
     }
@@ -2925,13 +2938,6 @@ function bindEvents() {
   });
   $("#configGrid").addEventListener("change", renderRoundSchedule);
 
-  $("#addJudgePerson").addEventListener("click", () => {
-    syncJudgePersonDetail();
-    state.judgePeople.push(defaultJudgePerson(state.judgePeople.length));
-    renderJudgePeople();
-    renderJudges();
-    openJudgePersonDetail(state.judgePeople.length - 1);
-  });
   $("#closeJudgePersonDetail").addEventListener("click", closeJudgePersonDetail);
   $("#judgePersonModal").addEventListener("click", (event) => {
     if (event.target.id === "judgePersonModal") closeJudgePersonDetail();
@@ -2946,18 +2952,29 @@ function bindEvents() {
     renderJudges();
   });
 
-  $("#saveJudgePeople").addEventListener("click", async () => {
+  $("#validateJudgeBatch").addEventListener("click", async () => {
     try {
-      state.judgePeople = await api("/api/judge-people", {
+      const result = await api("/api/judge-role-batch", {
         method: "POST",
-        body: JSON.stringify({ people: collectJudgePeople() }),
+        body: JSON.stringify({ rows: parseJudgeBatch(), apply: false }),
       });
-      $("#judgePeopleStatus").textContent = "Base de jueces guardada.";
-      renderJudgePeople();
-      renderJudges();
+      state.validatedJudgeBatch = result.rows;
+      renderJudgeBatchResults(result.rows);
+      $("#applyJudgeBatch").disabled = !result.valid_count || result.invalid_count > 0;
+      $("#judgePeopleStatus").textContent = result.invalid_count ? `${result.invalid_count} fila(s) requieren corrección.` : `${result.valid_count} FASA ID validados y listos para asignar.`;
     } catch (error) {
       $("#judgePeopleStatus").textContent = error.message;
     }
+  });
+  $("#judgeBatchInput").addEventListener("input", () => { state.validatedJudgeBatch = []; $("#applyJudgeBatch").disabled = true; });
+  $("#applyJudgeBatch").addEventListener("click", async () => {
+    try {
+      const result = await api("/api/judge-role-batch", { method: "POST", body: JSON.stringify({ rows: parseJudgeBatch(), apply: true }) });
+      renderJudgeBatchResults(result.rows);
+      $("#judgePeopleStatus").textContent = `${result.valid_count} rol(es) de juez asignados correctamente.`;
+      $("#applyJudgeBatch").disabled = true;
+      await loadJudgePeople();
+    } catch (error) { $("#judgePeopleStatus").textContent = error.message; }
   });
 
   $("#applyJudgeCount").addEventListener("click", () => {

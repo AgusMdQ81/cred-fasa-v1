@@ -441,15 +441,20 @@
               <p class="eyebrow">Administrador general</p>
               <h2>Referentes regionales</h2>
             </div>
-            <button id="saveRegionalRepresentatives" class="primary" type="button">Guardar referentes</button>
+            <button id="assignRegionalRepresentative" class="primary" type="button">Asignar referente</button>
           </div>
-          <div class="save-row">
-            <button id="addRegionalRepresentative" type="button">Agregar referente</button>
+          <div class="role-assignment-form">
+            <label>Persona con FASA ID
+              <select id="regionalFasaProfile"><option value="">Seleccionar una persona registrada</option></select>
+            </label>
+            <label>Región
+              <select id="regionalAssignmentRegion"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select>
+            </label>
             <p id="regionalRepresentativesStatus" aria-live="polite"></p>
           </div>
           <table>
             <thead>
-              <tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Contraseña</th><th>Region</th><th>Activo</th></tr>
+              <tr><th>FASA ID</th><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Región</th><th>Estado</th></tr>
             </thead>
             <tbody id="regionalRepresentativesTable"></tbody>
           </table>
@@ -463,10 +468,21 @@
               <p class="eyebrow">Base de datos</p>
               <h2>Jueces</h2>
             </div>
-            <button id="saveJudgePeople" class="primary">Guardar base de jueces</button>
+            <button id="applyJudgeBatch" class="primary" type="button" disabled>Asignar roles validados</button>
+          </div>
+          <div class="judge-batch-panel">
+            <div>
+              <label for="judgeBatchInput">Carga masiva: DNI y nivel</label>
+              <p>Ingresá una persona por línea. Podés separar las dos columnas con coma, punto y coma, tabulación o espacio.</p>
+              <textarea id="judgeBatchInput" rows="7" placeholder="30111222, 3&#10;28444555, 2"></textarea>
+              <button id="validateJudgeBatch" type="button">Validar con FASA ID</button>
+            </div>
+            <div>
+              <p class="eyebrow">Resultado de validación</p>
+              <div id="judgeBatchResults" class="batch-results"><p>Cargá la lista para verificar los DNI.</p></div>
+            </div>
           </div>
           <div class="save-row">
-            <button id="addJudgePerson" type="button">Agregar juez</button>
             <p id="judgePeopleStatus" aria-live="polite"></p>
           </div>
           <table>

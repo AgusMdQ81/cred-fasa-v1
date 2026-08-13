@@ -975,6 +975,38 @@ h2 {
 .dialog-close { width: 42px; height: 42px; padding: 0; font-size: 28px; background: transparent; border: 1px solid var(--line); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 
+.role-assignment-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(190px, 1fr);
+  gap: 16px;
+  align-items: end;
+  margin: 18px 0 22px;
+  padding: 18px;
+  background: rgba(255, 255, 255, .5);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.role-assignment-form p { grid-column: 1 / -1; margin: 0; font-weight: 800; }
+
+.judge-batch-panel {
+  display: grid;
+  grid-template-columns: minmax(300px, .9fr) minmax(340px, 1.1fr);
+  gap: 22px;
+  margin: 18px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, .5);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.judge-batch-panel label { display: block; font-size: 18px; font-weight: 900; }
+.judge-batch-panel p { margin: 5px 0 12px; color: var(--muted); }
+#judgeBatchInput { width: 100%; min-height: 155px; resize: vertical; font-family: ui-monospace, monospace; }
+.batch-results { display: grid; gap: 8px; max-height: 250px; overflow: auto; }
+.batch-result { display: grid; gap: 2px; padding: 10px 12px; border-left: 5px solid; background: rgba(255,255,255,.7); }
+.batch-result.valid { border-color: var(--good); }
+.batch-result.invalid { border-color: #b42318; }
+.batch-result span { color: var(--muted); }
+
 @media (max-width: 620px) {
   .fasa-id-card { min-height: 470px; }
   .id-card-brand span { font-size: 11px; }
@@ -984,6 +1016,7 @@ h2 {
   .id-card-footer { justify-content: flex-end; }
   .id-card-details { grid-template-columns: 1fr; gap: 8px; padding: 18px; }
   .id-card-details dd { margin-bottom: 7px; font-size: 15px; }
+  .role-assignment-form, .judge-batch-panel { grid-template-columns: 1fr; }
 }
 
 .unified-profile-layout {

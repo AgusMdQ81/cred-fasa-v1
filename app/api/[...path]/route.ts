@@ -369,8 +369,14 @@ export async function GET(request: Request) {
   const path = pathFrom(request);
   if (path === "config") return json({ rounds });
   if (path === "competitions") return json(competitions);
-  if (path === "judge-people") return json(await loadRoleDirectory("judge", judgePeople));
+  if (path === "judge-people") return json(await loadRoleDirectory("judge", []));
   if (path === "regional-representatives") return json(await loadRoleDirectory("regional_representative", []));
+  if (path === "fasa-profiles") {
+    await ensureFasaTables();
+    const result = await env.DB.prepare(`SELECT fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,phone,address,province,region,photo_url
+      FROM fasa_profiles ORDER BY last_name,first_name`).all();
+    return json(result.results);
+  }
   if (path === "fasa-profile") {
     await ensureFasaTables();
     const key = String(url.searchParams.get("id") || url.searchParams.get("email") || "").trim().toLowerCase();
@@ -379,6 +385,38 @@ export async function GET(request: Request) {
     const roles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(profile.fasa_id).all<{ role_type: string }>();
     const { password: _password, created_at: _created, updated_at: _updated, ...safeProfile } = profile;
     return json({ profile: safeProfile, roles: roles.results.map((row) => row.role_type) });
+  }
+  if (path === "regional-representative-assignment") {
+    await ensureFasaTables();
+    const fasaId = String(payload.fasa_id || "");
+    const region = String(payload.region || "");
+    const profile = await env.DB.prepare("SELECT * FROM fasa_profiles WHERE fasa_id=? LIMIT 1").bind(fasaId).first<Record<string, unknown>>();
+    if (!profile) return json({ error: "La persona seleccionada no tiene un FASA ID válido." }, { status: 404 });
+    if (!region) return json({ error: "Seleccioná una región." }, { status: 400 });
+    await assignRole(fasaId, "regional_representative", { region, active: true });
+    return json({ ok: true, fasa_id: fasaId, region });
+  }
+  if (path === "judge-role-batch") {
+    await ensureFasaTables();
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    const apply = payload.apply === true;
+    const results = [];
+    for (const item of rows) {
+      const dni = cleanDni(item.dni);
+      const level = Number(item.level);
+      if (!dni || !Number.isInteger(level) || level < 1 || level > 5) {
+        results.push({ dni, level: item.level, valid: false, message: "DNI inválido o nivel fuera del rango 1–5." });
+        continue;
+      }
+      const profile = await env.DB.prepare("SELECT fasa_id,dni,first_name,last_name,email,club,phone,photo_url FROM fasa_profiles WHERE dni=? LIMIT 1").bind(dni).first<Record<string, unknown>>();
+      if (!profile) {
+        results.push({ dni, level, valid: false, message: "No existe un FASA ID para este DNI." });
+        continue;
+      }
+      if (apply) await assignRole(String(profile.fasa_id), "judge", { level, active: true });
+      results.push({ ...profile, mail: profile.email, level, active: true, valid: true, applied: apply, message: apply ? "Rol de juez asignado." : "FASA ID encontrado." });
+    }
+    return json({ rows: results, valid_count: results.filter((row) => row.valid).length, invalid_count: results.filter((row) => !row.valid).length });
   }
   if (path === "judges") return json(getJudges());
   if (path === "timer") return json(timerState);
