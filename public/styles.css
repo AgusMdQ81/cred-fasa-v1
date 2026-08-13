@@ -202,6 +202,19 @@ button:hover,
   border-top: 10px solid var(--accent);
 }
 
+#calendarView.calendar-board {
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(255,255,255,.72);
+  border-top: 10px solid var(--accent);
+  backdrop-filter: blur(8px);
+}
+
+#calendarView .calendar-item,
+#calendarView .competition-actions {
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(5px);
+}
+
 .access-panel {
   display: grid;
   gap: 14px;
@@ -219,6 +232,23 @@ button:hover,
   box-shadow: none;
   border: 1px solid var(--line);
   border-top: 6px solid var(--accent);
+}
+
+.profile-create {
+  color: white;
+  border-color: var(--charcoal);
+  background: var(--charcoal);
+}
+
+.profile-create:hover {
+  color: var(--charcoal);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.profile-explainer {
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .ranking-selector {
