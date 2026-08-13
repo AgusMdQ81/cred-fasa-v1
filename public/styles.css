@@ -268,16 +268,28 @@ button:hover,
 }
 
 .month-year {
+  min-height: 46px;
   padding: 4px 6px 10px;
-  color: var(--charcoal);
-  font-size: 22px;
+  color: #1a2a37;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  font-weight: 900;
   line-height: 1;
+  justify-content: start;
+  opacity: .82;
+}
+
+.month-year.active {
+  color: #7b5800;
+  font-size: 30px;
+  opacity: 1;
 }
 
 .month-list {
   display: grid;
   gap: 5px;
-  max-height: 420px;
+  max-height: 292px;
   overflow: auto;
   scrollbar-width: none;
 }
@@ -288,7 +300,7 @@ button:hover,
 
 .month-button,
 .month-arrow {
-  min-height: 38px;
+  min-height: 48px;
   padding: 4px 6px;
   color: var(--charcoal);
   border: 0;
@@ -302,19 +314,20 @@ button:hover,
   gap: 0;
   justify-content: start;
   border: 0;
-  opacity: .7;
+  opacity: .92;
   transition: color .2s ease, font-size .2s ease, opacity .2s ease;
 }
 
 .month-button strong {
-  font-size: 13px;
+  font-size: 16px;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
 .month-button:disabled {
-  color: var(--muted);
+  color: #65717b;
   cursor: default;
-  opacity: .3;
+  opacity: .62;
 }
 
 .month-button:not(:disabled):hover {
@@ -323,19 +336,21 @@ button:hover,
 }
 
 .month-button.active {
-  color: var(--accent-dark);
+  color: #765300;
   background: transparent;
   opacity: 1;
 }
 
 .month-button.active strong {
-  font-size: 19px;
+  font-size: 23px;
 }
 
 .month-arrow {
-  min-height: 30px;
+  min-height: 48px;
   color: var(--charcoal);
-  font-size: 18px;
+  font-size: 30px;
+  font-weight: 900;
+  opacity: .9;
 }
 
 .access-panel {

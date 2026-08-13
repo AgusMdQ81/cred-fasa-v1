@@ -1603,7 +1603,7 @@ function renderPublicCalendar() {
     if (filters.region && (competition.region || "") !== filters.region) return false;
     if (filters.month && String(competition.event_date || "").slice(0, 7) !== filters.month) return false;
     return true;
-  });
+  }).sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
   if (state.competitions.length === 0) {
     $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay competencias programadas.</p>';
     return;
@@ -1638,6 +1638,7 @@ function renderMonthRail() {
     const enabled = eventMonths.has(month);
     return `<button class="month-button ${state.publicCalendarFilters.month === month ? "active" : ""}" type="button" data-month="${month}" ${enabled ? "" : "disabled"}><strong>${formatter.format(date)}</strong></button>`;
   }).join("");
+  $("#calendarYear").classList.toggle("active", !state.publicCalendarFilters.month);
   rail.querySelectorAll("[data-month]").forEach((button) => button.addEventListener("click", () => {
     state.publicCalendarFilters.month = button.dataset.month;
     renderPublicCalendar();
@@ -2457,6 +2458,10 @@ function bindEvents() {
     button.addEventListener("click", () => switchPublicView(button.dataset.publicView));
   });
   $("#backToCalendar").addEventListener("click", () => switchPublicView("calendarView"));
+  $("#calendarYear").addEventListener("click", () => {
+    state.publicCalendarFilters.month = "";
+    renderPublicCalendar();
+  });
   document.querySelectorAll("[data-ranking]").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelectorAll("[data-ranking]").forEach((item) => item.classList.toggle("active", item === button));
