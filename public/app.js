@@ -1630,12 +1630,14 @@ function renderPublicCalendar() {
 function renderMonthRail() {
   const rail = $("#calendarMonthRail");
   if (!rail) return;
-  const formatter = new Intl.DateTimeFormat("es-AR", { month: "short" });
-  const months = Array.from(new Set(state.competitions.map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean))).sort();
-  rail.innerHTML = `<button class="month-button ${!state.publicCalendarFilters.month ? "active" : ""}" type="button" data-month=""><strong>Todo</strong><small>el año</small></button>${months.map((month) => {
+  const formatter = new Intl.DateTimeFormat("es-AR", { month: "long" });
+  const eventMonths = new Set(state.competitions.map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean));
+  const months = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
+  rail.innerHTML = months.map((month) => {
     const date = new Date(`${month}-02T12:00:00`);
-    return `<button class="month-button ${state.publicCalendarFilters.month === month ? "active" : ""}" type="button" data-month="${month}"><strong>${formatter.format(date)}</strong><small>${date.getFullYear()}</small></button>`;
-  }).join("")}`;
+    const enabled = eventMonths.has(month);
+    return `<button class="month-button ${state.publicCalendarFilters.month === month ? "active" : ""}" type="button" data-month="${month}" ${enabled ? "" : "disabled"}><strong>${formatter.format(date)}</strong></button>`;
+  }).join("");
   rail.querySelectorAll("[data-month]").forEach((button) => button.addEventListener("click", () => {
     state.publicCalendarFilters.month = button.dataset.month;
     renderPublicCalendar();

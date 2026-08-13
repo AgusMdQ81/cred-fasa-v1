@@ -259,13 +259,19 @@ button:hover,
 
 .month-rail {
   display: grid;
-  gap: 6px;
-  padding: 6px;
-  color: white;
-  background: rgba(16,32,47,.88);
-  border-bottom: 5px solid var(--accent);
+  gap: 2px;
+  padding: 2px 8px;
+  color: var(--charcoal);
+  background: transparent;
   position: sticky;
   top: 78px;
+}
+
+.month-year {
+  padding: 4px 6px 10px;
+  color: var(--charcoal);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .month-list {
@@ -282,38 +288,53 @@ button:hover,
 
 .month-button,
 .month-arrow {
-  min-height: 54px;
-  padding: 7px;
-  color: rgba(255,255,255,.75);
+  min-height: 38px;
+  padding: 4px 6px;
+  color: var(--charcoal);
   border: 0;
   border-radius: 0;
   background: transparent;
+  box-shadow: none;
 }
 
 .month-button {
   display: grid;
   gap: 0;
-  border-left: 3px solid transparent;
+  justify-content: start;
+  border: 0;
+  opacity: .7;
+  transition: color .2s ease, font-size .2s ease, opacity .2s ease;
 }
 
 .month-button strong {
-  font-size: 14px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
-.month-button small {
-  font-size: 10px;
+.month-button:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: .3;
 }
 
-.month-button.active,
-.month-button:hover {
-  color: var(--charcoal);
-  border-left-color: white;
-  background: var(--accent);
+.month-button:not(:disabled):hover {
+  color: var(--accent-dark);
+  opacity: 1;
+}
+
+.month-button.active {
+  color: var(--accent-dark);
+  background: transparent;
+  opacity: 1;
+}
+
+.month-button.active strong {
+  font-size: 19px;
 }
 
 .month-arrow {
   min-height: 30px;
+  color: var(--charcoal);
   font-size: 18px;
 }
 
@@ -1376,7 +1397,7 @@ tbody tr:hover {
   }
 
   .month-rail {
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    grid-template-columns: auto 34px minmax(0, 1fr) 34px;
     align-items: center;
     position: static;
   }
@@ -1389,13 +1410,10 @@ tbody tr:hover {
 
   .month-button {
     min-width: 84px;
-    border-left: 0;
-    border-bottom: 3px solid transparent;
   }
 
-  .month-button.active,
-  .month-button:hover {
-    border-bottom-color: white;
+  .month-year {
+    padding: 0 5px;
   }
 
   .public-nav {
