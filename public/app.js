@@ -2961,7 +2961,7 @@ function bindEvents() {
       state.validatedJudgeBatch = result.rows;
       renderJudgeBatchResults(result.rows);
       $("#applyJudgeBatch").disabled = !result.valid_count || result.invalid_count > 0;
-      $("#judgePeopleStatus").textContent = result.invalid_count ? `${result.invalid_count} fila(s) requieren corrección.` : `${result.valid_count} FASA ID validados y listos para asignar.`;
+      $("#judgePeopleStatus").textContent = result.invalid_count ? `${result.invalid_count} DNI no pudo validarse.` : `${result.valid_count} DNI encontrados en FASA ID. Listos para asignar el rol de juez.`;
     } catch (error) {
       $("#judgePeopleStatus").textContent = error.message;
     }

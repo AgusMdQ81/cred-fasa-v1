@@ -473,9 +473,9 @@
           <div class="judge-batch-panel">
             <div>
               <label for="judgeBatchInput">Carga masiva: DNI y nivel</label>
-              <p>Ingresá una persona por línea. Podés separar las dos columnas con coma, punto y coma, tabulación o espacio.</p>
+              <p>Ingresá una persona por línea. El sistema busca únicamente la existencia de su FASA ID mediante el DNI y, si existe, asigna el rol de juez con el nivel indicado (1 a 5). No compara ningún otro dato personal.</p>
               <textarea id="judgeBatchInput" rows="7" placeholder="30111222, 3&#10;28444555, 2"></textarea>
-              <button id="validateJudgeBatch" type="button">Validar con FASA ID</button>
+              <button id="validateJudgeBatch" type="button">Comprobar DNI en FASA ID</button>
             </div>
             <div>
               <p class="eyebrow">Resultado de validación</p>

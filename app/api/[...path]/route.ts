@@ -404,13 +404,17 @@ export async function GET(request: Request) {
     for (const item of rows) {
       const dni = cleanDni(item.dni);
       const level = Number(item.level);
-      if (!dni || !Number.isInteger(level) || level < 1 || level > 5) {
-        results.push({ dni, level: item.level, valid: false, message: "DNI inválido o nivel fuera del rango 1–5." });
+      if (!dni) {
+        results.push({ dni, level: item.level, valid: false, message: "Ingresá un DNI." });
+        continue;
+      }
+      if (!Number.isInteger(level) || level < 1 || level > 5) {
+        results.push({ dni, level: item.level, valid: false, message: "El nivel de juez debe ser un número entre 1 y 5." });
         continue;
       }
       const profile = await env.DB.prepare("SELECT fasa_id,dni,first_name,last_name,email,club,phone,photo_url FROM fasa_profiles WHERE dni=? LIMIT 1").bind(dni).first<Record<string, unknown>>();
       if (!profile) {
-        results.push({ dni, level, valid: false, message: "No existe un FASA ID para este DNI." });
+        results.push({ dni, level, valid: false, message: "Este DNI no tiene una FASA ID creada." });
         continue;
       }
       if (apply) await assignRole(String(profile.fasa_id), "judge", { level, active: true });
