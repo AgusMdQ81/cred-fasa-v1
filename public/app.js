@@ -8,6 +8,7 @@ const state = {
   timer: null,
   role: null,
   roles: [],
+  privateRoleOpen: false,
   user: null,
   judges: [],
   judgePeople: [],
@@ -540,6 +541,7 @@ function openCompetitionView(competitionId, view) {
 
 function applyRole(role, options = {}) {
   state.role = role;
+  state.privateRoleOpen = Boolean(options.openRole);
   localStorage.setItem("credFasaRole", role);
   $("#loginGate").classList.add("hidden");
   $("#appHeader").classList.remove("hidden");
@@ -587,7 +589,16 @@ function renderAssignedRoles() {
   const container = $("#assignedRoles");
   if (!container) return;
   const roles = state.roles.length ? state.roles : [state.role];
-  container.innerHTML = `${roles.map((role) => `
+  const currentLabel = $("#currentRoleLabel");
+  currentLabel.textContent = state.privateRoleOpen ? (ROLE_LABELS[state.role] || state.role) : "";
+  currentLabel.classList.toggle("hidden", !state.privateRoleOpen);
+  document.querySelectorAll(".private-secondary-nav .tab[data-view]").forEach((button) => {
+    if (!state.privateRoleOpen) {
+      button.hidden = true;
+      button.style.display = "none";
+    }
+  });
+  container.innerHTML = state.privateRoleOpen ? "" : `${roles.map((role) => `
     <button class="role-chip ${role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
       ${ROLE_LABELS[role] || role}
     </button>
@@ -631,6 +642,7 @@ function renderUnifiedProfile() {
 function logout() {
   state.role = null;
   state.roles = [];
+  state.privateRoleOpen = false;
   state.user = null;
   state.currentCompetitionId = null;
   state.judgePortal = null;
@@ -2686,6 +2698,10 @@ function bindEvents() {
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
       if (!button.dataset.view) return;
+      if (button.dataset.view === "unifiedProfile") {
+        state.privateRoleOpen = false;
+        renderAssignedRoles();
+      }
       activateView(button.dataset.view);
     });
   });

@@ -748,12 +748,29 @@ h2 {
 }
 
 .tabs {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 4px;
   margin: 0 calc(clamp(16px, 4vw, 44px) * -1);
   padding: 6px clamp(16px, 4vw, 44px);
   background: var(--charcoal);
+}
+
+.private-primary-nav,
+.private-secondary-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.private-primary-nav {
+  min-height: 54px;
+}
+
+.private-secondary-nav {
+  min-height: 48px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,.16);
 }
 
 .assigned-roles {
@@ -786,9 +803,41 @@ h2 {
 }
 
 .profile-tab {
-  background: var(--accent);
-  border-color: var(--accent);
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: white;
+  border: 2px solid rgba(255,255,255,.82);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.profile-tab span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: inherit;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 13px 0 5px currentColor;
+  transform: translateY(-5px);
+}
+
+.profile-tab:hover,
+.profile-tab.active {
   color: var(--charcoal);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.current-role-label {
+  color: white;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.logout-tab {
+  margin-left: auto;
 }
 
 .fasa-profile-panel {

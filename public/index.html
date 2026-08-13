@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260813-private-profile-v1" />
+    <link rel="stylesheet" href="/styles.css?v=20260813-private-nav-v2" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -206,19 +206,24 @@
         </div>
       </div>
       <nav class="tabs" aria-label="Vistas">
-        <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest">Mi Perfil FASA</button>
-        <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
-        <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juez</button>
-        <button class="tab role-hidden" data-view="competitions" data-roles="general_admin" hidden>Competencias</button>
-        <button class="tab role-hidden" data-view="regionalRepresentatives" data-roles="general_admin" hidden>Referentes regionales</button>
-        <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Jueces</button>
-        <button class="tab role-hidden" data-view="judgePortal" data-roles="judge_portal" hidden>Mi perfil</button>
-        <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Mi perfil de atleta</button>
-        <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Computos</button>
-        <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
-        <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuracion</button>
-        <button class="tab role-hidden" data-view="results" data-roles="competition_admin judge guest" hidden>Resultados</button>
-        <button id="logoutButton" class="tab" type="button">Salir</button>
+        <div class="private-primary-nav">
+          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest" title="Mi Perfil FASA" aria-label="Mi Perfil FASA"><span aria-hidden="true">●</span></button>
+          <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
+        </div>
+        <div class="private-secondary-nav">
+          <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
+          <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juecear competencia</button>
+          <button class="tab role-hidden" data-view="competitions" data-roles="general_admin regional_representative" hidden>Gestionar eventos</button>
+          <button class="tab role-hidden" data-view="regionalRepresentatives" data-roles="general_admin" hidden>Gestionar referentes regionales</button>
+          <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Gestionar jueces</button>
+          <button class="tab role-hidden" data-view="judgePortal" data-roles="judge_portal" hidden>Datos de juez</button>
+          <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Perfil deportivo</button>
+          <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Cómputos</button>
+          <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
+          <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuración</button>
+          <button class="tab role-hidden" data-view="results" data-roles="competition_admin judge guest" hidden>Resultados</button>
+          <button id="logoutButton" class="tab logout-tab" type="button">Salir</button>
+        </div>
       </nav>
     </header>
 
@@ -945,6 +950,6 @@
       </div>
     </main>
 
-    <script src="/app.js?v=20260813-private-profile-v1"></script>
+    <script src="/app.js?v=20260813-private-nav-v2"></script>
   </body>
 </html>
