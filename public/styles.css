@@ -1,18 +1,18 @@
 :root {
   color-scheme: light;
-  --ink: #393939;
-  --muted: #6f7274;
-  --line: #dedede;
+  --ink: #17222d;
+  --muted: #65717b;
+  --line: #d9e0e5;
   --surface: #ffffff;
   --page: #f3f3f1;
-  --accent: #bc6b13;
-  --accent-dark: #8f4f0b;
-  --charcoal: #393939;
+  --accent: #dfaa00;
+  --accent-dark: #987200;
+  --charcoal: #10202f;
   --silver: #b3b3b2;
   --zone: #bc6b13;
   --top: #393939;
   --good: #168451;
-  --shadow: 0 18px 42px rgba(57, 57, 57, 0.1);
+  --shadow: 0 20px 55px rgba(8, 27, 43, 0.18);
   font-family: Catamaran, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -82,10 +82,24 @@ button:hover,
   place-items: center;
   padding: clamp(16px, 4vw, 44px);
   background:
-    linear-gradient(rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.86)),
-    url("/assets/fasa-wall-bg.jpg");
+    linear-gradient(110deg, rgba(7, 22, 35, 0.9) 0%, rgba(7, 22, 35, 0.55) 38%, rgba(7, 22, 35, 0.18) 100%),
+    url("/assets/manual-cover-first.jpg");
   background-size: cover;
   background-position: center;
+  background-attachment: fixed;
+  transition: background-image .35s ease;
+}
+
+.login-gate[data-public-view="athletesView"] {
+  background-image:
+    linear-gradient(110deg, rgba(7, 22, 35, 0.88) 0%, rgba(7, 22, 35, 0.48) 42%, rgba(7, 22, 35, 0.12) 100%),
+    url("/assets/manual-cover-last.jpg");
+}
+
+.login-gate[data-public-view="accessView"] {
+  background-image:
+    linear-gradient(110deg, rgba(7, 22, 35, 0.9) 0%, rgba(7, 22, 35, 0.56) 45%, rgba(7, 22, 35, 0.2) 100%),
+    url("/assets/manual-cover-first.jpg");
 }
 
 .public-home {
@@ -116,18 +130,22 @@ button:hover,
 }
 
 .public-brand {
-  padding: 10px 4px 2px;
+  padding: 14px 18px;
+  color: white;
+  background: rgba(8, 27, 43, .78);
+  border-left: 8px solid var(--accent);
+  backdrop-filter: blur(10px);
 }
 
 .public-nav {
   display: flex;
   gap: 4px;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--charcoal);
   box-shadow: var(--shadow);
   position: sticky;
-  top: 10px;
+  top: 0;
   z-index: 20;
 }
 
@@ -142,6 +160,7 @@ button:hover,
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,.16);
 }
 
 .public-view {
@@ -170,11 +189,12 @@ button:hover,
 
 .calendar-board,
 .access-panel {
-  background: white;
+  background: rgba(255, 255, 255, .95);
   color: var(--ink);
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 0;
+  padding: clamp(20px, 3vw, 34px);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
 }
 
 .calendar-board {
@@ -206,6 +226,87 @@ button:hover,
   flex-wrap: wrap;
   gap: 8px;
   margin: 20px 0 12px;
+}
+
+.ranking-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 18px;
+  margin-bottom: 16px;
+  color: white;
+  background: var(--charcoal);
+  border-bottom: 6px solid var(--accent);
+}
+
+.ranking-filters label,
+.gender-toggle legend {
+  color: rgba(255,255,255,.75);
+}
+
+.ranking-filters select {
+  border-color: rgba(255,255,255,.24);
+}
+
+.gender-toggle {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.gender-toggle legend {
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.toggle-track {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+}
+
+.toggle-track button {
+  min-height: 36px;
+  padding: 0 10px;
+  color: white;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+}
+
+.toggle-track button.active {
+  color: var(--charcoal);
+  background: var(--accent);
+}
+
+.ranking-context {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px 12px;
+}
+
+.ranking-context strong {
+  font-size: 22px;
+  text-transform: uppercase;
+}
+
+.ranking-context span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.ranking-empty {
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--line);
 }
 
 .ranking-button.active {
@@ -240,6 +341,7 @@ button:hover,
   width: 100%;
   min-height: 66px;
   border-left: 6px solid var(--silver);
+  border-radius: 0;
 }
 
 .ranking-row:hover {
@@ -1011,6 +1113,10 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .ranking-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .access-panel {
     position: static;
   }
@@ -1082,6 +1188,15 @@ tbody tr:hover {
 
   .ranking-row {
     grid-template-columns: 80px 1fr;
+  }
+
+  .ranking-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-context {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .ranking-row > :nth-child(3),

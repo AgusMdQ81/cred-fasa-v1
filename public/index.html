@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260813-nav-roles" />
+    <link rel="stylesheet" href="/styles.css?v=20260813-rankings-photo" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -80,6 +80,32 @@
             <button class="ranking-button active" type="button" data-ranking="argentine">Ranking argentino</button>
             <button class="ranking-button" type="button" data-ranking="regional">Rankings regionales</button>
           </div>
+          <div class="ranking-filters" aria-label="Filtros del ranking">
+            <label id="rankingRegionField" class="hidden">Región
+              <select id="rankingRegion">
+                <option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option>
+                <option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option>
+              </select>
+            </label>
+            <label>Categoría
+              <select id="rankingCategory">
+                <option value="mayor">Mayor</option><option value="U19">U19</option><option value="U17">U17</option>
+              </select>
+            </label>
+            <fieldset class="gender-toggle">
+              <legend>Rama</legend>
+              <div class="toggle-track" role="group" aria-label="Rama del ranking">
+                <button class="active" type="button" data-ranking-gender="Mujer">Mujeres</button>
+                <button type="button" data-ranking-gender="Hombre">Hombres</button>
+              </div>
+            </fieldset>
+            <label>Disciplina
+              <select id="rankingDiscipline">
+                <option value="Boulder">Boulder</option><option value="Dificultad">Dificultad</option><option value="Speed">Speed</option>
+              </select>
+            </label>
+          </div>
+          <div id="rankingContext" class="ranking-context" aria-live="polite"></div>
           <div id="publicRankings" class="public-rankings"></div>
           <p class="athlete-note">Seleccioná un atleta para consultar su información deportiva básica.</p>
         </section>

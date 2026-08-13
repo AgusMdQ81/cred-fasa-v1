@@ -19,6 +19,7 @@ const state = {
   competitorFilters: { category: "mayor", gender: "Mujer" },
   registrationFilters: { category: "mayor", gender: "Mujer" },
   publicCalendarFilters: { category: "", type: "", modality: "", region: "" },
+  publicRankingFilters: { type: "argentine", region: "Buenos Aires", category: "mayor", gender: "Mujer", discipline: "Boulder" },
   judgePortal: null,
   judgePortalCredentials: null,
   competitorPortal: null,
@@ -1664,23 +1665,41 @@ function showOfficialLogin(competitionId) {
 function switchPublicView(viewId) {
   document.querySelectorAll(".public-view").forEach((view) => view.classList.toggle("active", view.id === viewId));
   document.querySelectorAll("[data-public-view]").forEach((button) => button.classList.toggle("active", button.dataset.publicView === viewId));
+  $("#loginGate").dataset.publicView = viewId;
   if (viewId === "athletesView") renderPublicRankings("argentine");
 }
 
-function renderPublicRankings(type = "argentine") {
+function renderPublicRankings(type = state.publicRankingFilters.type) {
   const container = $("#publicRankings");
   if (!container) return;
-  const athletes = [
-    { rank: 1, name: "Sofía Pérez", club: "AEBA", region: "Buenos Aires", points: 2840 },
-    { rank: 2, name: "Camila Costa", club: "Club Andino", region: "Patagonia Norte", points: 2715 },
-    { rank: 3, name: "Martina Díaz", club: "Cuyo", region: "Cuyo", points: 2630 },
-    { rank: 4, name: "Julia Molina", club: "Centro", region: "Centro", points: 2485 },
-    { rank: 5, name: "Mateo Gómez", club: "CABA", region: "Buenos Aires", points: 2390 },
-  ];
-  const rows = type === "regional" ? [...athletes].sort((a, b) => a.region.localeCompare(b.region)) : athletes;
+  state.publicRankingFilters.type = type;
+  const filters = state.publicRankingFilters;
+  $("#rankingRegionField").classList.toggle("hidden", type !== "regional");
+  const firstNames = ["Sofía", "Mateo", "Camila", "Lucas", "Martina", "Tomás", "Julia", "Nicolás", "Valentina", "Bruno", "Malena", "Franco", "Pilar", "Benjamín"];
+  const lastNames = ["Pérez", "Gómez", "Costa", "Rivas", "Díaz", "Sosa", "Molina", "Suárez", "Fernández", "López", "Romero", "Acosta", "Navarro", "Vega"];
+  const athletes = Array.from({ length: 252 }, (_, index) => {
+    const region = REGIONS[index % REGIONS.length];
+    const category = ["mayor", "U19", "U17"][Math.floor(index / REGIONS.length) % 3];
+    const gender = ["Mujer", "Hombre"][Math.floor(index / 21) % 2];
+    const discipline = ["Boulder", "Dificultad", "Speed"][Math.floor(index / 42) % 3];
+    return {
+      name: `${firstNames[index % firstNames.length]} ${lastNames[(index * 3) % lastNames.length]}`,
+      club: ["AEBA", "CABA", "Club Andino", "Centro", "Cuyo", "Litoral"][index % 6],
+      region, category, gender, discipline,
+      points: 3100 - index * 19,
+    };
+  });
+  const rows = athletes
+    .filter((athlete) => athlete.category === filters.category && athlete.gender === filters.gender && athlete.discipline === filters.discipline)
+    .filter((athlete) => type !== "regional" || athlete.region === filters.region)
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 12)
+    .map((athlete, index) => ({ ...athlete, rank: index + 1 }));
+  const categoryLabel = filters.category === "mayor" ? "Mayor" : filters.category;
+  $("#rankingContext").innerHTML = `<strong>${type === "regional" ? filters.region : "Argentina"}</strong><span>${categoryLabel} · ${filters.gender === "Mujer" ? "Mujeres" : "Hombres"} · ${filters.discipline}</span>`;
   container.innerHTML = `
-    <div class="ranking-head"><span>${type === "regional" ? "Región" : "Puesto"}</span><span>Atleta</span><span>Club</span><span>Puntos</span></div>
-    ${rows.map((athlete) => `<button class="ranking-row" type="button"><strong>${type === "regional" ? athlete.region : `#${athlete.rank}`}</strong><span>${athlete.name}<small>${athlete.region}</small></span><span>${athlete.club}</span><strong>${athlete.points}</strong></button>`).join("")}
+    <div class="ranking-head"><span>Puesto</span><span>Atleta</span><span>Club / Región</span><span>Puntos</span></div>
+    ${rows.length ? rows.map((athlete) => `<button class="ranking-row" type="button"><strong>#${athlete.rank}</strong><span>${athlete.name}<small>${athlete.category} · ${athlete.discipline}</small></span><span>${athlete.club}<small>${athlete.region}</small></span><strong>${athlete.points}</strong></button>`).join("") : '<p class="ranking-empty">No hay atletas para esta combinación de filtros.</p>'}
   `;
 }
 
@@ -2429,6 +2448,23 @@ function bindEvents() {
     button.addEventListener("click", () => {
       document.querySelectorAll("[data-ranking]").forEach((item) => item.classList.toggle("active", item === button));
       renderPublicRankings(button.dataset.ranking);
+    });
+  });
+  [
+    ["#rankingRegion", "region"],
+    ["#rankingCategory", "category"],
+    ["#rankingDiscipline", "discipline"],
+  ].forEach(([selector, key]) => {
+    $(selector).addEventListener("change", (event) => {
+      state.publicRankingFilters[key] = event.target.value;
+      renderPublicRankings();
+    });
+  });
+  document.querySelectorAll("[data-ranking-gender]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.publicRankingFilters.gender = button.dataset.rankingGender;
+      document.querySelectorAll("[data-ranking-gender]").forEach((item) => item.classList.toggle("active", item === button));
+      renderPublicRankings();
     });
   });
   $("#loginForm").addEventListener("submit", async (event) => {
