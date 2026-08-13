@@ -98,7 +98,6 @@ function requestedTimerCycle(defaultCycle = 1) {
 
 function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) {
   return {
-    fasa_id: state.user?.fasa_id || athlete.fasa_id || person.fasa_id || "",
     round: roundKey,
     boulder: Number(boulder || 1),
     timer_schema: 3,
@@ -613,7 +612,9 @@ function unifiedProfileData() {
   const athlete = state.competitorPortal?.competitor || {};
   const person = state.judgePortal?.person || state.judgePortal?.profile || {};
   const display = String(state.user?.display_name || "").trim().split(/\s+/);
+  const isAdmin = state.roles.includes("general_admin") || state.role === "general_admin";
   return {
+    fasa_id: state.user?.fasa_id || athlete.fasa_id || person.fasa_id || "",
     first_name: athlete.first_name || person.first_name || display[0] || "",
     last_name: athlete.last_name || person.last_name || display.slice(1).join(" ") || "",
     nationality: athlete.nationality || "Argentina",
@@ -626,7 +627,7 @@ function unifiedProfileData() {
     address: athlete.address || "",
     province: athlete.province || "",
     region: athlete.region || "Buenos Aires",
-    photo_url: athlete.photo_url || person.photo_url || "",
+    photo_url: athlete.photo_url || person.photo_url || state.user?.photo_url || (isAdmin ? "/assets/admin-demo-portrait.png" : ""),
   };
 }
 
@@ -642,7 +643,13 @@ function renderUnifiedProfile() {
   $("#fasaIdCardDni").textContent = `DNI ${profile.dni || "—"}`;
   $("#fasaIdCardClub").textContent = `Club ${profile.club || "—"}`;
   const roles = state.roles.length ? state.roles : [state.role];
-  $("#profileRoleBadges").innerHTML = roles.map((role) => `<span>${ROLE_LABELS[role] || role}</span>`).join("");
+  $("#fasaIdCardRoles").textContent = roles.map((role) => ROLE_LABELS[role] || role).join(" · ");
+  $("#fasaIdCardEmail").textContent = profile.email || "—";
+  $("#fasaIdCardPhone").textContent = profile.phone || "—";
+  $("#fasaIdCardAddress").textContent = profile.address || "—";
+  $("#fasaIdCardLocation").textContent = [profile.province, profile.region].filter(Boolean).join(" · ") || "—";
+  $("#fasaIdCardNationality").textContent = profile.nationality || "—";
+  $("#fasaIdCardBirthDate").textContent = profile.birth_date || "—";
 }
 
 function logout() {
@@ -2516,6 +2523,14 @@ function bindEvents() {
     state.publicCalendarFilters.month = "";
     renderPublicCalendar();
   });
+  document.querySelectorAll("[data-flip-id]").forEach((button) => {
+    button.addEventListener("click", () => $("#fasaIdFlip").classList.toggle("flipped"));
+  });
+  $("#editUnifiedProfile").addEventListener("click", () => {
+    renderUnifiedProfile();
+    $("#profileEditDialog").showModal();
+  });
+  $("#cancelProfileEditor").addEventListener("click", () => $("#profileEditDialog").close());
   $("#saveUnifiedProfile").addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-unified-field]").forEach((field) => {
@@ -2529,6 +2544,7 @@ function bindEvents() {
       if (state.judgePortal?.person) state.judgePortal.person = { ...state.judgePortal.person, ...saved.profile, mail: saved.profile.email };
       $("#unifiedProfileStatus").textContent = `FASA ID actualizado · ${saved.profile.fasa_id}`;
       renderUnifiedProfile();
+      setTimeout(() => $("#profileEditDialog").close(), 450);
     } catch (error) {
       $("#unifiedProfileStatus").textContent = error.message || "No se pudo guardar el perfil.";
     }

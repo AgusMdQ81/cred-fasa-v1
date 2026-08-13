@@ -232,45 +232,68 @@
         <section class="panel fasa-profile-panel">
           <div class="section-head">
             <div><p class="eyebrow">Identidad digital única</p><h2>FASA ID</h2></div>
-            <button id="saveUnifiedProfile" class="primary" type="button">Guardar cambios</button>
+            <button id="editUnifiedProfile" class="primary" type="button">Editar datos</button>
           </div>
           <p class="profile-intro">Tu información general y tu credencial para todos los roles dentro del sistema FASA.</p>
-          <article class="fasa-id-card" aria-label="Credencial digital FASA ID">
-            <div class="id-card-brand"><img src="/assets/fasa-logo-official.jpg" alt="FASA" /><span>IDENTIDAD DIGITAL</span></div>
-            <div class="id-card-body">
-              <div id="fasaIdCardPhoto" class="id-card-photo"><span>FOTO</span></div>
-              <div class="id-card-data">
-                <p id="fasaIdCardName">Nombre y apellido</p>
-                <strong id="fasaIdCardNumber">FASA ID pendiente</strong>
-                <span id="fasaIdCardDni">DNI —</span>
-                <span id="fasaIdCardClub">Club —</span>
-              </div>
-            </div>
-            <div class="id-card-footer"><span>FEDERACIÓN ARGENTINA DE SKI Y ANDINISMO</span><span>FASA</span></div>
-          </article>
-          <div class="unified-profile-layout">
-            <div class="profile-photo-card">
-              <div id="unifiedProfilePhoto" class="photo-preview"><span>Foto de perfil</span></div>
-              <label>URL de la foto <input data-unified-field="photo_url" placeholder="https://..." /></label>
-            </div>
-            <div class="detail-form unified-fields">
-              <label>FASA ID <input data-unified-field="fasa_id" readonly placeholder="Se asigna al guardar" /></label>
-              <label>Nombre <input data-unified-field="first_name" /></label>
-              <label>Apellido <input data-unified-field="last_name" /></label>
-              <label>Nacionalidad <input data-unified-field="nationality" /></label>
-              <label>DNI <input data-unified-field="dni" inputmode="numeric" maxlength="8" /></label>
-              <label>Club <input data-unified-field="club" /></label>
-              <label>Fecha de nacimiento <input data-unified-field="birth_date" type="date" /></label>
-              <label>Dirección de mail <input data-unified-field="email" type="email" /></label>
-              <label>Nueva contraseña <input data-unified-field="password" type="password" placeholder="Dejar vacío para mantener" /></label>
-              <label>Celular <input data-unified-field="phone" /></label>
-              <label>Dirección <input data-unified-field="address" /></label>
-              <label>Provincia <input data-unified-field="province" /></label>
-              <label>Región <select data-unified-field="region"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label>
+          <div id="fasaIdFlip" class="fasa-id-flip">
+            <div class="fasa-id-card" aria-label="Credencial digital FASA ID">
+              <article class="id-card-face id-card-front">
+                <div class="id-card-brand"><img src="/assets/fasa-logo-official.jpg" alt="FASA" /><span>IDENTIDAD DIGITAL</span></div>
+                <div class="id-card-body">
+                  <div id="fasaIdCardPhoto" class="id-card-photo"><span>FOTO</span></div>
+                  <div class="id-card-data">
+                    <p id="fasaIdCardName">Nombre y apellido</p>
+                    <strong id="fasaIdCardNumber">FASA ID pendiente</strong>
+                    <span id="fasaIdCardDni">DNI —</span>
+                    <span id="fasaIdCardClub">Club —</span>
+                    <div class="id-card-roles"><small>ROLES ASIGNADOS</small><span id="fasaIdCardRoles">Sin roles asignados</span></div>
+                  </div>
+                </div>
+                <div class="id-card-footer"><span>FEDERACIÓN ARGENTINA DE SKI Y ANDINISMO</span><button class="flip-id-button" type="button" data-flip-id>Dar vuelta <b>↻</b></button></div>
+              </article>
+              <article class="id-card-face id-card-back">
+                <div class="id-card-brand"><img src="/assets/fasa-logo-official.jpg" alt="FASA" /><span>DATOS DE CONTACTO</span></div>
+                <dl class="id-card-details">
+                  <div><dt>Email</dt><dd id="fasaIdCardEmail">—</dd></div>
+                  <div><dt>Celular</dt><dd id="fasaIdCardPhone">—</dd></div>
+                  <div><dt>Dirección</dt><dd id="fasaIdCardAddress">—</dd></div>
+                  <div><dt>Provincia / región</dt><dd id="fasaIdCardLocation">—</dd></div>
+                  <div><dt>Nacionalidad</dt><dd id="fasaIdCardNationality">—</dd></div>
+                  <div><dt>Fecha de nacimiento</dt><dd id="fasaIdCardBirthDate">—</dd></div>
+                </dl>
+                <div class="id-card-footer"><span>INFORMACIÓN PERSONAL</span><button class="flip-id-button" type="button" data-flip-id>Ver frente <b>↺</b></button></div>
+              </article>
             </div>
           </div>
-          <div class="profile-role-summary"><p class="eyebrow">Roles asignados</p><div id="profileRoleBadges"></div></div>
-          <p id="unifiedProfileStatus" aria-live="polite"></p>
+          <dialog id="profileEditDialog" class="profile-edit-dialog">
+            <form method="dialog" class="profile-edit-shell">
+              <div class="section-head"><div><p class="eyebrow">FASA ID</p><h2>Editar datos</h2></div><button id="closeProfileEditor" class="dialog-close" value="cancel" aria-label="Cerrar">×</button></div>
+              <p class="profile-intro">El DNI identifica tu registro y no puede modificarse desde aquí.</p>
+              <div class="unified-profile-layout">
+                <div class="profile-photo-card">
+                  <div id="unifiedProfilePhoto" class="photo-preview"><span>Foto de perfil</span></div>
+                  <label>URL de la foto <input data-unified-field="photo_url" placeholder="https://..." /></label>
+                </div>
+                <div class="detail-form unified-fields">
+                  <label>FASA ID <input data-unified-field="fasa_id" readonly placeholder="Se asigna al guardar" /></label>
+                  <label>Nombre <input data-unified-field="first_name" /></label>
+                  <label>Apellido <input data-unified-field="last_name" /></label>
+                  <label>Nacionalidad <input data-unified-field="nationality" /></label>
+                  <label>DNI <input data-unified-field="dni" readonly inputmode="numeric" maxlength="8" /></label>
+                  <label>Club <input data-unified-field="club" /></label>
+                  <label>Fecha de nacimiento <input data-unified-field="birth_date" type="date" /></label>
+                  <label>Dirección de mail <input data-unified-field="email" type="email" /></label>
+                  <label>Nueva contraseña <input data-unified-field="password" type="password" placeholder="Dejar vacío para mantener" /></label>
+                  <label>Celular <input data-unified-field="phone" /></label>
+                  <label>Dirección <input data-unified-field="address" /></label>
+                  <label>Provincia <input data-unified-field="province" /></label>
+                  <label>Región <select data-unified-field="region"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label>
+                </div>
+              </div>
+              <div class="dialog-actions"><button value="cancel" type="button" id="cancelProfileEditor">Cancelar</button><button id="saveUnifiedProfile" class="primary" type="button">Guardar datos</button></div>
+              <p id="unifiedProfileStatus" aria-live="polite"></p>
+            </form>
+          </dialog>
         </section>
       </section>
       <section id="competitions" class="view">
