@@ -678,12 +678,13 @@ button:hover,
 }
 
 .topbar {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
+  display: grid;
+  align-items: stretch;
   gap: 24px;
-  padding: 26px clamp(16px, 4vw, 44px);
-  background: var(--charcoal);
+  padding: 18px clamp(16px, 4vw, 44px) 0;
+  background:
+    linear-gradient(rgba(16,32,47,.88), rgba(16,32,47,.88)),
+    url("/assets/climber-clean-background.png") center 35% / cover;
   color: white;
   border-bottom: 8px solid var(--accent);
 }
@@ -749,7 +750,10 @@ h2 {
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  margin: 0 calc(clamp(16px, 4vw, 44px) * -1);
+  padding: 6px clamp(16px, 4vw, 44px);
+  background: var(--charcoal);
 }
 
 .assigned-roles {
@@ -757,7 +761,7 @@ h2 {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  width: 100%;
+  width: auto;
 }
 
 .assigned-roles > span {
@@ -779,6 +783,64 @@ h2 {
 .role-chip.active {
   color: var(--charcoal);
   background: white;
+}
+
+.profile-tab {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--charcoal);
+}
+
+.fasa-profile-panel {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.profile-intro {
+  margin: 8px 0 22px;
+  color: var(--muted);
+}
+
+.unified-profile-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.profile-photo-card {
+  display: grid;
+  gap: 12px;
+}
+
+.unified-fields {
+  grid-template-columns: repeat(3, minmax(170px, 1fr));
+}
+
+.profile-role-summary {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+#profileRoleBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+#profileRoleBadges span {
+  padding: 8px 12px;
+  color: white;
+  background: var(--charcoal);
+  font-weight: 800;
+}
+
+#unifiedProfileStatus {
+  margin-top: 14px;
+  color: var(--good);
+  font-weight: 800;
 }
 
 .tab {
@@ -1345,6 +1407,11 @@ tbody tr:hover {
     flex-direction: column;
   }
 
+  .unified-profile-layout,
+  .unified-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .public-grid {
     grid-template-columns: 1fr;
   }
@@ -1394,6 +1461,11 @@ tbody tr:hover {
 
   .panel {
     padding: 14px;
+  }
+
+  .unified-profile-layout,
+  .unified-fields {
+    grid-template-columns: 1fr;
   }
 
   .competitor-form {

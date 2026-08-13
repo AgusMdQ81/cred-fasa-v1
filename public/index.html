@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260813-calendar-months-v6" />
+    <link rel="stylesheet" href="/styles.css?v=20260813-private-profile-v1" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -206,6 +206,7 @@
         </div>
       </div>
       <nav class="tabs" aria-label="Vistas">
+        <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest">Mi Perfil FASA</button>
         <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
         <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juez</button>
         <button class="tab role-hidden" data-view="competitions" data-roles="general_admin" hidden>Competencias</button>
@@ -222,6 +223,37 @@
     </header>
 
     <main id="appMain" class="hidden">
+      <section id="unifiedProfile" class="view">
+        <section class="panel fasa-profile-panel">
+          <div class="section-head">
+            <div><p class="eyebrow">Identidad única</p><h2>Mi Perfil FASA</h2></div>
+            <button id="saveUnifiedProfile" class="primary" type="button">Guardar cambios</button>
+          </div>
+          <p class="profile-intro">Estos datos son comunes a todos tus roles dentro del sistema FASA.</p>
+          <div class="unified-profile-layout">
+            <div class="profile-photo-card">
+              <div id="unifiedProfilePhoto" class="photo-preview"><span>Foto de perfil</span></div>
+              <label>URL de la foto <input data-unified-field="photo_url" placeholder="https://..." /></label>
+            </div>
+            <div class="detail-form unified-fields">
+              <label>Nombre <input data-unified-field="first_name" /></label>
+              <label>Apellido <input data-unified-field="last_name" /></label>
+              <label>Nacionalidad <input data-unified-field="nationality" /></label>
+              <label>DNI <input data-unified-field="dni" inputmode="numeric" maxlength="8" /></label>
+              <label>Club <input data-unified-field="club" /></label>
+              <label>Fecha de nacimiento <input data-unified-field="birth_date" type="date" /></label>
+              <label>Dirección de mail <input data-unified-field="email" type="email" /></label>
+              <label>Nueva contraseña <input data-unified-field="password" type="password" placeholder="Dejar vacío para mantener" /></label>
+              <label>Celular <input data-unified-field="phone" /></label>
+              <label>Dirección <input data-unified-field="address" /></label>
+              <label>Provincia <input data-unified-field="province" /></label>
+              <label>Región <select data-unified-field="region"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label>
+            </div>
+          </div>
+          <div class="profile-role-summary"><p class="eyebrow">Roles asignados</p><div id="profileRoleBadges"></div></div>
+          <p id="unifiedProfileStatus" aria-live="polite"></p>
+        </section>
+      </section>
       <section id="competitions" class="view">
         <section class="panel">
           <div class="section-head">
@@ -913,6 +945,6 @@
       </div>
     </main>
 
-    <script src="/app.js?v=20260813-calendar-months-v3"></script>
+    <script src="/app.js?v=20260813-private-profile-v1"></script>
   </body>
 </html>

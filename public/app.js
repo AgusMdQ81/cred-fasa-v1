@@ -491,17 +491,21 @@ function judgeRole(roundKey) {
 }
 
 function allowedViews(role) {
-  if (role === "general_admin") return ["competitions", "regionalRepresentatives", "judgePeople"];
-  if (role === "regional_representative") return ["competitions"];
-  if (role === "competition_admin") return ["computos", "registrations", "config", "results"];
-  if (role === "organizer") return ["registrations"];
-  if (role === "judge") return ["judge", "results"];
-  if (role === "judge_portal") return ["judgePortal"];
-  if (role === "competitor") return ["competitorPortal"];
-  return ["results"];
+  if (role === "general_admin") return ["unifiedProfile", "competitions", "regionalRepresentatives", "judgePeople"];
+  if (role === "regional_representative") return ["unifiedProfile", "competitions"];
+  if (role === "competition_admin") return ["unifiedProfile", "computos", "registrations", "config", "results"];
+  if (role === "organizer") return ["unifiedProfile", "registrations"];
+  if (role === "judge") return ["unifiedProfile", "judge", "results"];
+  if (role === "judge_portal") return ["unifiedProfile", "judgePortal"];
+  if (role === "competitor") return ["unifiedProfile", "competitorPortal"];
+  return ["unifiedProfile", "results"];
 }
 
 function defaultView(role) {
+  return "unifiedProfile";
+}
+
+function roleHome(role) {
   if (role === "general_admin") return "competitions";
   if (role === "regional_representative") return "competitions";
   if (role === "competition_admin") return "computos";
@@ -526,6 +530,7 @@ function activateView(view, options = {}) {
   if (safeView === "computos") refreshComputed();
   if (safeView === "judgePortal") renderJudgePortal();
   if (safeView === "competitorPortal") renderCompetitorPortal();
+  if (safeView === "unifiedProfile") renderUnifiedProfile();
 }
 
 function openCompetitionView(competitionId, view) {
@@ -533,7 +538,7 @@ function openCompetitionView(competitionId, view) {
   activateView(view, { force: true });
 }
 
-function applyRole(role) {
+function applyRole(role, options = {}) {
   state.role = role;
   localStorage.setItem("credFasaRole", role);
   $("#loginGate").classList.add("hidden");
@@ -565,7 +570,7 @@ function applyRole(role) {
   renderRounds();
   renderAssignedRoles();
   applyCompetitionFormRole();
-  activateView(defaultView(role));
+  activateView(options.openRole ? roleHome(role) : defaultView(role));
 }
 
 const ROLE_LABELS = {
@@ -582,14 +587,45 @@ function renderAssignedRoles() {
   const container = $("#assignedRoles");
   if (!container) return;
   const roles = state.roles.length ? state.roles : [state.role];
-  container.innerHTML = `<span>Roles asignados</span>${roles.map((role) => `
+  container.innerHTML = `${roles.map((role) => `
     <button class="role-chip ${role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
       ${ROLE_LABELS[role] || role}
     </button>
   `).join("")}`;
   container.querySelectorAll("[data-switch-role]").forEach((button) => {
-    button.addEventListener("click", () => applyRole(button.dataset.switchRole));
+    button.addEventListener("click", () => applyRole(button.dataset.switchRole, { openRole: true }));
   });
+}
+
+function unifiedProfileData() {
+  const athlete = state.competitorPortal?.competitor || {};
+  const person = state.judgePortal?.person || state.judgePortal?.profile || {};
+  const display = String(state.user?.display_name || "").trim().split(/\s+/);
+  return {
+    first_name: athlete.first_name || person.first_name || display[0] || "",
+    last_name: athlete.last_name || person.last_name || display.slice(1).join(" ") || "",
+    nationality: athlete.nationality || "Argentina",
+    dni: athlete.dni || person.dni || "",
+    club: athlete.club || person.club || "",
+    birth_date: athlete.birth_date || "",
+    email: athlete.email || person.mail || state.user?.username || "",
+    password: "",
+    phone: athlete.phone || person.phone || "",
+    address: athlete.address || "",
+    province: athlete.province || "",
+    region: athlete.region || "Buenos Aires",
+    photo_url: athlete.photo_url || person.photo_url || "",
+  };
+}
+
+function renderUnifiedProfile() {
+  const profile = unifiedProfileData();
+  document.querySelectorAll("[data-unified-field]").forEach((field) => {
+    field.value = profile[field.dataset.unifiedField] || "";
+  });
+  renderPhotoPreview($("#unifiedProfilePhoto"), profile.photo_url, "Foto del perfil FASA");
+  const roles = state.roles.length ? state.roles : [state.role];
+  $("#profileRoleBadges").innerHTML = roles.map((role) => `<span>${ROLE_LABELS[role] || role}</span>`).join("");
 }
 
 function logout() {
@@ -2461,6 +2497,16 @@ function bindEvents() {
   $("#calendarYear").addEventListener("click", () => {
     state.publicCalendarFilters.month = "";
     renderPublicCalendar();
+  });
+  $("#saveUnifiedProfile").addEventListener("click", () => {
+    const profile = {};
+    document.querySelectorAll("[data-unified-field]").forEach((field) => {
+      profile[field.dataset.unifiedField] = field.value;
+    });
+    state.user = { ...state.user, display_name: `${profile.first_name} ${profile.last_name}`.trim(), username: profile.email };
+    if (state.competitorPortal?.competitor) state.competitorPortal.competitor = { ...state.competitorPortal.competitor, ...profile };
+    $("#unifiedProfileStatus").textContent = "Perfil FASA actualizado.";
+    renderUnifiedProfile();
   });
   document.querySelectorAll("[data-ranking]").forEach((button) => {
     button.addEventListener("click", () => {
