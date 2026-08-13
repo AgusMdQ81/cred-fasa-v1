@@ -195,12 +195,12 @@ button:hover,
 
 .calendar-board,
 .access-panel {
-  background: rgba(255, 255, 255, .95);
+  background: rgba(255, 255, 255, .42);
   color: var(--ink);
   border-radius: 0;
   padding: clamp(20px, 3vw, 34px);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(7px);
 }
 
 .calendar-board {
@@ -209,16 +209,40 @@ button:hover,
 }
 
 #calendarView.calendar-board {
-  background: rgba(255, 255, 255, .56);
-  border: 1px solid rgba(255,255,255,.52);
+  background: rgba(255, 255, 255, .36);
+  border: 1px solid rgba(255,255,255,.42);
   border-top: 10px solid var(--accent);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(5px);
 }
 
 #calendarView .calendar-item,
 #calendarView .competition-actions {
-  background: rgba(255,255,255,.66);
+  background: rgba(255,255,255,.46);
+  backdrop-filter: blur(3px);
+}
+
+#athletesView.calendar-board,
+#accessView.access-panel,
+#competitionDetailView.calendar-board {
+  background: rgba(255,255,255,.36);
+  border: 1px solid rgba(255,255,255,.42);
+  border-top: 10px solid var(--accent);
   backdrop-filter: blur(5px);
+}
+
+#athletesView .ranking-row {
+  background: rgba(255,255,255,.48);
+  backdrop-filter: blur(3px);
+}
+
+#accessView .login-card {
+  background: rgba(255,255,255,.52);
+  backdrop-filter: blur(4px);
+}
+
+#accessView input,
+#accessView select {
+  background: rgba(255,255,255,.68);
 }
 
 .calendar-layout {
@@ -380,7 +404,8 @@ button:hover,
 
 .public-results-panel {
   padding: 20px;
-  background: rgba(255,255,255,.9);
+  background: rgba(255,255,255,.5);
+  backdrop-filter: blur(4px);
 }
 
 .result-row {
