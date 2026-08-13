@@ -1,3 +1,5 @@
+import { env } from "cloudflare:workers";
+
 type RoundKey = "clasificatoria" | "semifinal" | "final";
 
 const rounds: Record<RoundKey, { label: string; active: number; boulders: number; minutes: number }> = {
@@ -151,6 +153,35 @@ function json(data: unknown, init?: ResponseInit) {
   return Response.json(data, init);
 }
 
+async function ensureDirectoryTable() {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS directory_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    record_type TEXT NOT NULL,
+    record_key TEXT NOT NULL,
+    data TEXT NOT NULL
+  )`).run();
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS directory_records_type_key_idx ON directory_records(record_type, record_key)").run();
+}
+
+async function loadDirectoryRecords(recordType: string, fallback: unknown[]) {
+  await ensureDirectoryTable();
+  const result = await env.DB.prepare("SELECT data FROM directory_records WHERE record_type = ? ORDER BY id").bind(recordType).all<{ data: string }>();
+  if (!result.results.length) return fallback;
+  return result.results.map((row) => JSON.parse(row.data));
+}
+
+async function saveDirectoryRecords(recordType: string, records: Array<Record<string, unknown>>) {
+  await ensureDirectoryTable();
+  const normalized = records.map((record, index) => ({ ...record, id: record.id || Date.now() + index }));
+  const statements = [env.DB.prepare("DELETE FROM directory_records WHERE record_type = ?").bind(recordType)];
+  normalized.forEach((record) => statements.push(
+    env.DB.prepare("INSERT INTO directory_records (record_type, record_key, data) VALUES (?, ?, ?)")
+      .bind(recordType, String(record.id), JSON.stringify(record))
+  ));
+  await env.DB.batch(statements);
+  return normalized;
+}
+
 function pathFrom(request: Request) {
   return new URL(request.url).pathname.replace(/^\/api\/?/, "");
 }
@@ -231,8 +262,8 @@ export async function GET(request: Request) {
   const path = pathFrom(request);
   if (path === "config") return json({ rounds });
   if (path === "competitions") return json(competitions);
-  if (path === "judge-people") return json(judgePeople);
-  if (path === "regional-representatives") return json([]);
+  if (path === "judge-people") return json(await loadDirectoryRecords("judge", judgePeople));
+  if (path === "regional-representatives") return json(await loadDirectoryRecords("regional_representative", []));
   if (path === "judges") return json(getJudges());
   if (path === "timer") return json(timerState);
   if (path === "competitors") {
@@ -390,9 +421,9 @@ export async function POST(request: Request) {
   if (path === "competitions") return json({ ok: true, id: Date.now() });
   if (path === "competitors") return json({ ok: true, id: Date.now() });
   if (path === "seed") return json(competitors);
-  if (path === "judge-people") return json(judgePeople);
+  if (path === "judge-people") return json(await saveDirectoryRecords("judge", Array.isArray(payload.people) ? payload.people : []));
   if (path === "judges") return json(getJudges());
-  if (path === "regional-representatives") return json([]);
+  if (path === "regional-representatives") return json(await saveDirectoryRecords("regional_representative", Array.isArray(payload.representatives) ? payload.representatives : []));
   if (path === "judge-portal-login") return json({ profile: judgePeople[0], assignments: competitions });
   if (path === "judge-portal-profile") return json({ profile: payload.profile || judgePeople[0], assignments: competitions });
   if (path === "competitor-login" || path === "competitor-register" || path === "competitor-profile") return json({ competitor: competitors[1], competitions, registrations: [] });
