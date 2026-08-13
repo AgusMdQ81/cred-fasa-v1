@@ -98,6 +98,7 @@ function requestedTimerCycle(defaultCycle = 1) {
 
 function newLocalTimer(roundKey = selectedRound(), boulder = selectedBoulder()) {
   return {
+    fasa_id: state.user?.fasa_id || athlete.fasa_id || person.fasa_id || "",
     round: roundKey,
     boulder: Number(boulder || 1),
     timer_schema: 3,
@@ -2510,15 +2511,22 @@ function bindEvents() {
     state.publicCalendarFilters.month = "";
     renderPublicCalendar();
   });
-  $("#saveUnifiedProfile").addEventListener("click", () => {
+  $("#saveUnifiedProfile").addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-unified-field]").forEach((field) => {
       profile[field.dataset.unifiedField] = field.value;
     });
-    state.user = { ...state.user, display_name: `${profile.first_name} ${profile.last_name}`.trim(), username: profile.email };
-    if (state.competitorPortal?.competitor) state.competitorPortal.competitor = { ...state.competitorPortal.competitor, ...profile };
-    $("#unifiedProfileStatus").textContent = "Perfil FASA actualizado.";
-    renderUnifiedProfile();
+    try {
+      const saved = await api("/api/fasa-profile", { method: "POST", body: JSON.stringify({ profile, roles: state.roles }) });
+      state.user = { ...state.user, ...saved.profile, display_name: `${saved.profile.first_name} ${saved.profile.last_name}`.trim(), username: saved.profile.email };
+      state.roles = saved.roles || state.roles;
+      if (state.competitorPortal?.competitor) state.competitorPortal.competitor = { ...state.competitorPortal.competitor, ...saved.profile };
+      if (state.judgePortal?.person) state.judgePortal.person = { ...state.judgePortal.person, ...saved.profile, mail: saved.profile.email };
+      $("#unifiedProfileStatus").textContent = `Perfil FASA actualizado · ${saved.profile.fasa_id}`;
+      renderUnifiedProfile();
+    } catch (error) {
+      $("#unifiedProfileStatus").textContent = error.message || "No se pudo guardar el perfil.";
+    }
   });
   document.querySelectorAll("[data-ranking]").forEach((button) => {
     button.addEventListener("click", () => {

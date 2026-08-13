@@ -163,6 +163,100 @@ async function ensureDirectoryTable() {
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS directory_records_type_key_idx ON directory_records(record_type, record_key)").run();
 }
 
+async function ensureFasaTables() {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS fasa_profiles (
+      fasa_id TEXT PRIMARY KEY, dni TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL,
+      nationality TEXT NOT NULL DEFAULT 'Argentina', club TEXT NOT NULL DEFAULT '', birth_date TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '', password TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '',
+      province TEXT NOT NULL DEFAULT '', region TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`),
+    env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fasa_profiles_email_unique ON fasa_profiles(email) WHERE email <> ''"),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS fasa_roles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL, role_type TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+      UNIQUE(fasa_id, role_type)
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS fasa_role_details (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL, role_type TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}',
+      UNIQUE(fasa_id, role_type)
+    )`),
+  ]);
+}
+
+function cleanDni(value: unknown) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function makeFasaId(dni: string) {
+  return `FASA-${dni.padStart(8, "0")}`;
+}
+
+function commonProfile(record: Record<string, unknown>) {
+  const dni = cleanDni(record.dni);
+  return {
+    fasa_id: String(record.fasa_id || makeFasaId(dni)), dni,
+    first_name: String(record.first_name || ""), last_name: String(record.last_name || ""),
+    nationality: String(record.nationality || "Argentina"), club: String(record.club || ""),
+    birth_date: String(record.birth_date || ""), email: String(record.email || record.mail || "").trim().toLowerCase(),
+    password: String(record.password || ""), phone: String(record.phone || ""), address: String(record.address || ""),
+    province: String(record.province || ""), region: String(record.region || ""), photo_url: String(record.photo_url || ""),
+  };
+}
+
+async function upsertFasaProfile(record: Record<string, unknown>) {
+  await ensureFasaTables();
+  const profile = commonProfile(record);
+  if (!profile.dni) throw new Error("El DNI es obligatorio para vincular el Perfil FASA.");
+  const existing = await env.DB.prepare("SELECT fasa_id, password FROM fasa_profiles WHERE dni = ? OR fasa_id = ? LIMIT 1").bind(profile.dni, profile.fasa_id).first<{ fasa_id: string; password: string }>();
+  profile.fasa_id = existing?.fasa_id || profile.fasa_id;
+  profile.password = profile.password || existing?.password || "";
+  const now = new Date().toISOString();
+  await env.DB.prepare(`INSERT INTO fasa_profiles
+    (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(fasa_id) DO UPDATE SET dni=excluded.dni,first_name=excluded.first_name,last_name=excluded.last_name,
+    nationality=excluded.nationality,club=excluded.club,birth_date=excluded.birth_date,email=excluded.email,password=excluded.password,
+    phone=excluded.phone,address=excluded.address,province=excluded.province,region=excluded.region,photo_url=excluded.photo_url,updated_at=excluded.updated_at`)
+    .bind(profile.fasa_id,profile.dni,profile.first_name,profile.last_name,profile.nationality,profile.club,profile.birth_date,
+      profile.email,profile.password,profile.phone,profile.address,profile.province,profile.region,profile.photo_url,now,now).run();
+  return profile;
+}
+
+async function assignRole(fasaId: string, roleType: string, details: Record<string, unknown> = {}) {
+  await ensureFasaTables();
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO fasa_roles (fasa_id,role_type,active) VALUES (?,?,1) ON CONFLICT(fasa_id,role_type) DO UPDATE SET active=1").bind(fasaId, roleType),
+    env.DB.prepare("INSERT INTO fasa_role_details (fasa_id,role_type,data) VALUES (?,?,?) ON CONFLICT(fasa_id,role_type) DO UPDATE SET data=excluded.data").bind(fasaId, roleType, JSON.stringify(details)),
+  ]);
+}
+
+async function loadRoleDirectory(roleType: string, fallback: Array<Record<string, unknown>>) {
+  await ensureFasaTables();
+  const result = await env.DB.prepare(`SELECT p.*, d.data FROM fasa_profiles p
+    JOIN fasa_roles r ON r.fasa_id=p.fasa_id AND r.role_type=? AND r.active=1
+    LEFT JOIN fasa_role_details d ON d.fasa_id=p.fasa_id AND d.role_type=r.role_type ORDER BY p.last_name,p.first_name`)
+    .bind(roleType).all<Record<string, unknown> & { data?: string }>();
+  if (!result.results.length) return fallback;
+  return result.results.map((row) => {
+    const details = row.data ? JSON.parse(String(row.data)) : {};
+    const { data: _data, password: _password, created_at: _created, updated_at: _updated, ...profile } = row;
+    return { ...profile, mail: profile.email, ...details };
+  });
+}
+
+async function saveRoleDirectory(roleType: string, records: Array<Record<string, unknown>>) {
+  const saved = [];
+  for (const record of records) {
+    const profile = await upsertFasaProfile(record);
+    const commonKeys = new Set(["fasa_id","dni","first_name","last_name","nationality","club","birth_date","email","mail","password","phone","address","province","region","photo_url"]);
+    const details = Object.fromEntries(Object.entries(record).filter(([key]) => !commonKeys.has(key)));
+    await assignRole(profile.fasa_id, roleType, details);
+    saved.push({ ...record, ...profile, mail: profile.email });
+  }
+  return saved;
+}
+
 async function loadDirectoryRecords(recordType: string, fallback: unknown[]) {
   await ensureDirectoryTable();
   const result = await env.DB.prepare("SELECT data FROM directory_records WHERE record_type = ? ORDER BY id").bind(recordType).all<{ data: string }>();
@@ -262,8 +356,17 @@ export async function GET(request: Request) {
   const path = pathFrom(request);
   if (path === "config") return json({ rounds });
   if (path === "competitions") return json(competitions);
-  if (path === "judge-people") return json(await loadDirectoryRecords("judge", judgePeople));
-  if (path === "regional-representatives") return json(await loadDirectoryRecords("regional_representative", []));
+  if (path === "judge-people") return json(await loadRoleDirectory("judge", judgePeople));
+  if (path === "regional-representatives") return json(await loadRoleDirectory("regional_representative", []));
+  if (path === "fasa-profile") {
+    await ensureFasaTables();
+    const key = String(url.searchParams.get("id") || url.searchParams.get("email") || "").trim().toLowerCase();
+    const profile = await env.DB.prepare("SELECT * FROM fasa_profiles WHERE lower(email)=? OR fasa_id=? OR dni=? LIMIT 1").bind(key, key.toUpperCase(), cleanDni(key)).first<Record<string, unknown>>();
+    if (!profile) return json({ error: "Perfil FASA no encontrado." }, { status: 404 });
+    const roles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(profile.fasa_id).all<{ role_type: string }>();
+    const { password: _password, created_at: _created, updated_at: _updated, ...safeProfile } = profile;
+    return json({ profile: safeProfile, roles: roles.results.map((row) => row.role_type) });
+  }
   if (path === "judges") return json(getJudges());
   if (path === "timer") return json(timerState);
   if (path === "competitors") {
@@ -308,6 +411,21 @@ export async function POST(request: Request) {
     const username = String(payload.username || "").trim().toLowerCase();
     const password = String(payload.password || "");
     if (!username || !password) return json({ error: "Ingresá usuario y contraseña." }, { status: 400 });
+
+    await ensureFasaTables();
+    const stored = await env.DB.prepare("SELECT * FROM fasa_profiles WHERE lower(email)=? OR dni=? LIMIT 1").bind(username, cleanDni(username)).first<Record<string, unknown>>();
+    if (stored) {
+      if (stored.password && String(stored.password) !== password) return json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
+      const storedRoles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(stored.fasa_id).all<{ role_type: string }>();
+      const roles = storedRoles.results.map((row) => row.role_type);
+      const safeProfile = { ...stored, password: undefined, created_at: undefined, updated_at: undefined };
+      return json({
+        role: roles[0] || "competitor", roles: roles.length ? roles : ["competitor"],
+        user: { ...safeProfile, display_name: `${stored.first_name} ${stored.last_name}`.trim(), username: stored.email, roles },
+        judgePortal: { person: { ...safeProfile, mail: stored.email }, assignments: competitions },
+        competitorPortal: { competitor: safeProfile, competitions, registrations: [] },
+      });
+    }
 
     let roles: string[] = ["competitor"];
     let displayName = "Atleta FASA";
@@ -421,12 +539,33 @@ export async function POST(request: Request) {
   if (path === "competitions") return json({ ok: true, id: Date.now() });
   if (path === "competitors") return json({ ok: true, id: Date.now() });
   if (path === "seed") return json(competitors);
-  if (path === "judge-people") return json(await saveDirectoryRecords("judge", Array.isArray(payload.people) ? payload.people : []));
+  if (path === "fasa-profile") {
+    try {
+      const profile = await upsertFasaProfile((payload.profile || payload) as Record<string, unknown>);
+      const requestedRoles = Array.isArray(payload.roles) && payload.roles.length ? payload.roles.map(String) : ["competitor"];
+      for (const role of requestedRoles) await assignRole(profile.fasa_id, role);
+      const { password: _password, ...safeProfile } = profile;
+      return json({ profile: safeProfile, roles: requestedRoles });
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "No se pudo guardar el Perfil FASA." }, { status: 400 });
+    }
+  }
+  if (path === "judge-people") return json(await saveRoleDirectory("judge", Array.isArray(payload.people) ? payload.people : []));
   if (path === "judges") return json(getJudges());
-  if (path === "regional-representatives") return json(await saveDirectoryRecords("regional_representative", Array.isArray(payload.representatives) ? payload.representatives : []));
+  if (path === "regional-representatives") return json(await saveRoleDirectory("regional_representative", Array.isArray(payload.representatives) ? payload.representatives : []));
   if (path === "judge-portal-login") return json({ profile: judgePeople[0], assignments: competitions });
   if (path === "judge-portal-profile") return json({ profile: payload.profile || judgePeople[0], assignments: competitions });
-  if (path === "competitor-login" || path === "competitor-register" || path === "competitor-profile") return json({ competitor: competitors[1], competitions, registrations: [] });
+  if (path === "competitor-register") {
+    try {
+      const profile = await upsertFasaProfile(payload as Record<string, unknown>);
+      await assignRole(profile.fasa_id, "competitor", { category: payload.category || "", gender: payload.gender || "" });
+      const { password: _password, ...safeProfile } = profile;
+      return json({ competitor: safeProfile, competitions, registrations: [] });
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "No se pudo crear el Perfil FASA." }, { status: 400 });
+    }
+  }
+  if (path === "competitor-login" || path === "competitor-profile") return json({ competitor: competitors[1], competitions, registrations: [] });
   if (path === "competition-registrations") return json({ competitor: competitors[1], competitions, registrations: [{ competition_id: payload.competition_id }] });
   if (path === "competition-registration-status") return json({ ok: true });
   return json({ ok: true });
