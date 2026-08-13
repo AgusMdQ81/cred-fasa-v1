@@ -247,14 +247,16 @@ button:hover,
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr);
-  gap: 26px;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 52px;
   align-items: start;
   margin-top: 20px;
 }
 
 .calendar-layout .calendar-list {
   margin-top: 0;
+  width: min(100%, 850px);
+  justify-self: end;
 }
 
 .month-rail {
@@ -316,6 +318,8 @@ button:hover,
   border: 0;
   opacity: .92;
   transition: color .2s ease, font-size .2s ease, opacity .2s ease;
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .month-button strong {
@@ -328,7 +332,7 @@ button:hover,
   color: #46535d;
   cursor: default;
   opacity: .9;
-  text-shadow: 0 1px 0 rgba(255,255,255,.75);
+  text-shadow: none;
 }
 
 .month-button:not(:disabled):hover {
@@ -343,7 +347,7 @@ button:hover,
 }
 
 .month-button.active strong {
-  font-size: 31px;
+  font-size: 29px;
 }
 
 .month-arrow {
