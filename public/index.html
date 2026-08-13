@@ -7,18 +7,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260809-acceso32" />
+    <link rel="stylesheet" href="/styles.css?v=20260813-nav-roles" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
       <div class="login-panel public-grid">
-        <div>
+        <div class="public-brand">
           <div class="brand-lockup">
             <h1>Competencias de Escalada Deportiva</h1>
             <img src="/assets/fasa-logo-manual.png" alt="FASA" />
           </div>
         </div>
-        <section class="calendar-board">
+        <nav class="public-nav" aria-label="Navegación principal">
+          <button class="public-nav-link active" type="button" data-public-view="calendarView">Calendario</button>
+          <button class="public-nav-link" type="button" data-public-view="athletesView">Atletas</button>
+          <button class="public-nav-link" type="button" data-public-view="accessView">Ingreso</button>
+        </nav>
+        <section id="calendarView" class="calendar-board public-view active">
           <div class="section-head">
             <div>
               <p class="eyebrow">Calendario</p>
@@ -64,24 +69,38 @@
           <div id="publicCompetitionCalendar" class="calendar-list"></div>
           <div id="publicCompetitionActions" class="competition-actions hidden"></div>
         </section>
-        <aside class="access-panel">
-        <p class="eyebrow">Acceso</p>
-        <button id="showAdminLogin" class="primary" type="button">Administrador</button>
-        <button id="showRegionalLogin" type="button">Referente Regional</button>
-        <button id="showJudgePortalLogin" type="button">Juez</button>
-        <button id="showCompetitorPortal" type="button">Competidor</button>
-        <form id="loginForm" class="login-card hidden">
-          <h2>Ingreso</h2>
-          <label>Usuario
-            <input name="user" autocomplete="username" autofocus />
+        <section id="athletesView" class="calendar-board public-view">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Atletas FASA</p>
+              <h2>Rankings y perfiles</h2>
+            </div>
+          </div>
+          <div class="ranking-selector" role="group" aria-label="Tipo de ranking">
+            <button class="ranking-button active" type="button" data-ranking="argentine">Ranking argentino</button>
+            <button class="ranking-button" type="button" data-ranking="regional">Rankings regionales</button>
+          </div>
+          <div id="publicRankings" class="public-rankings"></div>
+          <p class="athlete-note">Seleccioná un atleta para consultar su información deportiva básica.</p>
+        </section>
+        <aside id="accessView" class="access-panel public-view">
+        <div>
+          <p class="eyebrow">Cuenta FASA</p>
+          <h2>Ingreso único</h2>
+          <p class="access-copy">Una sola cuenta para atletas, jueces, organizadores, referentes y administradores.</p>
+        </div>
+        <form id="loginForm" class="login-card unified-login">
+          <label>Email o usuario
+            <input name="user" autocomplete="username" autofocus required />
           </label>
           <label>Contraseña
             <input name="password" type="password" autocomplete="current-password" />
           </label>
           <button class="primary" type="submit">Ingresar</button>
-          <p>El acceso disponible depende del usuario y la competencia asignada.</p>
+          <p>Al ingresar vas a ver todos los roles asignados a tu perfil.</p>
         </form>
-        <form id="judgePortalLoginForm" class="login-card hidden">
+        <button id="showCompetitorRegister" type="button">Crear cuenta de atleta</button>
+        <form id="judgePortalLoginForm" class="login-card hidden" aria-hidden="true">
           <h2>Acceso jueces</h2>
           <label>Mail
             <input name="username" type="email" autocomplete="username" />
@@ -91,8 +110,8 @@
           </label>
           <button class="primary" type="submit">Ingresar</button>
         </form>
-        <form id="competitorLoginForm" class="login-card hidden">
-          <h2>Competidores</h2>
+        <form id="competitorLoginForm" class="login-card hidden" aria-hidden="true">
+          <h2>Atletas</h2>
           <label>Email
             <input name="email" type="email" autocomplete="username" />
           </label>
@@ -101,11 +120,11 @@
           </label>
           <div class="save-row">
             <button class="primary" type="submit">Ingresar</button>
-            <button id="showCompetitorRegister" type="button">Registrarme</button>
+            <button type="button">Registrarme</button>
           </div>
         </form>
         <form id="competitorRegisterForm" class="login-card hidden">
-          <h2>Registro competidor</h2>
+          <h2>Registro de atleta</h2>
           <label>Nombre <input name="first_name" required /></label>
           <label>Apellido <input name="last_name" required /></label>
           <label>Email <input name="email" type="email" required /></label>
@@ -145,12 +164,13 @@
         </div>
       </div>
       <nav class="tabs" aria-label="Vistas">
+        <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
         <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juez</button>
         <button class="tab role-hidden" data-view="competitions" data-roles="general_admin" hidden>Competencias</button>
         <button class="tab role-hidden" data-view="regionalRepresentatives" data-roles="general_admin" hidden>Referentes regionales</button>
         <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Jueces</button>
         <button class="tab role-hidden" data-view="judgePortal" data-roles="judge_portal" hidden>Mi perfil</button>
-        <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Mi cuenta</button>
+        <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Mi perfil de atleta</button>
         <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Computos</button>
         <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
         <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuracion</button>
@@ -438,7 +458,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Competidores</p>
+              <p class="eyebrow">Atletas</p>
               <h2>Mi ficha</h2>
             </div>
             <button id="saveCompetitorProfile" class="primary" type="button">Guardar cambios</button>
@@ -519,8 +539,8 @@
         <section class="panel scoring-panel">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Competidor actual</p>
-              <h2 id="activeCompetitorName">Selecciona un competidor</h2>
+              <p class="eyebrow">Atleta actual</p>
+              <h2 id="activeCompetitorName">Seleccioná un atleta</h2>
             </div>
             <strong id="scorePreview" class="score">0.0</strong>
           </div>
@@ -648,7 +668,7 @@
       <section id="admin" class="view">
         <section class="panel">
           <div class="section-head">
-            <h2>Base de competidores</h2>
+            <h2>Base de atletas</h2>
             <span id="competitorCount" class="badge">0</span>
           </div>
           <form id="competitorForm" class="competitor-form admin-only">
@@ -707,7 +727,7 @@
           </div>
           <table>
             <thead>
-              <tr><th>Nro.</th><th>Competidor</th><th>Club</th><th>Region</th><th>Categoria</th><th>Genero</th><th></th></tr>
+              <tr><th>Nro.</th><th>Atleta</th><th>Club</th><th>Region</th><th>Categoria</th><th>Genero</th><th></th></tr>
             </thead>
             <tbody id="competitorTable"></tbody>
           </table>
@@ -796,7 +816,7 @@
           </div>
           <table>
             <thead>
-              <tr><th>Bib</th><th>Nro.</th><th>Competidor</th><th>DNI</th><th>Mail</th><th>Celular</th><th>Club</th><th>Region</th><th>Categoria</th><th>Genero</th><th>Pago</th><th>Acreditado</th><th>Inscripcion</th><th></th></tr>
+              <tr><th>Bib</th><th>Nro.</th><th>Atleta</th><th>DNI</th><th>Mail</th><th>Celular</th><th>Club</th><th>Region</th><th>Categoria</th><th>Genero</th><th>Pago</th><th>Acreditado</th><th>Inscripcion</th><th></th></tr>
             </thead>
             <tbody id="registrationsTable"></tbody>
           </table>

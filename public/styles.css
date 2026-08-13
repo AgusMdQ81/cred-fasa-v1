@@ -102,7 +102,7 @@ button:hover,
 .public-grid {
   width: min(1280px, 100%);
   margin: 0 auto;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: 1fr;
   align-content: start;
   align-items: start;
 }
@@ -113,6 +113,43 @@ button:hover,
 
 .public-grid > div:first-child .brand-lockup {
   min-height: 112px;
+}
+
+.public-brand {
+  padding: 10px 4px 2px;
+}
+
+.public-nav {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--charcoal);
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 10px;
+  z-index: 20;
+}
+
+.public-nav-link {
+  flex: 1;
+  border-color: transparent;
+  background: transparent;
+  color: white;
+}
+
+.public-nav-link.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.public-view {
+  display: none !important;
+}
+
+.public-view.active {
+  display: grid !important;
 }
 
 .login-panel .eyebrow {
@@ -148,8 +185,75 @@ button:hover,
 .access-panel {
   display: grid;
   gap: 14px;
-  position: sticky;
-  top: 24px;
+  width: min(620px, 100%);
+  margin: 0 auto;
+  border-top: 10px solid var(--accent);
+}
+
+.access-copy {
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.unified-login {
+  box-shadow: none;
+  border: 1px solid var(--line);
+  border-top: 6px solid var(--accent);
+}
+
+.ranking-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 12px;
+}
+
+.ranking-button.active {
+  color: white;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.public-rankings {
+  display: grid;
+  gap: 7px;
+}
+
+.ranking-head,
+.ranking-row {
+  display: grid;
+  grid-template-columns: 140px minmax(180px, 1.4fr) minmax(120px, 1fr) 90px;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+}
+
+.ranking-head {
+  padding: 7px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ranking-row {
+  width: 100%;
+  min-height: 66px;
+  border-left: 6px solid var(--silver);
+}
+
+.ranking-row:hover {
+  border-left-color: var(--accent);
+}
+
+.ranking-row small {
+  display: block;
+  color: var(--muted);
+}
+
+.athlete-note {
+  margin-top: 16px;
+  color: var(--muted);
 }
 
 .calendar-list {
@@ -308,6 +412,35 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.assigned-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.assigned-roles > span {
+  color: #f0c38e;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.role-chip {
+  min-height: 34px;
+  padding: 0 10px;
+  border-color: rgba(255,255,255,.35);
+  background: transparent;
+  color: white;
+  font-size: 11px;
+}
+
+.role-chip.active {
+  color: var(--charcoal);
+  background: white;
 }
 
 .tab {
@@ -931,6 +1064,29 @@ tbody tr:hover {
 
   .calendar-item {
     grid-template-columns: 1fr;
+  }
+
+  .public-nav {
+    top: 4px;
+  }
+
+  .public-nav-link {
+    min-height: 38px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .ranking-head {
+    display: none;
+  }
+
+  .ranking-row {
+    grid-template-columns: 80px 1fr;
+  }
+
+  .ranking-row > :nth-child(3),
+  .ranking-row > :nth-child(4) {
+    display: none;
   }
 
   table {

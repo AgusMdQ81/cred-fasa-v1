@@ -7,6 +7,7 @@ const state = {
   topAttempt: null,
   timer: null,
   role: null,
+  roles: [],
   user: null,
   judges: [],
   judgePeople: [],
@@ -561,12 +562,38 @@ function applyRole(role) {
     $("#judgeName").readOnly = false;
   }
   renderRounds();
+  renderAssignedRoles();
   applyCompetitionFormRole();
   activateView(defaultView(role));
 }
 
+const ROLE_LABELS = {
+  competitor: "Atleta",
+  judge_portal: "Juez",
+  judge: "Juez de competencia",
+  organizer: "Organizador",
+  competition_admin: "Presidente de jurado",
+  regional_representative: "Referente regional",
+  general_admin: "Administrador",
+};
+
+function renderAssignedRoles() {
+  const container = $("#assignedRoles");
+  if (!container) return;
+  const roles = state.roles.length ? state.roles : [state.role];
+  container.innerHTML = `<span>Roles asignados</span>${roles.map((role) => `
+    <button class="role-chip ${role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
+      ${ROLE_LABELS[role] || role}
+    </button>
+  `).join("")}`;
+  container.querySelectorAll("[data-switch-role]").forEach((button) => {
+    button.addEventListener("click", () => applyRole(button.dataset.switchRole));
+  });
+}
+
 function logout() {
   state.role = null;
+  state.roles = [];
   state.user = null;
   state.currentCompetitionId = null;
   state.judgePortal = null;
@@ -582,7 +609,7 @@ function logout() {
   $("#appHeader").classList.add("hidden");
   $("#appMain").classList.add("hidden");
   $("#loginGate").classList.remove("hidden");
-  $("#loginForm").classList.add("hidden");
+  $("#loginForm").classList.remove("hidden");
   $("#judgePortalLoginForm").classList.add("hidden");
   $("#competitorLoginForm").classList.add("hidden");
   $("#competitorRegisterForm").classList.add("hidden");
@@ -1049,7 +1076,7 @@ async function exportStartOrderPdf(row) {
         </div>
         <table>
           <thead><tr><th>Orden</th><th>Bib</th><th>Nombre</th><th>Apellido</th><th>Club</th><th>Horario de salida</th></tr></thead>
-          <tbody>${bodyRows || '<tr><td colspan="6">No hay competidores acreditados.</td></tr>'}</tbody>
+          <tbody>${bodyRows || '<tr><td colspan="6">No hay atletas acreditados.</td></tr>'}</tbody>
         </table>
         <script>window.addEventListener("load", () => setTimeout(() => window.print(), 150));<\/script>
       </body>
@@ -1628,10 +1655,33 @@ function selectPublicCompetition(id) {
 
 function showOfficialLogin(competitionId) {
   state.loginCompetitionId = competitionId;
+  switchPublicView("accessView");
   $("#loginForm").classList.remove("hidden");
   $("#loginStatus").textContent = "";
-  $("#loginForm").querySelector("h2").textContent = "Ingreso oficiales";
   $("#loginForm").querySelector('[name="user"]').focus();
+}
+
+function switchPublicView(viewId) {
+  document.querySelectorAll(".public-view").forEach((view) => view.classList.toggle("active", view.id === viewId));
+  document.querySelectorAll("[data-public-view]").forEach((button) => button.classList.toggle("active", button.dataset.publicView === viewId));
+  if (viewId === "athletesView") renderPublicRankings("argentine");
+}
+
+function renderPublicRankings(type = "argentine") {
+  const container = $("#publicRankings");
+  if (!container) return;
+  const athletes = [
+    { rank: 1, name: "Sofía Pérez", club: "AEBA", region: "Buenos Aires", points: 2840 },
+    { rank: 2, name: "Camila Costa", club: "Club Andino", region: "Patagonia Norte", points: 2715 },
+    { rank: 3, name: "Martina Díaz", club: "Cuyo", region: "Cuyo", points: 2630 },
+    { rank: 4, name: "Julia Molina", club: "Centro", region: "Centro", points: 2485 },
+    { rank: 5, name: "Mateo Gómez", club: "CABA", region: "Buenos Aires", points: 2390 },
+  ];
+  const rows = type === "regional" ? [...athletes].sort((a, b) => a.region.localeCompare(b.region)) : athletes;
+  container.innerHTML = `
+    <div class="ranking-head"><span>${type === "regional" ? "Región" : "Puesto"}</span><span>Atleta</span><span>Club</span><span>Puntos</span></div>
+    ${rows.map((athlete) => `<button class="ranking-row" type="button"><strong>${type === "regional" ? athlete.region : `#${athlete.rank}`}</strong><span>${athlete.name}<small>${athlete.region}</small></span><span>${athlete.club}</span><strong>${athlete.points}</strong></button>`).join("")}
+  `;
 }
 
 function hideAccessForms() {
@@ -1703,7 +1753,7 @@ function renderCompetitorPortal() {
     if (field) field.value = value || "";
   });
   $('[data-competitor-field="password"]').value = "";
-  renderPhotoPreview($("#competitorPhotoPreview"), competitor.photo_url, "Foto del competidor");
+  renderPhotoPreview($("#competitorPhotoPreview"), competitor.photo_url, "Foto del atleta");
   const registered = new Set((data.registrations || []).map((row) => Number(row.competition_id)));
   $("#competitorCompetitionTable").innerHTML = state.competitions.map((competition) => {
   const genderOk = true;
@@ -1851,7 +1901,7 @@ function renderCompetitors() {
   });
   $("#competitorTable").querySelectorAll("[data-delete]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm("Eliminar competidor y sus puntajes?")) return;
+      if (!confirm("¿Eliminar atleta y sus puntajes?")) return;
       await api(`/api/competitors/${button.dataset.delete}`, { method: "DELETE" });
       await refreshAll();
     });
@@ -1896,7 +1946,7 @@ function updateActiveCompetitorName() {
   const competitor = state.competitors.find((item) => item.id === state.selectedCompetitorId);
   $("#activeCompetitorName").textContent = competitor
     ? `#${competitor.bib_number} ${competitor.last_name}, ${competitor.first_name}`
-    : "Selecciona un competidor";
+    : "Seleccioná un atleta";
 }
 
 async function loadConfig() {
@@ -2142,7 +2192,7 @@ async function loadLeaderboard() {
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#leaderboardHead").innerHTML = `
     <tr>
-      <th>Puesto</th><th>Nro.</th><th>Competidor</th><th>Club</th>
+      <th>Puesto</th><th>Nro.</th><th>Atleta</th><th>Club</th>
       ${Array.from({ length: boulderCount }, (_, index) => `<th>B${index + 1}</th>`).join("")}
       <th>Total</th>
     </tr>
@@ -2249,7 +2299,7 @@ async function loadScores() {
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#scoresHead").innerHTML = `
     <tr>
-      <th>Orden</th><th>Bib</th><th>Nro.</th><th>Competidor</th><th>Club</th>
+      <th>Orden</th><th>Bib</th><th>Nro.</th><th>Atleta</th><th>Club</th>
       ${Array.from({ length: boulderCount }, (_, index) => `<th>B${index + 1}</th>`).join("")}
       <th>Total</th><th>Tops</th><th>Zonas</th><th>Intentos</th>
     </tr>
@@ -2372,43 +2422,35 @@ function bindEvents() {
     statusSelector: "#competitorPortalStatus",
   });
 
-  $("#showAdminLogin").addEventListener("click", () => {
-    hideAccessForms();
-    state.loginCompetitionId = null;
-    $("#loginForm").querySelector("h2").textContent = "Ingreso administrador";
-    $("#loginForm").classList.remove("hidden");
-    $("#loginForm").querySelector('[name="user"]').focus();
+  document.querySelectorAll("[data-public-view]").forEach((button) => {
+    button.addEventListener("click", () => switchPublicView(button.dataset.publicView));
   });
-  $("#showRegionalLogin").addEventListener("click", () => {
-    hideAccessForms();
-    state.loginCompetitionId = null;
-    $("#loginForm").querySelector("h2").textContent = "Ingreso referente regional";
-    $("#loginForm").classList.remove("hidden");
-    $("#loginForm").querySelector('[name="user"]').focus();
+  document.querySelectorAll("[data-ranking]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("[data-ranking]").forEach((item) => item.classList.toggle("active", item === button));
+      renderPublicRankings(button.dataset.ranking);
+    });
   });
-  $("#showJudgePortalLogin").addEventListener("click", () => {
-    hideAccessForms();
-    $("#judgePortalLoginForm").classList.remove("hidden");
-    $("#judgePortalLoginForm").querySelector('[name="username"]').focus();
-  });
-  $("#showCompetitorPortal").addEventListener("click", () => {
-    hideAccessForms();
-    $("#competitorLoginForm").classList.remove("hidden");
-    $("#competitorLoginForm").querySelector('[name="email"]').focus();
-  });
-  $("#loginForm").addEventListener("submit", (event) => {
+  $("#loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    loginWithCredentials(data.get("user"), data.get("password"))
-      .then((session) => {
-        state.user = session.user;
-        state.currentCompetitionId = session.user?.competition_id || state.currentCompetitionId;
-        applyRole(session.role);
-        loadJudges();
-      })
-      .catch((error) => {
-        $("#loginStatus").textContent = error.message || "Usuario o contraseña incorrectos.";
+    try {
+      const session = await api("/api/unified-login", {
+        method: "POST",
+        body: JSON.stringify({ username: data.get("user"), password: data.get("password"), competition_id: state.loginCompetitionId }),
       });
+      state.user = session.user;
+      state.roles = session.roles || [session.role];
+      state.currentCompetitionId = session.user?.competition_id || state.currentCompetitionId;
+      if (session.judgePortal) state.judgePortal = session.judgePortal;
+      if (session.competitorPortal) state.competitorPortal = session.competitorPortal;
+      state.judgePortalCredentials = { username: data.get("user"), password: data.get("password") };
+      state.competitorCredentials = { email: data.get("user"), password: data.get("password") };
+      applyRole(session.role);
+      loadJudges();
+    } catch (error) {
+      $("#loginStatus").textContent = error.message || "Usuario o contraseña incorrectos.";
+    }
   });
   $("#judgePortalLoginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2439,7 +2481,7 @@ function bindEvents() {
     }
   });
   $("#showCompetitorRegister").addEventListener("click", () => {
-    $("#competitorLoginForm").classList.add("hidden");
+    $("#loginForm").classList.add("hidden");
     $("#competitorRegisterForm").classList.remove("hidden");
   });
   $("#competitorRegisterForm").addEventListener("submit", async (event) => {
@@ -2627,7 +2669,7 @@ function bindEvents() {
 
   $("#saveScore").addEventListener("click", async () => {
     if (!state.selectedCompetitorId) {
-      $("#saveStatus").textContent = "Primero selecciona un competidor.";
+      $("#saveStatus").textContent = "Primero seleccioná un atleta.";
       return;
     }
     const payload = {
@@ -2663,7 +2705,7 @@ function bindEvents() {
     try {
       await api("/api/competitors", { method: "POST", body: JSON.stringify(payload) });
       event.currentTarget.reset();
-      $("#formStatus").textContent = "Competidor agregado.";
+      $("#formStatus").textContent = "Atleta agregado.";
       await refreshAll();
     } catch (error) {
       $("#formStatus").textContent = error.message;
@@ -2672,7 +2714,7 @@ function bindEvents() {
 
   $("#seedCompetitors").addEventListener("click", async () => {
     const result = await api("/api/seed", { method: "POST", body: "{}" });
-    $("#formStatus").textContent = `Demo cargada: ${result.total} competidores en base.`;
+    $("#formStatus").textContent = `Demo cargada: ${result.total} atletas en base.`;
     await refreshAll();
   });
 

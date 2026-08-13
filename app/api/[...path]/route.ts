@@ -273,6 +273,37 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const path = pathFrom(request);
   const payload = await request.json().catch(() => ({}));
+  if (path === "unified-login") {
+    const username = String(payload.username || "").trim().toLowerCase();
+    const password = String(payload.password || "");
+    if (!username || !password) return json({ error: "Ingresá usuario y contraseña." }, { status: 400 });
+
+    let roles: string[] = ["competitor"];
+    let displayName = "Atleta FASA";
+    if (username === "admin") {
+      if (password !== "admin") return json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
+      roles = ["general_admin", "competition_admin", "organizer"];
+      displayName = "Administrador general";
+    } else if (username.includes("juez")) {
+      roles = ["judge_portal", "judge"];
+      displayName = "Juez FASA";
+    } else if (username.includes("organizador")) {
+      roles = ["organizer", "competitor"];
+      displayName = "Organizador FASA";
+    } else if (username.includes("referente")) {
+      roles = ["regional_representative", "judge_portal"];
+      displayName = "Referente regional";
+    }
+
+    const competitionId = Number(payload.competition_id || 1);
+    return json({
+      role: roles[0],
+      roles,
+      user: { display_name: displayName, username, competition_id: competitionId, roles },
+      judgePortal: { person: judgePeople[0], assignments: competitions },
+      competitorPortal: { competitor: competitors[1], competitions, registrations: [] },
+    });
+  }
   if (path === "login") {
     const username = String(payload.username || "").toLowerCase();
     const password = String(payload.password || "");
