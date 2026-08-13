@@ -636,6 +636,11 @@ function renderUnifiedProfile() {
     field.value = profile[field.dataset.unifiedField] || "";
   });
   renderPhotoPreview($("#unifiedProfilePhoto"), profile.photo_url, "Foto del perfil FASA");
+  renderPhotoPreview($("#fasaIdCardPhoto"), profile.photo_url, "Foto de FASA ID");
+  $("#fasaIdCardName").textContent = `${profile.first_name || "Nombre"} ${profile.last_name || "Apellido"}`.trim();
+  $("#fasaIdCardNumber").textContent = profile.fasa_id || "FASA ID pendiente";
+  $("#fasaIdCardDni").textContent = `DNI ${profile.dni || "—"}`;
+  $("#fasaIdCardClub").textContent = `Club ${profile.club || "—"}`;
   const roles = state.roles.length ? state.roles : [state.role];
   $("#profileRoleBadges").innerHTML = roles.map((role) => `<span>${ROLE_LABELS[role] || role}</span>`).join("");
 }
@@ -2522,7 +2527,7 @@ function bindEvents() {
       state.roles = saved.roles || state.roles;
       if (state.competitorPortal?.competitor) state.competitorPortal.competitor = { ...state.competitorPortal.competitor, ...saved.profile };
       if (state.judgePortal?.person) state.judgePortal.person = { ...state.judgePortal.person, ...saved.profile, mail: saved.profile.email };
-      $("#unifiedProfileStatus").textContent = `Perfil FASA actualizado · ${saved.profile.fasa_id}`;
+      $("#unifiedProfileStatus").textContent = `FASA ID actualizado · ${saved.profile.fasa_id}`;
       renderUnifiedProfile();
     } catch (error) {
       $("#unifiedProfileStatus").textContent = error.message || "No se pudo guardar el perfil.";

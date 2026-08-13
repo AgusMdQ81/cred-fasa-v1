@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260813-private-nav-v2" />
+    <link rel="stylesheet" href="/styles.css?v=20260813-fasa-id" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -21,7 +21,7 @@
         <nav class="public-nav" aria-label="Navegación principal">
           <button class="public-nav-link active" type="button" data-public-view="calendarView">Calendario</button>
           <button class="public-nav-link" type="button" data-public-view="athletesView">Atletas</button>
-          <button class="public-nav-link" type="button" data-public-view="accessView">Ingreso</button>
+          <button class="public-nav-link" type="button" data-public-view="accessView">FASA ID</button>
         </nav>
         <section id="calendarView" class="calendar-board public-view active">
           <div class="section-head">
@@ -126,9 +126,9 @@
         </section>
         <aside id="accessView" class="access-panel public-view">
         <div>
-          <p class="eyebrow">Cuenta FASA</p>
-          <h2>Ingreso único</h2>
-          <p class="access-copy">Una sola cuenta para atletas, jueces, organizadores, referentes y administradores.</p>
+          <p class="eyebrow">Identidad digital</p>
+          <h2>FASA ID</h2>
+          <p class="access-copy">Una sola identidad para atletas, jueces, organizadores, referentes y administradores.</p>
         </div>
         <form id="loginForm" class="login-card unified-login">
           <label>Email o usuario
@@ -137,10 +137,10 @@
           <label>Contraseña
             <input name="password" type="password" autocomplete="current-password" />
           </label>
-          <button class="primary" type="submit">Ingresar</button>
-          <p>Al ingresar vas a ver todos los roles asignados a tu perfil.</p>
+          <button class="primary" type="submit">Ingresar con FASA ID</button>
+          <p>Al ingresar vas a ver tu credencial y todos los roles que tenés asignados.</p>
         </form>
-        <button id="showCompetitorRegister" class="profile-create" type="button">Crear mi perfil FASA</button>
+        <button id="showCompetitorRegister" class="profile-create" type="button">Crear FASA ID</button>
         <form id="judgePortalLoginForm" class="login-card hidden" aria-hidden="true">
           <h2>Acceso jueces</h2>
           <label>Mail
@@ -165,8 +165,8 @@
           </div>
         </form>
         <form id="competitorRegisterForm" class="login-card hidden">
-          <h2>Crear mi perfil FASA</h2>
-          <p class="profile-explainer">Este será tu único perfil. Luego podrán asignarse roles como atleta, juez, organizador, referente o administrador.</p>
+          <h2>Crear FASA ID</h2>
+          <p class="profile-explainer">Esta será tu identidad única en FASA. Luego podrán asignarse roles como atleta, juez, organizador, referente o administrador.</p>
           <label>Nombre <input name="first_name" required /></label>
           <label>Apellido <input name="last_name" required /></label>
           <label>Email <input name="email" type="email" required /></label>
@@ -207,7 +207,7 @@
       </div>
       <nav class="tabs" aria-label="Vistas">
         <div class="private-primary-nav">
-          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest" title="Mi Perfil FASA" aria-label="Mi Perfil FASA"><span aria-hidden="true">●</span></button>
+          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest" title="FASA ID" aria-label="FASA ID"><span aria-hidden="true">●</span></button>
           <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
         </div>
         <div class="private-secondary-nav">
@@ -231,10 +231,23 @@
       <section id="unifiedProfile" class="view">
         <section class="panel fasa-profile-panel">
           <div class="section-head">
-            <div><p class="eyebrow">Identidad única</p><h2>Mi Perfil FASA</h2></div>
+            <div><p class="eyebrow">Identidad digital única</p><h2>FASA ID</h2></div>
             <button id="saveUnifiedProfile" class="primary" type="button">Guardar cambios</button>
           </div>
-          <p class="profile-intro">Estos datos son comunes a todos tus roles dentro del sistema FASA.</p>
+          <p class="profile-intro">Tu información general y tu credencial para todos los roles dentro del sistema FASA.</p>
+          <article class="fasa-id-card" aria-label="Credencial digital FASA ID">
+            <div class="id-card-brand"><img src="/assets/fasa-logo-official.jpg" alt="FASA" /><span>IDENTIDAD DIGITAL</span></div>
+            <div class="id-card-body">
+              <div id="fasaIdCardPhoto" class="id-card-photo"><span>FOTO</span></div>
+              <div class="id-card-data">
+                <p id="fasaIdCardName">Nombre y apellido</p>
+                <strong id="fasaIdCardNumber">FASA ID pendiente</strong>
+                <span id="fasaIdCardDni">DNI —</span>
+                <span id="fasaIdCardClub">Club —</span>
+              </div>
+            </div>
+            <div class="id-card-footer"><span>FEDERACIÓN ARGENTINA DE SKI Y ANDINISMO</span><span>FASA</span></div>
+          </article>
           <div class="unified-profile-layout">
             <div class="profile-photo-card">
               <div id="unifiedProfilePhoto" class="photo-preview"><span>Foto de perfil</span></div>
