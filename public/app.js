@@ -1608,7 +1608,6 @@ function renderPublicCalendar() {
   }
   if (filtered.length === 0) {
     $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay competencias para los filtros seleccionados.</p>';
-    $("#publicCompetitionActions").classList.add("hidden");
     return;
   }
   $("#publicCompetitionCalendar").innerHTML = filtered.map((competition) => `
@@ -1626,40 +1625,34 @@ function renderPublicCalendar() {
   });
 }
 
-function selectPublicCompetition(id) {
+async function selectPublicCompetition(id) {
   const competition = state.competitions.find((item) => Number(item.id) === Number(id));
   if (!competition) return;
   state.currentCompetitionId = id;
   state.loginCompetitionId = null;
-  $("#loginForm").classList.add("hidden");
-  $("#loginStatus").textContent = "";
-  $("#publicCompetitionActions").classList.remove("hidden");
-  $("#publicCompetitionActions").innerHTML = `
-    <div>
-      <p class="eyebrow">Competencia seleccionada</p>
-      <h3>${competition.name}</h3>
-      <p class="hint">${competition.event_date} - ${competition.competition_type} - ${competition.modality}</p>
-    </div>
-    <div class="save-row">
-      <button id="officialAccess" class="primary" type="button">Acceso Oficiales de Competencia</button>
-      <button id="publicResultsAccess" type="button">Ver resultados</button>
+  switchPublicView("competitionDetailView");
+  $("#competitionPublicHeader").innerHTML = `
+    <p class="eyebrow">${competition.competition_type} · ${competition.category}</p>
+    <h2>${competition.name}</h2>
+    <div class="competition-meta">
+      <span><strong>Fecha</strong>${competition.event_date}</span>
+      <span><strong>Disciplina</strong>${competition.modality}</span>
+      <span><strong>Región</strong>${competition.region || "Nacional"}</span>
+      <span><strong>Organiza</strong>${competition.organizer_club}</span>
     </div>
   `;
-  $("#officialAccess").addEventListener("click", () => showOfficialLogin(id));
-  $("#publicResultsAccess").addEventListener("click", () => {
-    state.currentCompetitionId = id;
-    state.loginCompetitionId = null;
-    applyRole("guest");
-    activateView("results", { force: true });
-  });
-}
-
-function showOfficialLogin(competitionId) {
-  state.loginCompetitionId = competitionId;
-  switchPublicView("accessView");
-  $("#loginForm").classList.remove("hidden");
-  $("#loginStatus").textContent = "";
-  $("#loginForm").querySelector('[name="user"]').focus();
+  const results = $("#competitionPublicResults");
+  results.innerHTML = '<p class="hint">Cargando resultados…</p>';
+  try {
+    const params = new URLSearchParams({ competition_id: id, round: "clasificatoria", category: competition.category === "Juveniles" ? "U17" : "mayor", gender: "Mujer" });
+    const rows = await api(`/api/leaderboard?${params}`);
+    results.innerHTML = `
+      <div class="ranking-head"><span>Puesto</span><span>Atleta</span><span>Club</span><span>Puntaje</span></div>
+      ${rows.slice(0, 15).map((row, index) => `<div class="ranking-row result-row"><strong>#${row.rank || index + 1}</strong><span>${row.first_name} ${row.last_name}<small>N.º ${row.bib_number}</small></span><span>${row.club || "-"}</span><strong>${Number(row.total_score || 0).toFixed(1)}</strong></div>`).join("") || '<p class="ranking-empty">Todavía no hay resultados publicados.</p>'}
+    `;
+  } catch (error) {
+    results.innerHTML = '<p class="ranking-empty">Todavía no hay resultados publicados.</p>';
+  }
 }
 
 function switchPublicView(viewId) {
@@ -2444,6 +2437,7 @@ function bindEvents() {
   document.querySelectorAll("[data-public-view]").forEach((button) => {
     button.addEventListener("click", () => switchPublicView(button.dataset.publicView));
   });
+  $("#backToCalendar").addEventListener("click", () => switchPublicView("calendarView"));
   document.querySelectorAll("[data-ranking]").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelectorAll("[data-ranking]").forEach((item) => item.classList.toggle("active", item === button));
