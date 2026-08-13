@@ -270,12 +270,12 @@ button:hover,
 }
 
 .month-year {
-  min-height: 60px;
-  padding: 4px 6px 10px;
+  min-height: 78px;
+  padding: 2px 6px 10px;
   color: #0c1c29;
   border: 0;
   background: transparent;
-  font-size: 34px;
+  font-size: 52px;
   font-weight: 900;
   line-height: 1;
   justify-content: start;
@@ -284,15 +284,15 @@ button:hover,
 
 .month-year.active {
   color: #5c3e00;
-  font-size: 42px;
+  font-size: 60px;
   opacity: 1;
 }
 
 .month-list {
   display: grid;
-  gap: 5px;
-  max-height: 390px;
-  overflow: auto;
+  gap: 0;
+  max-height: none;
+  overflow: visible;
   scrollbar-width: none;
 }
 
@@ -302,8 +302,8 @@ button:hover,
 
 .month-button,
 .month-arrow {
-  min-height: 62px;
-  padding: 6px 8px;
+  min-height: 38px;
+  padding: 2px 8px;
   color: #10202f;
   border: 0;
   border-radius: 0;
@@ -323,7 +323,7 @@ button:hover,
 }
 
 .month-button strong {
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -347,7 +347,7 @@ button:hover,
 }
 
 .month-button.active strong {
-  font-size: 29px;
+  font-size: 27px;
 }
 
 .month-arrow {
@@ -1417,7 +1417,7 @@ tbody tr:hover {
   }
 
   .month-rail {
-    grid-template-columns: auto 34px minmax(0, 1fr) 34px;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     position: static;
   }
@@ -1433,7 +1433,13 @@ tbody tr:hover {
   }
 
   .month-year {
-    padding: 0 5px;
+    min-height: 56px;
+    padding: 0 8px;
+    font-size: 36px;
+  }
+
+  .month-year.active {
+    font-size: 42px;
   }
 
   .public-nav {

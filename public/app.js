@@ -2468,8 +2468,6 @@ function bindEvents() {
       renderPublicRankings(button.dataset.ranking);
     });
   });
-  $("#monthRailPrev").addEventListener("click", () => $("#calendarMonthRail").scrollBy({ top: -180, behavior: "smooth" }));
-  $("#monthRailNext").addEventListener("click", () => $("#calendarMonthRail").scrollBy({ top: 180, behavior: "smooth" }));
   [
     ["#rankingRegion", "region"],
     ["#rankingCategory", "category"],
