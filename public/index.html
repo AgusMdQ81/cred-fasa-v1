@@ -66,7 +66,14 @@
               </select>
             </label>
           </div>
-          <div id="publicCompetitionCalendar" class="calendar-list"></div>
+          <div class="calendar-layout">
+            <aside class="month-rail" aria-label="Filtrar por mes">
+              <button id="monthRailPrev" class="month-arrow" type="button" aria-label="Meses anteriores">↑</button>
+              <div id="calendarMonthRail" class="month-list"></div>
+              <button id="monthRailNext" class="month-arrow" type="button" aria-label="Meses siguientes">↓</button>
+            </aside>
+            <div id="publicCompetitionCalendar" class="calendar-list"></div>
+          </div>
         </section>
         <section id="competitionDetailView" class="calendar-board public-view competition-page">
           <button id="backToCalendar" class="back-link" type="button">← Volver al calendario</button>

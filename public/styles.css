@@ -209,16 +209,88 @@ button:hover,
 }
 
 #calendarView.calendar-board {
-  background: rgba(255, 255, 255, .72);
-  border: 1px solid rgba(255,255,255,.72);
+  background: rgba(255, 255, 255, .56);
+  border: 1px solid rgba(255,255,255,.52);
   border-top: 10px solid var(--accent);
   backdrop-filter: blur(8px);
 }
 
 #calendarView .calendar-item,
 #calendarView .competition-actions {
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.66);
   backdrop-filter: blur(5px);
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.calendar-layout .calendar-list {
+  margin-top: 0;
+}
+
+.month-rail {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  color: white;
+  background: rgba(16,32,47,.88);
+  border-bottom: 5px solid var(--accent);
+  position: sticky;
+  top: 78px;
+}
+
+.month-list {
+  display: grid;
+  gap: 5px;
+  max-height: 420px;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.month-list::-webkit-scrollbar {
+  display: none;
+}
+
+.month-button,
+.month-arrow {
+  min-height: 54px;
+  padding: 7px;
+  color: rgba(255,255,255,.75);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.month-button {
+  display: grid;
+  gap: 0;
+  border-left: 3px solid transparent;
+}
+
+.month-button strong {
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.month-button small {
+  font-size: 10px;
+}
+
+.month-button.active,
+.month-button:hover {
+  color: var(--charcoal);
+  border-left-color: white;
+  background: var(--accent);
+}
+
+.month-arrow {
+  min-height: 30px;
+  font-size: 18px;
 }
 
 .access-panel {
@@ -1272,6 +1344,33 @@ tbody tr:hover {
 
   .calendar-item {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .month-rail {
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    align-items: center;
+    position: static;
+  }
+
+  .month-list {
+    display: flex;
+    max-height: none;
+    overflow-x: auto;
+  }
+
+  .month-button {
+    min-width: 84px;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+  }
+
+  .month-button.active,
+  .month-button:hover {
+    border-bottom-color: white;
   }
 
   .public-nav {

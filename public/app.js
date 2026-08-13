@@ -18,7 +18,7 @@ const state = {
   loginCompetitionId: null,
   competitorFilters: { category: "mayor", gender: "Mujer" },
   registrationFilters: { category: "mayor", gender: "Mujer" },
-  publicCalendarFilters: { category: "", type: "", modality: "", region: "" },
+  publicCalendarFilters: { category: "", type: "", modality: "", region: "", month: "" },
   publicRankingFilters: { type: "argentine", region: "Buenos Aires", category: "mayor", gender: "Mujer", discipline: "Boulder" },
   judgePortal: null,
   judgePortalCredentials: null,
@@ -1594,12 +1594,14 @@ function renderCompetitions() {
 
 function renderPublicCalendar() {
   if (!$("#publicCompetitionCalendar")) return;
+  renderMonthRail();
   const filtered = state.competitions.filter((competition) => {
     const filters = state.publicCalendarFilters;
     if (filters.category && competition.category !== filters.category) return false;
     if (filters.type && competition.competition_type !== filters.type) return false;
     if (filters.modality && competition.modality !== filters.modality) return false;
     if (filters.region && (competition.region || "") !== filters.region) return false;
+    if (filters.month && String(competition.event_date || "").slice(0, 7) !== filters.month) return false;
     return true;
   });
   if (state.competitions.length === 0) {
@@ -1623,6 +1625,21 @@ function renderPublicCalendar() {
   $("#publicCompetitionCalendar").querySelectorAll("[data-public-competition]").forEach((item) => {
     item.addEventListener("click", () => selectPublicCompetition(Number(item.dataset.publicCompetition)));
   });
+}
+
+function renderMonthRail() {
+  const rail = $("#calendarMonthRail");
+  if (!rail) return;
+  const formatter = new Intl.DateTimeFormat("es-AR", { month: "short" });
+  const months = Array.from(new Set(state.competitions.map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean))).sort();
+  rail.innerHTML = `<button class="month-button ${!state.publicCalendarFilters.month ? "active" : ""}" type="button" data-month=""><strong>Todo</strong><small>el año</small></button>${months.map((month) => {
+    const date = new Date(`${month}-02T12:00:00`);
+    return `<button class="month-button ${state.publicCalendarFilters.month === month ? "active" : ""}" type="button" data-month="${month}"><strong>${formatter.format(date)}</strong><small>${date.getFullYear()}</small></button>`;
+  }).join("")}`;
+  rail.querySelectorAll("[data-month]").forEach((button) => button.addEventListener("click", () => {
+    state.publicCalendarFilters.month = button.dataset.month;
+    renderPublicCalendar();
+  }));
 }
 
 async function selectPublicCompetition(id) {
@@ -2444,6 +2461,8 @@ function bindEvents() {
       renderPublicRankings(button.dataset.ranking);
     });
   });
+  $("#monthRailPrev").addEventListener("click", () => $("#calendarMonthRail").scrollBy({ top: -180, behavior: "smooth" }));
+  $("#monthRailNext").addEventListener("click", () => $("#calendarMonthRail").scrollBy({ top: 180, behavior: "smooth" }));
   [
     ["#rankingRegion", "region"],
     ["#rankingCategory", "category"],
