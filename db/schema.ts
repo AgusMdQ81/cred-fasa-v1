@@ -37,11 +37,17 @@ export const fasaRoles = sqliteTable("fasa_roles", {
   personRoleUnique: uniqueIndex("fasa_roles_person_role_unique").on(table.fasaId, table.roleType),
 }));
 
-export const fasaRoleDetails = sqliteTable("fasa_role_details", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  fasaId: text("fasa_id").notNull(),
-  roleType: text("role_type").notNull(),
-  data: text("data").notNull().default("{}"),
-}, (table) => ({
-  personRoleUnique: uniqueIndex("fasa_role_details_person_role_unique").on(table.fasaId, table.roleType),
-}));
+function roleTable(name: string) {
+  return sqliteTable(name, {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    fasaId: text("fasa_id").notNull(),
+    data: text("data").notNull().default("{}"),
+  }, (table) => ({ personUnique: uniqueIndex(`${name}_person_unique`).on(table.fasaId) }));
+}
+
+export const athleteProfiles = roleTable("athlete_profiles");
+export const judgeProfiles = roleTable("judge_profiles");
+export const juryPresidentProfiles = roleTable("jury_president_profiles");
+export const regionalRepresentativeProfiles = roleTable("regional_representative_profiles");
+export const organizerProfiles = roleTable("organizer_profiles");
+export const administratorProfiles = roleTable("administrator_profiles");

@@ -177,10 +177,9 @@ async function ensureFasaTables() {
       id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL, role_type TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
       UNIQUE(fasa_id, role_type)
     )`),
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS fasa_role_details (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL, role_type TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}',
-      UNIQUE(fasa_id, role_type)
-    )`),
+    ...["athlete_profiles", "judge_profiles", "jury_president_profiles", "regional_representative_profiles", "organizer_profiles", "administrator_profiles"].map((table) =>
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL UNIQUE, data TEXT NOT NULL DEFAULT '{}')`)
+    ),
   ]);
 }
 
@@ -225,17 +224,31 @@ async function upsertFasaProfile(record: Record<string, unknown>) {
 
 async function assignRole(fasaId: string, roleType: string, details: Record<string, unknown> = {}) {
   await ensureFasaTables();
+  const detailTable = roleDetailTable(roleType);
   await env.DB.batch([
     env.DB.prepare("INSERT INTO fasa_roles (fasa_id,role_type,active) VALUES (?,?,1) ON CONFLICT(fasa_id,role_type) DO UPDATE SET active=1").bind(fasaId, roleType),
-    env.DB.prepare("INSERT INTO fasa_role_details (fasa_id,role_type,data) VALUES (?,?,?) ON CONFLICT(fasa_id,role_type) DO UPDATE SET data=excluded.data").bind(fasaId, roleType, JSON.stringify(details)),
+    env.DB.prepare(`INSERT INTO ${detailTable} (fasa_id,data) VALUES (?,?) ON CONFLICT(fasa_id) DO UPDATE SET data=excluded.data`).bind(fasaId, JSON.stringify(details)),
   ]);
+}
+
+function roleDetailTable(roleType: string) {
+  const tables: Record<string, string> = {
+    competitor: "athlete_profiles", athlete: "athlete_profiles",
+    judge: "judge_profiles", judge_portal: "judge_profiles",
+    competition_admin: "jury_president_profiles", jury_president: "jury_president_profiles",
+    regional_representative: "regional_representative_profiles",
+    organizer: "organizer_profiles",
+    general_admin: "administrator_profiles", administrator: "administrator_profiles",
+  };
+  return tables[roleType] || "athlete_profiles";
 }
 
 async function loadRoleDirectory(roleType: string, fallback: Array<Record<string, unknown>>) {
   await ensureFasaTables();
+  const detailTable = roleDetailTable(roleType);
   const result = await env.DB.prepare(`SELECT p.*, d.data FROM fasa_profiles p
     JOIN fasa_roles r ON r.fasa_id=p.fasa_id AND r.role_type=? AND r.active=1
-    LEFT JOIN fasa_role_details d ON d.fasa_id=p.fasa_id AND d.role_type=r.role_type ORDER BY p.last_name,p.first_name`)
+    LEFT JOIN ${detailTable} d ON d.fasa_id=p.fasa_id ORDER BY p.last_name,p.first_name`)
     .bind(roleType).all<Record<string, unknown> & { data?: string }>();
   if (!result.results.length) return fallback;
   return result.results.map((row) => {
