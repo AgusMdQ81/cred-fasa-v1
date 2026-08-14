@@ -1835,7 +1835,9 @@ function renderPublicRankings(type = state.publicRankingFilters.type) {
     $("#publicAthleteName").textContent = athlete.name;
     $("#publicAthleteCategory").textContent = athlete.category.toUpperCase();
     $("#publicAthleteGender").textContent = athlete.gender;
-    $("#publicAthleteInstagram").innerHTML = `<img src="https://marvel-b1-cdn.bc0a.com/f00000000253789/www.dcc.edu/images/future-students/instagram-logo.png" alt="Instagram" /> ${athlete.instagram}`;
+    $("#publicAthleteClub").textContent = athlete.club || "—";
+    $("#publicAthleteRegion").textContent = athlete.region || "—";
+    $("#publicAthleteInstagram").innerHTML = `<img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> ${athlete.instagram}`;
     renderPhotoPreview($("#publicAthletePhoto"), athlete.photo_url, `Foto de ${athlete.name}`);
     $("#publicAthleteDialog").showModal();
   }));
