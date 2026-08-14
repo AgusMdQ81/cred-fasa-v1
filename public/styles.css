@@ -782,13 +782,12 @@ h1 {
 }
 
 .brand-lockup > img {
-  width: clamp(78px, 7vw, 108px);
-  height: 96px;
-  padding: 5px;
-  border-radius: 4px;
+  width: clamp(76px, 7vw, 104px);
+  height: 112px;
   object-fit: contain;
   object-position: center;
-  background: white;
+  background: transparent;
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .28));
   margin-left: auto;
 }
 
@@ -797,8 +796,8 @@ h1 {
 }
 
 .brand-lockup.compact > img {
-  width: 68px;
-  height: 72px;
+  width: 64px;
+  height: 86px;
 }
 
 h2 {
@@ -956,7 +955,7 @@ h2 {
 .athlete-credential-panel { display: grid; justify-items: start; }
 .athlete-card { width: min(100%, 720px); overflow: hidden; color: white; background: linear-gradient(130deg, #292b4d 0%, #303252 52%, #287f91 100%); border-radius: 18px; box-shadow: 0 18px 42px rgba(21,25,47,.28); }
 .athlete-card-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; font-weight: 900; letter-spacing: .14em; }
-.athlete-card-head img { width: 72px; height: 48px; object-fit: contain; background: white; border-radius: 6px; }
+.athlete-card-head img { width: 58px; height: 78px; object-fit: contain; background: transparent; filter: drop-shadow(0 2px 6px rgba(0,0,0,.24)); }
 .athlete-card-body { display: grid; grid-template-columns: 135px 1fr; gap: 24px; align-items: center; padding: 22px; background: rgba(255,255,255,.08); }
 .athlete-card-photo { display: grid; place-items: center; aspect-ratio: 4/5; overflow: hidden; border: 2px solid rgba(255,255,255,.7); border-radius: 10px; background: rgba(255,255,255,.12); }
 .athlete-card-photo img { width: 100%; height: 100%; object-fit: cover; }
@@ -1024,11 +1023,11 @@ h2 {
 }
 
 .id-card-brand img {
-  width: 72px;
-  height: 48px;
+  width: 58px;
+  height: 78px;
   object-fit: contain;
-  background: white;
-  border-radius: 6px;
+  background: transparent;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .24));
 }
 
 .id-card-body {
