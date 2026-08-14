@@ -500,10 +500,10 @@ function allowedViews(role) {
   if (role === "regional_representative") return ["unifiedProfile", "fasaCv", "competitions"];
   if (role === "competition_admin") return ["unifiedProfile", "fasaCv", "computos", "registrations", "config", "results"];
   if (role === "organizer") return ["unifiedProfile", "fasaCv", "registrations"];
-  if (role === "judge") return ["unifiedProfile", "fasaCv", "judge", "results"];
-  if (role === "route_setter") return ["unifiedProfile", "fasaCv"];
-  if (role === "chief_route_setter") return ["unifiedProfile", "fasaCv", "routeSetterTeam"];
-  if (role === "judge_portal") return ["unifiedProfile", "fasaCv", "judgePortal"];
+  if (role === "judge") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments", "judge", "results"];
+  if (role === "route_setter") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments"];
+  if (role === "chief_route_setter") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments", "routeSetterTeam"];
+  if (role === "judge_portal") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments"];
   if (role === "competitor") return ["unifiedProfile", "fasaCv", "competitorPortal"];
   return ["unifiedProfile", "results"];
 }
@@ -542,6 +542,8 @@ function activateView(view, options = {}) {
   if (safeView === "computos") refreshComputed();
   if (safeView === "judgePortal") renderJudgePortal();
   if (safeView === "competitorPortal") renderCompetitorPortal();
+  if (safeView === "competitorPortal") setAthleteSubview(options.subview || "profile");
+  if (safeView === "officialProfile" || safeView === "officialAssignments") renderOfficialArea();
   if (safeView === "unifiedProfile") renderUnifiedProfile();
 }
 
@@ -612,13 +614,32 @@ function renderAssignedRoles() {
     }
   });
   container.innerHTML = state.privateRoleOpen ? "" : `${roles.map((role) => `
-    <button class="role-chip ${role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
+    <button class="role-chip ${state.privateRoleOpen && role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
       ${ROLE_LABELS[role] || role}
     </button>
   `).join("")}`;
   container.querySelectorAll("[data-switch-role]").forEach((button) => {
     button.addEventListener("click", () => applyRole(button.dataset.switchRole, { openRole: true }));
   });
+}
+
+function setAthleteSubview(subview) {
+  document.querySelectorAll("[data-athlete-subview]").forEach((panel) => { panel.hidden = panel.dataset.athleteSubview !== subview; });
+}
+
+async function renderOfficialArea() {
+  const role = state.role === "judge_portal" ? "judge" : state.role;
+  const label = ROLE_LABELS[role] || "Oficial FASA";
+  const details = state.user?.role_details?.[role] || {};
+  $("#officialProfileTitle").textContent = `Perfil de ${label}`;
+  $("#officialProfileRole").textContent = label;
+  $("#officialProfileLevel").textContent = details.level ? `Nivel ${details.level}` : "Nivel sin asignar";
+  $("#officialProfileName").textContent = state.user?.display_name || "Usuario FASA";
+  $("#officialProfileClub").textContent = state.user?.club || "Club —";
+  if (!state.user?.fasa_id) { $("#officialAssignmentsList").innerHTML = "<p>No hay competencias asignadas en este perfil de demostración.</p>"; return; }
+  const cv = await api(`/api/fasa-cv?fasa_id=${encodeURIComponent(state.user.fasa_id)}`);
+  const applicable = cv.history.filter((item) => role === "judge" ? item.role_type === "judge" : ["route_setter", "chief_route_setter"].includes(item.role_type));
+  $("#officialAssignmentsList").innerHTML = applicable.length ? applicable.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Competencia FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>No hay competencias asignadas.</p>";
 }
 
 function unifiedProfileData() {
@@ -2777,7 +2798,7 @@ function bindEvents() {
         state.privateRoleOpen = false;
         renderAssignedRoles();
       }
-      activateView(button.dataset.view);
+      activateView(button.dataset.view, { subview: button.dataset.subview });
     });
   });
 

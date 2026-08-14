@@ -218,8 +218,10 @@
           <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Gestionar jueces</button>
           <button class="tab role-hidden" data-view="routeSetterPeople" data-roles="general_admin" hidden>Gestionar aperturistas</button>
           <button class="tab role-hidden" data-view="routeSetterTeam" data-roles="chief_route_setter" hidden>Equipo de aperturistas</button>
-          <button class="tab role-hidden" data-view="judgePortal" data-roles="judge_portal" hidden>Datos de juez</button>
-          <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Perfil deportivo</button>
+          <button class="tab role-hidden" data-view="officialProfile" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Perfil profesional</button>
+          <button class="tab role-hidden" data-view="officialAssignments" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Competencias asignadas</button>
+          <button class="tab role-hidden" data-view="competitorPortal" data-subview="profile" data-roles="competitor" hidden>Perfil deportivo</button>
+          <button class="tab role-hidden" data-view="competitorPortal" data-subview="registrations" data-roles="competitor" hidden>Inscripción a eventos</button>
           <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Cómputos</button>
           <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
           <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuración</button>
@@ -607,7 +609,7 @@
       </section>
 
       <section id="competitorPortal" class="view">
-        <section class="panel athlete-credential-panel">
+        <section class="panel athlete-credential-panel" data-athlete-subview="profile">
           <div class="section-head">
             <div><p class="eyebrow">Atleta FASA</p><h2>Mi credencial deportiva</h2></div>
           </div>
@@ -621,7 +623,7 @@
           </article>
           <p id="competitorPortalStatus" aria-live="polite"></p>
         </section>
-        <section class="panel">
+        <section class="panel" data-athlete-subview="registrations">
           <div class="section-head">
             <h2>Inscripcion a competencias</h2>
             <button id="refreshCompetitorCalendar" type="button">Actualizar</button>
@@ -633,6 +635,12 @@
             <tbody id="competitorCompetitionTable"></tbody>
           </table>
         </section>
+      </section>
+      <section id="officialProfile" class="view">
+        <section class="panel fasa-profile-panel"><div class="section-head"><div><p class="eyebrow">Oficial FASA</p><h2 id="officialProfileTitle">Perfil profesional</h2></div></div><article class="official-card"><div><span id="officialProfileRole">Rol</span><strong id="officialProfileLevel">Nivel —</strong></div><p id="officialProfileName">Nombre y apellido</p><span id="officialProfileClub">Club —</span></article></section>
+      </section>
+      <section id="officialAssignments" class="view">
+        <section class="panel fasa-profile-panel"><div class="section-head"><div><p class="eyebrow">Actividad actual</p><h2>Competencias asignadas</h2></div></div><div id="officialAssignmentsList" class="cv-history"></div></section>
       </section>
 
       <section id="judge" class="view active">
