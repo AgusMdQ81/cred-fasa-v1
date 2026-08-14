@@ -1029,6 +1029,7 @@ h2 {
   color: var(--charcoal);
   background: rgba(255,255,255,.96);
   border: 1px solid var(--line);
+  border-left: 6px solid var(--accent);
   border-radius: 12px;
   box-shadow: 0 24px 80px rgba(0,0,0,.38);
 }
@@ -1597,11 +1598,12 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(57, 57, 57, 0.62);
+  background: rgba(18, 21, 37, .72);
+  backdrop-filter: blur(5px);
 }
 
 .detail-panel {
-  width: min(860px, 100%);
+  width: min(1050px, 100%);
   max-height: min(760px, calc(100vh - 48px));
   overflow: auto;
 }
@@ -1847,3 +1849,11 @@ tbody tr:hover {
 .selected-row { outline: 2px solid var(--cyan, #34b6cf); outline-offset: -2px; }
 #judgePeopleTable tr, #routeSetterPeopleTable tr, #fasaManagementTable tr { cursor: pointer; }
 #judgePeopleTable tr:hover, #routeSetterPeopleTable tr:hover, #fasaManagementTable tr:hover { background: rgba(255,255,255,.16); }
+.status-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.status-badge.pending { color: #6b3e00; background: #ffd68d; }
+.status-badge.approved { color: #155d43; background: #bfead9; }
+.pending-events-panel { border-left-color: #d69a27; }
+.pending-event-row { background: rgba(255, 200, 92, .14); }
+.pending-count { color: #8a5100; font-weight: 900; }
+.approval-alert, .current-role-label.has-approval-alert::after { display: inline-block; width: 9px; height: 9px; margin-left: 7px; border-radius: 50%; background: #e63d3d; box-shadow: 0 0 0 3px rgba(230,61,61,.2); }
+.current-role-label.has-approval-alert::after { content: ""; vertical-align: middle; }

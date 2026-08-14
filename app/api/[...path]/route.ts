@@ -272,6 +272,18 @@ async function saveRoleDirectory(roleType: string, records: Array<Record<string,
   return saved;
 }
 
+async function ensureCompetitionRecords() {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS competition_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'approved',
+    creator_role TEXT NOT NULL DEFAULT '',
+    creator_fasa_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+}
+
 async function seedTestFasaData() {
   await ensureFasaTables();
   const roleTables = ["athlete_profiles","judge_profiles","route_setter_profiles","chief_route_setter_profiles","jury_president_profiles","regional_representative_profiles","organizer_profiles","administrator_profiles"];
@@ -415,7 +427,11 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const path = pathFrom(request);
   if (path === "config") return json({ rounds });
-  if (path === "competitions") return json(competitions);
+  if (path === "competitions") {
+    await ensureCompetitionRecords();
+    const saved = await env.DB.prepare("SELECT id,data,status,creator_role,creator_fasa_id,created_at,updated_at FROM competition_records ORDER BY id").all<{ id: number; data: string; status: string; creator_role: string; creator_fasa_id: string; created_at: string; updated_at: string }>();
+    return json([...competitions.map((item) => ({ ...item, status: "approved", creator_role: "general_admin" })), ...saved.results.map((row) => ({ ...JSON.parse(row.data), id: row.id + 1000, record_id: row.id, status: row.status, creator_role: row.creator_role, creator_fasa_id: row.creator_fasa_id, created_at: row.created_at, updated_at: row.updated_at }))]);
+  }
   if (path === "judge-people") return json(await loadRoleDirectory("judge", []));
   if (path === "route-setter-people") return json(await loadRoleDirectory("route_setter", []));
   if (path === "administrators") return json(await loadRoleDirectory("general_admin", []));
@@ -464,10 +480,6 @@ export async function GET(request: Request) {
     const roles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(profile.fasa_id).all<{ role_type: string }>();
     const { password: _password, created_at: _created, updated_at: _updated, ...safeProfile } = profile;
     return json({ profile: safeProfile, roles: roles.results.map((row) => row.role_type) });
-  }
-  if (path === "admin-profile-update") {
-    try { const profile = await upsertFasaProfile((payload.profile || payload) as Record<string, unknown>); const { password: _password, ...safeProfile } = profile; return json({ profile: safeProfile }); }
-    catch (error) { return json({ error: error instanceof Error ? error.message : "No se pudo actualizar la FASA ID." }, { status: 400 }); }
   }
   if (path === "seed-test-data") return json({ error: "Usá POST para regenerar los datos." }, { status: 405 });
   if (path === "regional-representative-assignment") {
@@ -681,7 +693,17 @@ export async function POST(request: Request) {
     return json({ ok: true });
   }
   if (path === "config") return json({ rounds });
-  if (path === "competitions") return json({ ok: true, id: Date.now() });
+  if (path === "competitions") {
+    await ensureCompetitionRecords();
+    const creatorRole = String(payload.creator_role || "general_admin"); const status = creatorRole === "regional_representative" ? "pending" : "approved"; const now = new Date().toISOString();
+    const data = { ...payload }; delete data.id; delete data.status;
+    const result = await env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,?,?,?,?,?)").bind(JSON.stringify(data), status, creatorRole, String(payload.creator_fasa_id || ""), now, now).run();
+    return json({ ok: true, id: Number(result.meta.last_row_id || 0) + 1000, status });
+  }
+  if (path === "competition-approval") {
+    await ensureCompetitionRecords(); const recordId = Number(payload.record_id || 0); if (!recordId) return json({ error: "Competencia inválida." }, { status: 400 });
+    await env.DB.prepare("UPDATE competition_records SET status='approved',updated_at=? WHERE id=?").bind(new Date().toISOString(), recordId).run(); return json({ ok: true, status: "approved" });
+  }
   if (path === "competitors") return json({ ok: true, id: Date.now() });
   if (path === "seed") return json(competitors);
   if (path === "fasa-profile") {
@@ -698,6 +720,14 @@ export async function POST(request: Request) {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "No se pudo guardar el Perfil FASA." }, { status: 400 });
     }
+  }
+  if (path === "admin-profile-update") {
+    try { const profile = await upsertFasaProfile((payload.profile || payload) as Record<string, unknown>); const { password: _password, ...safeProfile } = profile; return json({ profile: safeProfile }); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "No se pudo actualizar la FASA ID." }, { status: 400 }); }
+  }
+  if (path === "profile-photo") {
+    const fasaId = String(payload.fasa_id || ""); if (!fasaId) return json({ error: "FASA ID inválida." }, { status: 400 });
+    await env.DB.prepare("UPDATE fasa_profiles SET photo_url=?,updated_at=? WHERE fasa_id=?").bind(String(payload.photo_url || ""), new Date().toISOString(), fasaId).run(); return json({ ok: true });
   }
   if (path === "seed-test-data") return json(await seedTestFasaData());
   if (path === "assign-person-role") {
@@ -727,6 +757,10 @@ export async function POST(request: Request) {
     if (!active && Number(count?.total || 0) <= 2) return json({ error: "Nunca puede haber menos de dos administradores activos." }, { status: 400 });
     if (active) await assignRole(fasaId,"general_admin",{}); else await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type='general_admin'").bind(fasaId).run();
     return json({ ok: true });
+  }
+  if (path === "regional-representative-remove") {
+    const fasaId = String(payload.fasa_id || ""); if (!fasaId) return json({ error: "Referente inválido." }, { status: 400 });
+    await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type='regional_representative'").bind(fasaId).run(); return json({ ok: true });
   }
   if (path === "regional-representative-assignment") {
     const fasaId = String(payload.fasa_id || ""); const region = String(payload.region || "");

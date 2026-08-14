@@ -607,9 +607,11 @@ function renderAssignedRoles() {
   const container = $("#assignedRoles");
   if (!container) return;
   const roles = state.roles.length ? state.roles : [state.role];
+  const pendingApprovals = state.competitions.filter((competition) => competition.status === "pending").length;
   const currentLabel = $("#currentRoleLabel");
   currentLabel.textContent = state.privateRoleOpen ? (ROLE_LABELS[state.role] || state.role) : "";
   currentLabel.classList.toggle("hidden", !state.privateRoleOpen);
+  currentLabel.classList.toggle("has-approval-alert", state.privateRoleOpen && state.role === "general_admin" && pendingApprovals > 0);
   document.querySelectorAll(".private-secondary-nav .tab[data-view]").forEach((button) => {
     if (!state.privateRoleOpen) {
       button.hidden = true;
@@ -618,7 +620,7 @@ function renderAssignedRoles() {
   });
   container.innerHTML = state.privateRoleOpen ? "" : `${roles.map((role) => `
     <button class="role-chip ${state.privateRoleOpen && role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
-      ${ROLE_LABELS[role] || role}
+      ${ROLE_LABELS[role] || role}${role === "general_admin" && pendingApprovals ? `<span class="approval-alert" title="${pendingApprovals} evento(s) pendiente(s) de aprobación"></span>` : ""}
     </button>
   `).join("")}`;
   container.querySelectorAll("[data-switch-role]").forEach((button) => {
@@ -1626,14 +1628,18 @@ function renderRegionalRepresentatives() {
   if (!$("#regionalRepresentativesTable")) return;
   $("#regionalRepresentativesTable").innerHTML = REGIONS.map((region) => {
     const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
-    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button></td></tr>`;
+    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button>${person ? `<button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button>` : ""}</td></tr>`;
   }).join("");
   $("#regionalRepresentativesTable").querySelectorAll("[data-choose-regional]").forEach((button) => button.addEventListener("click", async () => {
     const region = button.dataset.chooseRegional;
-    await openPersonPicker(`Elegir referente · ${region}`, null, async (person) => {
+    await openPersonPicker(`Elegir referente · ${region}`, (person) => person.region === region, async (person) => {
       await api("/api/assign-person-role", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, role: "regional_representative", region }) });
       await loadRegionalRepresentatives();
     });
+  }));
+  $("#regionalRepresentativesTable").querySelectorAll("[data-remove-regional]").forEach((button) => button.addEventListener("click", async () => {
+    if (!confirm("¿Eliminar este referente regional? La región quedará sin asignar.")) return;
+    await api("/api/regional-representative-remove", { method: "POST", body: JSON.stringify({ fasa_id: button.dataset.removeRegional }) }); await loadRegionalRepresentatives();
   }));
 }
 
@@ -1668,9 +1674,15 @@ function syncRegionalRepresentatives() {
 
 function renderCompetitions() {
   if (!$("#competitionsTable")) return;
-  const visibleCompetitions = state.role === "regional_representative"
+  const scopedCompetitions = state.role === "regional_representative"
     ? state.competitions.filter((competition) => competition.competition_type === "CRED" && competition.region === state.user?.region)
     : state.competitions;
+  const pending = scopedCompetitions.filter((competition) => competition.status === "pending");
+  const visibleCompetitions = scopedCompetitions.filter((competition) => competition.status !== "pending");
+  $("#pendingCompetitionsPanel").hidden = !pending.length && state.role !== "general_admin" && state.role !== "regional_representative";
+  $("#pendingCompetitionsCount").textContent = `${pending.length} pendiente${pending.length === 1 ? "" : "s"}`;
+  $("#pendingCompetitionsTable").innerHTML = pending.length ? pending.map((competition) => `<tr class="pending-event-row"><td>${competition.event_date}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge pending">Pendiente</span></td><td>${state.role === "general_admin" ? `<button class="primary" data-approve-competition="${competition.record_id}">Aprobar</button>` : '<span class="hint">En revisión</span>'}</td></tr>`).join("") : '<tr><td colspan="9">No hay eventos pendientes.</td></tr>';
+  $("#pendingCompetitionsTable").querySelectorAll("[data-approve-competition]").forEach((button) => button.addEventListener("click", async () => { await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ record_id: Number(button.dataset.approveCompetition) }) }); await loadCompetitions(); }));
   $("#competitionsTable").innerHTML = visibleCompetitions.map((competition) => {
     const president = competition.jury_president || {};
     const adminUser = competition.admin_user?.username
@@ -1688,6 +1700,7 @@ function renderCompetitions() {
         <td>${competition.modality}</td>
         <td>${competition.category}</td>
         <td>${competition.organizer_club}</td>
+        <td><span class="status-badge approved">Aprobado</span></td>
         <td>${president.id ? `${president.last_name}, ${president.first_name}` : "-"}</td>
         <td>${adminUser}</td>
         <td>${organizerUser}</td>
@@ -1722,7 +1735,7 @@ function renderCompetitions() {
 function renderPublicCalendar() {
   if (!$("#publicCompetitionCalendar")) return;
   renderMonthRail();
-  const filtered = state.competitions.filter((competition) => {
+  const filtered = state.competitions.filter((competition) => competition.status !== "pending").filter((competition) => {
     const filters = state.publicCalendarFilters;
     if (filters.category && competition.category !== filters.category) return false;
     if (filters.type && competition.competition_type !== filters.type) return false;
@@ -1758,7 +1771,7 @@ function renderMonthRail() {
   const rail = $("#calendarMonthRail");
   if (!rail) return;
   const formatter = new Intl.DateTimeFormat("es-AR", { month: "long" });
-  const eventMonths = new Set(state.competitions.map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean));
+  const eventMonths = new Set(state.competitions.filter((competition) => competition.status !== "pending").map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean));
   const months = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
   rail.innerHTML = months.map((month) => {
     const date = new Date(`${month}-02T12:00:00`);
@@ -2137,14 +2150,16 @@ function openRouteSetterDetail(index) {
   const person = state.routeSetterPeople[index]; if (!person) return;
   const dialog = $("#routeSetterDetailDialog"); dialog.dataset.index = String(index); $("#routeSetterDetailTitle").textContent = `${person.last_name}, ${person.first_name}`;
   dialog.querySelectorAll("[data-route-setter-detail]").forEach((field) => { const key = field.dataset.routeSetterDetail; if (field.type === "checkbox") field.checked = person[key] !== false; else field.value = person[key] || ""; });
+  renderPhotoPreview($("#routeSetterPhotoPreview"), person.photo_url || "", `Foto de ${person.first_name} ${person.last_name}`);
   $("#routeSetterDetailStatus").textContent = ""; dialog.showModal();
 }
 
 async function saveRouteSetterDetail() {
   const dialog = $("#routeSetterDetailDialog"); const index = Number(dialog.dataset.index); const person = state.routeSetterPeople[index]; if (!person) return;
   const level = Number(dialog.querySelector('[data-route-setter-detail="level"]').value); const active = dialog.querySelector('[data-route-setter-detail="active"]').checked;
+  const photoUrl = dialog.querySelector('[data-route-setter-detail="photo_url"]').value;
   state.routeSetterPeople[index] = { ...person, level, active };
-  try { await api("/api/update-role-detail", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, role: "route_setter", level, active }) }); $("#routeSetterDetailStatus").textContent = "Cambios guardados."; await loadRouteSetterPeople(); setTimeout(() => dialog.close(), 350); }
+  try { await Promise.all([api("/api/update-role-detail", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, role: "route_setter", level, active }) }), api("/api/profile-photo", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, photo_url: photoUrl }) })]); $("#routeSetterDetailStatus").textContent = "Cambios guardados."; await loadRouteSetterPeople(); setTimeout(() => dialog.close(), 350); }
   catch (error) { $("#routeSetterDetailStatus").textContent = error.message; }
 }
 
@@ -2232,6 +2247,7 @@ async function loadCompetitions() {
   state.competitions = await api("/api/competitions");
   renderCompetitions();
   renderPublicCalendar();
+  renderAssignedRoles();
 }
 
 async function loadCompetitors() {
@@ -2673,6 +2689,12 @@ function bindEvents() {
     statusSelector: "#managedProfileStatus",
   });
   bindPhotoPicker({
+    previewSelector: "#routeSetterPhotoPreview",
+    fileSelector: "#routeSetterPhotoFile",
+    fieldSelector: '[data-route-setter-detail="photo_url"]',
+    statusSelector: "#routeSetterDetailStatus",
+  });
+  bindPhotoPicker({
     previewSelector: "#judgePortalPhotoPreview",
     fileSelector: "#judgePortalPhotoFile",
     fieldSelector: '[data-judge-portal-field="photo_url"]',
@@ -2899,6 +2921,7 @@ function bindEvents() {
     payload.sport_category = payload.category === "Mayores" ? "mayor" : "";
     if (state.role === "regional_representative") {
       payload.creator_role = "regional_representative";
+      payload.creator_fasa_id = state.user?.fasa_id || "";
       payload.competition_type = "CRED";
       payload.region = state.user.region;
     }
@@ -2908,7 +2931,7 @@ function bindEvents() {
       await api("/api/competitions", { method: "POST", body: JSON.stringify(payload) });
       if (payload.chief_route_setter_id) await api("/api/competition-route-setters", { method: "POST", body: JSON.stringify({ competition_id: payload.id || state.currentCompetitionId || 1, chief_fasa_id: payload.chief_route_setter_id, team_fasa_ids: [] }) });
       resetCompetitionForm();
-      $("#competitionStatus").textContent = "Competencia guardada. El formulario quedo listo para crear una nueva.";
+      $("#competitionStatus").textContent = state.role === "regional_representative" ? "Evento enviado a revisión. Quedará publicado cuando un administrador lo apruebe." : "Competencia guardada y aprobada. El formulario quedó listo para crear una nueva.";
       await loadCompetitions();
     } catch (error) {
       $("#competitionStatus").textContent = error.message;
