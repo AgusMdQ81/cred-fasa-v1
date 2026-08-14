@@ -329,24 +329,24 @@
           </div>
           <form id="competitionForm" class="competition-form">
             <input type="hidden" name="id" />
-            <label>Nombre
+            <p class="required-fields-note"><span aria-hidden="true">*</span> Campos obligatorios</p>
+            <label><span class="field-label">Nombre <b aria-hidden="true">*</b></span>
               <input name="name" required />
             </label>
-            <label>Fecha de inicio
+            <label><span class="field-label">Fecha de inicio <b aria-hidden="true">*</b></span>
               <input name="event_date" type="date" required />
             </label>
             <label>Fecha de finalización
               <input name="end_date" type="date" />
-              <small class="hint">Opcional. Si queda vacía, el evento dura un solo día.</small>
             </label>
-            <label>Tipo
+            <label><span class="field-label">Tipo <b aria-hidden="true">*</b></span>
               <select name="competition_type" id="competitionType" required>
                 <option value="" selected disabled>Elegir CRED o CAED</option>
                 <option value="CRED">CRED</option>
                 <option value="CAED">CAED</option>
               </select>
             </label>
-            <label id="regionField">Region
+            <label id="regionField"><span class="field-label">Región <b aria-hidden="true">*</b></span>
               <select name="region" id="competitionRegion">
                 <option value="" selected disabled>Elegir región</option>
                 <option>Buenos Aires</option>
@@ -358,7 +358,7 @@
                 <option>Patagonia Sur</option>
               </select>
             </label>
-            <label>Modalidad
+            <label><span class="field-label">Modalidad <b aria-hidden="true">*</b></span>
               <select name="modality" required>
                 <option value="" selected disabled>Elegir modalidad</option>
                 <option>Boulder</option>
@@ -366,14 +366,14 @@
                 <option>Velocidad</option>
               </select>
             </label>
-            <label>Categoria
+            <label><span class="field-label">Categoría <b aria-hidden="true">*</b></span>
               <select name="category" required>
                 <option value="" selected disabled>Elegir categoría</option>
                 <option>Juveniles</option>
                 <option>Mayores</option>
               </select>
             </label>
-            <label>Club organizador
+            <label><span class="field-label">Club organizador <b aria-hidden="true">*</b></span>
               <input name="organizer_club" required />
             </label>
             <label class="event-upload-field">Logo del club organizador
@@ -402,8 +402,8 @@
                   <tr><th>Club</th><th>Nombre</th><th>Mail</th><th>Contraseña</th></tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td><strong>Organizador</strong></td>
+                  <tr id="organizerRoleRow">
+                    <td><strong>Organizador <span class="required-mark" aria-hidden="true">*</span></strong></td>
                     <td colspan="5" id="organizerSummary">Sin cargar</td>
                     <td><button id="openOrganizerEditor" type="button">Elegir</button></td>
                   </tr>

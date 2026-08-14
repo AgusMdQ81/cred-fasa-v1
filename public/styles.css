@@ -1477,6 +1477,37 @@ dd {
   margin-top: 18px;
 }
 
+.required-fields-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.required-fields-note span,
+.field-label b,
+.required-mark {
+  color: #c62d2d;
+}
+
+.field-label b {
+  font-size: 16px;
+}
+
+.competition-form label.field-error input,
+.competition-form label.field-error select {
+  border-color: #c62d2d;
+  background: #fff1f1;
+  outline: 3px solid rgba(198, 45, 45, .12);
+}
+
+#organizerRoleRow.required-selection-error td {
+  background: #fff1f1;
+  border-top-color: #c62d2d;
+  border-bottom-color: #c62d2d;
+}
+
 .form-table-block {
   grid-column: 1 / -1;
   display: grid;

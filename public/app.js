@@ -1566,7 +1566,7 @@ function renderOrganizerSummary() {
   if (!row) return;
   row.innerHTML = hasData
     ? `
-      <td><strong>Organizador</strong></td>
+      <td><strong>Organizador <span class="required-mark" aria-hidden="true">*</span></strong></td>
       <td>${organizer.last_name || "-"}</td>
       <td>${organizer.first_name || "-"}</td>
       <td>${organizer.dni || "-"}</td>
@@ -1574,7 +1574,7 @@ function renderOrganizerSummary() {
       <td>${organizer.club || "-"}</td>
       <td><button id="openOrganizerEditor" type="button">Editar</button></td>
     `
-    : '<td><strong>Organizador</strong></td><td colspan="5" id="organizerSummary">Sin seleccionar</td><td><button id="openOrganizerEditor" type="button">Elegir</button></td>';
+    : '<td><strong>Organizador <span class="required-mark" aria-hidden="true">*</span></strong></td><td colspan="5" id="organizerSummary">Sin seleccionar</td><td><button id="openOrganizerEditor" type="button">Elegir</button></td>';
   row.querySelector("#openOrganizerEditor")?.addEventListener("click", openOrganizerEditor);
 }
 
@@ -1585,6 +1585,7 @@ async function openOrganizerEditor() {
     form.elements.organizer_last_name.value = person.last_name || ""; form.elements.organizer_name.value = person.first_name || "";
     form.elements.organizer_dni.value = person.dni || ""; form.elements.organizer_username.value = person.email || person.mail || "";
     form.elements.organizer_person_club.value = person.club || "";
+    $("#organizerRoleRow")?.classList.remove("required-selection-error");
     renderOrganizerSummary();
   });
 }
@@ -2042,6 +2043,8 @@ function renderCompetitorPortal() {
 
 function resetCompetitionForm() {
   $("#competitionForm").reset();
+  $("#competitionForm").querySelectorAll(".field-error").forEach((field) => field.classList.remove("field-error"));
+  $("#organizerRoleRow")?.classList.remove("required-selection-error");
   $("#competitionForm").elements.end_date.min = "";
   $("#competitionForm").elements.id.value = "";
   $("#competitionForm").elements.organizer_fasa_id.value = "";
@@ -3019,10 +3022,23 @@ function bindEvents() {
     const isCred = $("#competitionType").value === "CRED";
     $("#regionField").hidden = !isCred;
     $("#competitionRegion").required = isCred;
-    if (!isCred && state.role !== "regional_representative") $("#competitionRegion").value = "";
+    if (!isCred && state.role !== "regional_representative") {
+      $("#competitionRegion").value = "";
+      $("#regionField").classList.remove("field-error");
+    }
   }
   $("#competitionType").addEventListener("change", toggleRegionField);
   toggleRegionField();
+  $("#competitionForm").addEventListener("invalid", (event) => {
+    event.target.closest("label")?.classList.add("field-error");
+    $("#competitionStatus").textContent = "Revisá los campos obligatorios marcados en rojo.";
+  }, true);
+  $("#competitionForm").addEventListener("input", (event) => {
+    if (event.target.validity?.valid) event.target.closest("label")?.classList.remove("field-error");
+  });
+  $("#competitionForm").addEventListener("change", (event) => {
+    if (event.target.validity?.valid) event.target.closest("label")?.classList.remove("field-error");
+  });
   $("#competitionForm").elements.event_date.addEventListener("change", (event) => {
     const endDate = $("#competitionForm").elements.end_date;
     endDate.min = event.target.value;
@@ -3074,6 +3090,7 @@ function bindEvents() {
     const organizer = organizerFormData();
     const hasOrganizerData = organizer.fasa_id || organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.club;
     if (!organizer.fasa_id) {
+      $("#organizerRoleRow")?.classList.add("required-selection-error");
       $("#competitionStatus").textContent = "Seleccioná al organizador desde la base FASA ID.";
       return;
     }
