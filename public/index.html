@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260814-header-gradient" />
+    <link rel="stylesheet" href="/styles.css?v=20260814-unified-navigation" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -198,15 +198,10 @@
     </section>
 
     <header id="appHeader" class="topbar hidden">
-      <div>
-        <div class="brand-lockup compact">
-          <h1>Eventos de Escalada Deportiva</h1>
-          <img src="/assets/fasa-logo-white.png" alt="Federación Argentina de Ski y Andinismo - FASA" />
-        </div>
-      </div>
+      <img class="private-site-logo" src="/assets/fasa-logo-white.png" alt="Federación Argentina de Ski y Andinismo - FASA" />
       <nav class="tabs" aria-label="Vistas">
         <div class="private-primary-nav">
-          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" title="FASA ID" aria-label="FASA ID"><span aria-hidden="true">●</span></button>
+          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" title="Mi FASA ID" aria-label="Mi FASA ID">Mi FASA ID</button>
           <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
           <button id="logoutButton" class="tab logout-tab" type="button">Salir</button>
         </div>
