@@ -2119,8 +2119,6 @@ async function loadRouteSetterPeople() {
 async function populateCompetitionRolePickers() {
   if (!state.fasaProfiles.length) state.fasaProfiles = await api("/api/fasa-profiles");
   $("#organizerFasaPicker").innerHTML = '<option value="">Seleccionar una persona</option>' + state.fasaProfiles.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · DNI ${person.dni}</option>`).join("");
-  const representatives = await api("/api/regional-representatives");
-  $("#eventRegionalRepresentative").innerHTML = '<option value="">Sin seleccionar</option>' + representatives.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · ${person.region}</option>`).join("");
 }
 
 async function loadRouteSetterTeam() {
@@ -2780,7 +2778,6 @@ function bindEvents() {
     $('[data-organizer-field="password"]').value = "admin"; $('[data-organizer-field="club"]').value = person.club || "";
   });
   $("#chooseChiefRouteSetter").addEventListener("click", () => $("#chiefRouteSetterPicker").showPicker?.());
-  $("#chooseEventRegionalRepresentative").addEventListener("click", async () => { await populateCompetitionRolePickers(); $("#eventRegionalRepresentative").showPicker?.(); });
   $("#closeOrganizerEditor").addEventListener("click", closeOrganizerEditor);
   $("#saveOrganizerEditor").addEventListener("click", saveOrganizerEditor);
   $("#organizerModal").addEventListener("click", (event) => {
@@ -2808,8 +2805,6 @@ function bindEvents() {
     payload.sport_category = payload.category === "Mayores" ? "mayor" : "";
     if (state.role === "regional_representative") {
       payload.creator_role = "regional_representative";
-      payload.representative_id = state.user.id;
-      payload.representative_username = state.user.username;
       payload.competition_type = "CRED";
       payload.region = state.user.region;
     }
