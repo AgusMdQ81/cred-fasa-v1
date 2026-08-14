@@ -317,7 +317,9 @@ async function seedTestFasaData() {
     const last = pickLeastUsed(lastNames, lastNameCounts, index - 1, first);
     usedFullNames.add(`${first}|${last}`);
     const photo = spec.gender === "Mujer" ? "/assets/female-athlete-demo.png" : spec.gender === "Hombre" ? "/assets/admin-demo-portrait.png" : "";
-    statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],photo,now,now));
+    const isAdministrator = spec.roles.some((role) => role.type === "general_admin");
+    const testPassword = isAdministrator ? "admin" : "1234";
+    statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,testPassword,`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],photo,now,now));
     for (const role of spec.roles) {
       const level = role.type === "judge" || role.type === "route_setter" ? (local % 5) + 1 : undefined;
       const data = { ...role.data, ...(level ? { level } : {}), ...(role.type === "competitor" ? { instagram: `@${first.toLowerCase()}.climbs`, discipline: "Boulder" } : {}) };
