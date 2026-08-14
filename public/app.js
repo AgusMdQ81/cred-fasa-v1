@@ -20,6 +20,7 @@ const state = {
   competitions: [],
   registrations: [],
   currentCompetitionId: null,
+  reviewCompetitionInternalId: null,
   loginCompetitionId: null,
   competitorFilters: { category: "mayor", gender: "Mujer" },
   registrationFilters: { category: "mayor", gender: "Mujer" },
@@ -1681,21 +1682,30 @@ function defaultRegionalRepresentative(index) {
 
 function renderRegionalRepresentatives() {
   if (!$("#regionalRepresentativesTable")) return;
-  $("#regionalRepresentativesTable").innerHTML = REGIONS.map((region) => {
-    const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
-    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person?.club || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button>${person ? `<button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button>` : ""}</td></tr>`;
-  }).join("");
-  $("#regionalRepresentativesTable").querySelectorAll("[data-choose-regional]").forEach((button) => button.addEventListener("click", async () => {
-    const region = button.dataset.chooseRegional;
-    await openPersonPicker(`Elegir referente · ${region}`, (person) => person.region === region, async (person) => {
-      await api("/api/assign-person-role", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, role: "regional_representative", region }) });
-      await loadRegionalRepresentatives();
-    });
-  }));
+  const assigned = state.regionalRepresentatives.filter((person) => person.active !== false);
+  $("#regionalRepresentativesTable").innerHTML = assigned.length ? assigned.map((person) => `<tr><td><strong>${person.region || "—"}</strong></td><td>${person.last_name || ""}, ${person.first_name || ""}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td><span class="status-badge approved">Activo</span></td><td class="row-actions"><button type="button" data-edit-regional="${person.fasa_id}">Editar</button><button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button></td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay referentes regionales asignados.</td></tr>';
+  $("#regionalRepresentativesTable").querySelectorAll("[data-edit-regional]").forEach((button) => button.addEventListener("click", () => openRegionalRepresentativeEditor(button.dataset.editRegional)));
   $("#regionalRepresentativesTable").querySelectorAll("[data-remove-regional]").forEach((button) => button.addEventListener("click", async () => {
     if (!confirm("¿Eliminar este referente regional? La región quedará sin asignar.")) return;
     await api("/api/regional-representative-remove", { method: "POST", body: JSON.stringify({ fasa_id: button.dataset.removeRegional }) }); await loadRegionalRepresentatives();
   }));
+}
+
+function updateRegionalRepresentativeSummary(person) {
+  $("#regionalRepresentativePersonSummary").innerHTML = person
+    ? `<strong>${person.last_name || ""}, ${person.first_name || ""}</strong><span>${person.dni || "Sin DNI"} · ${person.email || person.mail || "Sin mail"} · ${person.club || "Sin club"}</span>`
+    : "Todavía no se seleccionó una persona.";
+}
+
+function openRegionalRepresentativeEditor(fasaId = "") {
+  const person = state.regionalRepresentatives.find((item) => item.fasa_id === fasaId) || state.fasaProfiles.find((item) => item.fasa_id === fasaId);
+  $("#regionalRepresentativeForm").reset();
+  $("#regionalRepresentativeFasaId").value = person?.fasa_id || "";
+  $("#regionalRepresentativeRegion").value = person?.region || "";
+  $("#regionalRepresentativeDialogTitle").textContent = person ? "Editar referente regional" : "Crear referente regional";
+  $("#regionalRepresentativeDialogStatus").textContent = "";
+  updateRegionalRepresentativeSummary(person);
+  $("#regionalRepresentativeDialog").showModal();
 }
 
 function parseJudgeBatch() {
@@ -1733,32 +1743,19 @@ function renderCompetitions() {
   const scopedCompetitions = state.role === "regional_representative"
     ? state.competitions.filter((competition) => competition.competition_type === "CRED" && (competition.creator_fasa_id ? competition.creator_fasa_id === state.user?.fasa_id : competition.region === state.user?.region))
     : state.competitions;
-  const pending = scopedCompetitions.filter((competition) => competition.status === "pending");
-  const rejected = scopedCompetitions.filter((competition) => competition.status === "rejected");
-  const reviewCompetitions = [...pending, ...rejected];
-  const visibleCompetitions = scopedCompetitions.filter((competition) => competition.status === "approved");
-  $("#pendingCompetitionsPanel").hidden = !reviewCompetitions.length && !isAdministrator && state.role !== "regional_representative";
-  $("#pendingCompetitionsCount").textContent = rejected.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"} · ${rejected.length} rechazado${rejected.length === 1 ? "" : "s"}` : `${pending.length} pendiente${pending.length === 1 ? "" : "s"}`;
-  $("#pendingCompetitionsTable").innerHTML = reviewCompetitions.length ? reviewCompetitions.map((competition) => {
-    const isPending = competition.status === "pending";
-    const adminActions = isPending ? `<button class="primary" data-review-competition="approved" data-internal-event-id="${competition.internal_event_id}">Aprobar</button><button class="delete" data-review-competition="rejected" data-internal-event-id="${competition.internal_event_id}">Rechazar</button>` : '<span class="hint">Evento rechazado</span>';
-    const regionalActions = `<button data-edit-pending-competition="${competition.id}">${isPending ? "Ver / editar" : "Editar y reenviar"}</button>`;
-    return `<tr class="${isPending ? "pending-event-row" : "rejected-event-row"}"><td>${formatEventDateRange(competition)}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge ${competition.status}">${isPending ? "Pendiente" : "Rechazado"}</span></td><td class="review-actions">${isAdministrator ? adminActions : regionalActions}</td></tr>`;
-  }).join("") : '<tr><td colspan="9">No hay eventos pendientes de revisión.</td></tr>';
-  $("#pendingCompetitionsTable").querySelectorAll("[data-review-competition]").forEach((button) => button.addEventListener("click", async () => {
-    const decision = button.dataset.reviewCompetition;
-    if (decision === "rejected" && !confirm("¿Rechazar este evento? El referente podrá editarlo y volver a enviarlo.")) return;
-    await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ internal_event_id: Number(button.dataset.internalEventId), decision }) });
-    await loadCompetitions();
-  }));
-  $("#pendingCompetitionsTable").querySelectorAll("[data-edit-pending-competition]").forEach((button) => button.addEventListener("click", () => editCompetition(Number(button.dataset.editPendingCompetition))));
-  $("#competitionsTable").innerHTML = visibleCompetitions.map((competition) => {
+  const orderedCompetitions = [...scopedCompetitions].sort((a, b) => String(b.event_date || "").localeCompare(String(a.event_date || "")));
+  $("#competitionsTable").innerHTML = orderedCompetitions.length ? orderedCompetitions.map((competition) => {
     const president = competition.jury_president || {};
     const organizer = competition.organizer_person || competition.organizer_user || {};
     const chiefRouteSetter = competition.chief_route_setter || {};
     const personName = (person) => person.first_name || person.last_name ? `${person.last_name || ""}, ${person.first_name || ""}`.replace(/^, |, $/, "") : "—";
+    const status = competition.status || "approved";
+    const statusText = status === "pending" ? "Revisión" : status === "rejected" ? "Rechazado" : "Aprobado";
+    const primaryAction = isAdministrator && status !== "approved"
+      ? `<button class="primary" data-review-competition="${competition.id}">Revisar</button>`
+      : `<button data-edit-competition="${competition.id}">${status === "approved" ? "Editar" : "Ver / editar"}</button>`;
     return `
-      <tr>
+      <tr class="${status === "pending" ? "pending-event-row" : status === "rejected" ? "rejected-event-row" : ""}">
         <td>${formatEventDateRange(competition)}</td>
         <td>${competition.name}</td>
         <td>${competition.competition_type}</td>
@@ -1766,17 +1763,21 @@ function renderCompetitions() {
         <td>${competition.modality}</td>
         <td>${competition.category}</td>
         <td>${competition.organizer_club}</td>
-        <td><span class="status-badge approved">Aprobado</span></td>
+        <td><span class="status-badge ${status}">${statusText}</span></td>
         <td>${personName(organizer)}</td>
         <td>${personName(president)}</td>
         <td>${personName(chiefRouteSetter)}</td>
+        <td>${competition.infosheet_url ? `<a class="table-infosheet-link" href="${competition.infosheet_url}" download>Ver PDF</a>` : '<span class="hint">No disponible</span>'}</td>
         <td class="row-actions">
-          <button data-edit-competition="${competition.id}">Editar</button>
+          ${primaryAction}
           ${isAdministrator ? `<button class="delete" data-delete-competition="${competition.id}">Eliminar</button>` : ""}
         </td>
       </tr>
     `;
-  }).join("");
+  }).join("") : '<tr><td colspan="13">Todavía no hay eventos creados.</td></tr>';
+  $("#competitionsTable").querySelectorAll("[data-review-competition]").forEach((button) => {
+    button.addEventListener("click", () => editCompetition(Number(button.dataset.reviewCompetition), { review: true }));
+  });
   $("#competitionsTable").querySelectorAll("[data-edit-competition]").forEach((button) => {
     button.addEventListener("click", () => editCompetition(Number(button.dataset.editCompetition)));
   });
@@ -2055,17 +2056,32 @@ function resetCompetitionForm() {
   $("#competitionForm").elements.organizer_dni.value = "";
   $("#competitionForm").elements.organizer_username.value = "";
   $("#competitionForm").elements.organizer_person_club.value = "";
+  state.reviewCompetitionInternalId = null;
+  $("#competitionEditorTitle").textContent = "Crear evento";
   $("#saveCompetitionButton").textContent = "Crear evento";
+  $("#saveCompetitionButton").hidden = false;
+  $("#reviewApproveCompetition").hidden = true;
+  $("#reviewRejectCompetition").hidden = true;
   $("#organizerLogoCurrent").textContent = "Podés adjuntar una imagen PNG, JPG o WebP de hasta 5 MB.";
   $("#organizerLogoPreview").hidden = true;
   $("#organizerLogoPreview").removeAttribute("src");
   $("#infosheetCurrent").textContent = "Opcional. Podés adjuntar un PDF de hasta 15 MB; será público desde el calendario.";
-  $("#cancelCompetitionEdit").hidden = true;
   $("#competitionStatus").textContent = "";
   applyCompetitionFormRole();
   renderJuryPresidentOptions();
   renderChiefRouteSetterSummary();
   $("#competitionType").dispatchEvent(new Event("change"));
+}
+
+function openCompetitionEditor() {
+  $("#competitionEditorModal").classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeCompetitionEditor() {
+  $("#competitionEditorModal").classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  resetCompetitionForm();
 }
 
 function applyCompetitionFormRole() {
@@ -2078,7 +2094,7 @@ function applyCompetitionFormRole() {
   form.elements.region.disabled = isRegional;
 }
 
-function editCompetition(id) {
+function editCompetition(id, { review = false } = {}) {
   const competition = state.competitions.find((item) => Number(item.id) === Number(id));
   if (!competition) return;
   const form = $("#competitionForm");
@@ -2113,10 +2129,14 @@ function editCompetition(id) {
   renderJuryPresidentOptions();
   renderChiefRouteSetterSummary();
   $("#saveCompetitionButton").textContent = "Guardar cambios";
-  $("#cancelCompetitionEdit").hidden = false;
-  $("#competitionStatus").textContent = competition.status === "pending" ? "Estás viendo un evento pendiente. Podés modificarlo y volver a enviarlo para aprobación." : competition.status === "rejected" ? "Este evento fue rechazado. Editalo y volvé a enviarlo para una nueva revisión." : "Editando evento aprobado.";
+  $("#competitionEditorTitle").textContent = review ? "Revisar evento" : "Editar evento";
+  state.reviewCompetitionInternalId = review ? Number(competition.internal_event_id) : null;
+  $("#reviewApproveCompetition").hidden = !review;
+  $("#reviewRejectCompetition").hidden = !review;
+  $("#saveCompetitionButton").hidden = review;
+  $("#competitionStatus").textContent = review ? "Revisá toda la información del evento antes de aprobarlo o rechazarlo." : competition.status === "pending" ? "Este evento está pendiente de aprobación. Podés verlo y editarlo." : competition.status === "rejected" ? "Este evento fue rechazado. Editalo y volvé a enviarlo para una nueva revisión." : "Editando evento aprobado.";
   $("#competitionType").dispatchEvent(new Event("change"));
-  form.scrollIntoView({ behavior: "smooth", block: "start" });
+  openCompetitionEditor();
 }
 
 function collectJudges() {
@@ -2890,6 +2910,58 @@ function bindEvents() {
   $("#roleAssignmentSearch").addEventListener("input", renderRoleAssignmentTable);
   $("#personPickerSearch").addEventListener("input", renderPersonPicker);
   $("#juryPresidentSearch").addEventListener("input", renderJuryPresidentPicker);
+  $("#openCompetitionCreator")?.addEventListener("click", () => {
+    resetCompetitionForm();
+    openCompetitionEditor();
+  });
+  $("#closeCompetitionEditor")?.addEventListener("click", closeCompetitionEditor);
+  $("#cancelCompetitionEdit")?.addEventListener("click", closeCompetitionEditor);
+  $("#competitionEditorModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "competitionEditorModal") closeCompetitionEditor();
+  });
+  const reviewCompetition = async (decision) => {
+    if (!state.reviewCompetitionInternalId) return;
+    if (decision === "rejected" && !confirm("¿Rechazar este evento? El referente podrá editarlo y volver a enviarlo.")) return;
+    try {
+      await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ internal_event_id: state.reviewCompetitionInternalId, decision }) });
+      closeCompetitionEditor();
+      await loadCompetitions();
+    } catch (error) {
+      $("#competitionStatus").textContent = error.message || "No se pudo completar la revisión.";
+    }
+  };
+  $("#reviewApproveCompetition")?.addEventListener("click", () => reviewCompetition("approved"));
+  $("#reviewRejectCompetition")?.addEventListener("click", () => reviewCompetition("rejected"));
+  $("#openRegionalRepresentativeCreator")?.addEventListener("click", () => openRegionalRepresentativeEditor());
+  $("#cancelRegionalRepresentative")?.addEventListener("click", () => $("#regionalRepresentativeDialog").close());
+  $("#chooseRegionalRepresentativePerson")?.addEventListener("click", async () => {
+    const region = $("#regionalRepresentativeRegion").value;
+    if (!region) {
+      $("#regionalRepresentativeDialogStatus").textContent = "Primero elegí la región.";
+      return;
+    }
+    await openPersonPicker(`Elegir referente · ${region}`, (person) => person.region === region, (person) => {
+      $("#regionalRepresentativeFasaId").value = person.fasa_id;
+      $("#regionalRepresentativeDialogStatus").textContent = "";
+      updateRegionalRepresentativeSummary(person);
+    });
+  });
+  $("#regionalRepresentativeForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const region = $("#regionalRepresentativeRegion").value;
+    const fasaId = $("#regionalRepresentativeFasaId").value;
+    if (!region || !fasaId) {
+      $("#regionalRepresentativeDialogStatus").textContent = "Elegí una región y una persona de la base FASA ID.";
+      return;
+    }
+    try {
+      await api("/api/assign-person-role", { method: "POST", body: JSON.stringify({ fasa_id: fasaId, role: "regional_representative", region }) });
+      $("#regionalRepresentativeDialog").close();
+      await loadRegionalRepresentatives();
+    } catch (error) {
+      $("#regionalRepresentativeDialogStatus").textContent = error.message || "No se pudo guardar el referente.";
+    }
+  });
   $("#saveManagedProfile").addEventListener("click", saveManagedProfile);
   $("#saveOfficialPersonDetail").addEventListener("click", saveOfficialPersonDetail);
   $("#saveRouteSetterDetail").addEventListener("click", saveRouteSetterDetail);
@@ -3142,16 +3214,14 @@ function bindEvents() {
         payload.infosheet_url = uploaded.url;
       }
       await api("/api/competitions", { method: "POST", body: JSON.stringify(payload) });
-      resetCompetitionForm();
-      $("#competitionStatus").textContent = state.role === "regional_representative" ? (wasEditing ? "Evento actualizado y enviado nuevamente para aprobación." : "Evento creado con estado pendiente. Podés verlo y editarlo mientras espera la aprobación.") : (wasEditing ? "Evento actualizado." : "Evento guardado y aprobado. El formulario quedó listo para crear uno nuevo.");
       await loadCompetitions();
+      closeCompetitionEditor();
     } catch (error) {
       $("#competitionStatus").textContent = error.message;
     } finally {
       saveButton.disabled = false;
     }
   });
-  $("#cancelCompetitionEdit").addEventListener("click", resetCompetitionForm);
   $("#refreshCompetitions").addEventListener("click", loadCompetitions);
 
   document.querySelectorAll(".tab").forEach((button) => {

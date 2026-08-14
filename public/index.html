@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260814-fasa-card-width-fix" />
+    <link rel="stylesheet" href="/styles.css?v=20260814-unified-admin-management" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -305,16 +305,29 @@
         </section>
       </section>
       <section id="competitions" class="view">
-        <section id="pendingCompetitionsPanel" class="panel pending-events-panel">
-          <div class="section-head"><div><p class="eyebrow">Revisión administrativa</p><h2>Eventos no publicados</h2></div><span id="pendingCompetitionsCount" class="pending-count">0 pendientes</span></div>
-          <table><thead><tr><th>Fechas</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club</th><th>Estado</th><th></th></tr></thead><tbody id="pendingCompetitionsTable"></tbody></table>
-        </section>
         <section class="panel">
+          <div class="section-head">
+            <h2>Eventos creados</h2>
+            <button id="refreshCompetitions" type="button">Actualizar</button>
+          </div>
+          <div class="management-table-wrap">
+            <table>
+              <thead>
+                <tr><th>Fechas</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Infosheet</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="competitionsTable"></tbody>
+            </table>
+          </div>
+          <div class="management-create-row"><button id="openCompetitionCreator" class="primary" type="button">Crear evento</button></div>
+        </section>
+        <div id="competitionEditorModal" class="modal-overlay hidden">
+        <section class="panel competition-editor-panel" role="dialog" aria-modal="true" aria-labelledby="competitionEditorTitle">
           <div class="section-head">
             <div>
               <p class="eyebrow">Administrador general</p>
-              <h2>Crear evento</h2>
+              <h2 id="competitionEditorTitle">Crear evento</h2>
             </div>
+            <button id="closeCompetitionEditor" type="button">Cerrar</button>
           </div>
           <form id="competitionForm" class="competition-form">
             <input type="hidden" name="id" />
@@ -409,13 +422,16 @@
             <div class="competition-form-actions">
               <div class="save-row">
                 <button id="saveCompetitionButton" class="primary" type="submit">Crear evento</button>
-                <button id="cancelCompetitionEdit" type="button" hidden>Cancelar edicion</button>
+                <button id="reviewApproveCompetition" class="primary" type="button" hidden>Aprobar</button>
+                <button id="reviewRejectCompetition" class="delete" type="button" hidden>Rechazar</button>
+                <button id="cancelCompetitionEdit" type="button">Cancelar</button>
               </div>
               <p class="required-fields-note"><span aria-hidden="true">*</span> Campos obligatorios</p>
             </div>
           </form>
           <p id="competitionStatus" aria-live="polite"></p>
         </section>
+        </div>
         <div id="organizerModal" class="modal-overlay hidden">
           <section class="panel detail-panel" role="dialog" aria-modal="true" aria-labelledby="organizerModalTitle">
             <div class="section-head">
@@ -456,18 +472,6 @@
             </table>
           </section>
         </div>
-        <section class="panel">
-          <div class="section-head">
-            <h2>Eventos creados</h2>
-            <button id="refreshCompetitions" type="button">Actualizar</button>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Fechas</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Acciones</th></tr>
-            </thead>
-            <tbody id="competitionsTable"></tbody>
-          </table>
-        </section>
       </section>
 
       <section id="regionalRepresentatives" class="view">
@@ -486,7 +490,19 @@
             </thead>
             <tbody id="regionalRepresentativesTable"></tbody>
           </table>
+          <div class="management-create-row"><button id="openRegionalRepresentativeCreator" class="primary" type="button">Crear referente regional</button></div>
         </section>
+        <dialog id="regionalRepresentativeDialog" class="profile-edit-dialog">
+          <form method="dialog" class="profile-edit-shell" id="regionalRepresentativeForm">
+            <div class="section-head"><div><p class="eyebrow">Referentes regionales</p><h2 id="regionalRepresentativeDialogTitle">Crear referente regional</h2></div><button class="dialog-close" value="cancel">×</button></div>
+            <input id="regionalRepresentativeFasaId" type="hidden" />
+            <label>Región <select id="regionalRepresentativeRegion" required><option value="" selected disabled>Elegir región</option><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label>
+            <div class="representative-person-summary" id="regionalRepresentativePersonSummary">Todavía no se seleccionó una persona.</div>
+            <button id="chooseRegionalRepresentativePerson" type="button">Elegir desde FASA ID</button>
+            <p id="regionalRepresentativeDialogStatus" aria-live="polite"></p>
+            <div class="dialog-actions"><button value="cancel" type="button" id="cancelRegionalRepresentative">Cancelar</button><button id="saveRegionalRepresentative" class="primary" type="submit">Guardar referente</button></div>
+          </form>
+        </dialog>
       </section>
 
       <section id="judgePeople" class="view">
@@ -513,12 +529,12 @@
             </label>
             <span id="judgePeopleResultCount" class="filter-result-count" aria-live="polite"></span>
           </div>
-          <table>
+          <div class="directory-table-scroll"><table>
             <thead>
               <tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr>
             </thead>
             <tbody id="judgePeopleTable"></tbody>
-          </table>
+          </table></div>
         </section>
         <div id="judgePersonModal" class="modal-overlay hidden">
           <section id="judgePersonDetail" class="panel detail-panel" role="dialog" aria-modal="true" aria-labelledby="judgePersonDetailTitle">
@@ -590,11 +606,11 @@
             </label>
             <span id="routeSetterPeopleResultCount" class="filter-result-count" aria-live="polite"></span>
           </div>
-          <table><thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr></thead><tbody id="routeSetterPeopleTable"></tbody></table>
+          <div class="directory-table-scroll"><table><thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr></thead><tbody id="routeSetterPeopleTable"></tbody></table></div>
         </section>
         <dialog id="routeSetterDetailDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">Ficha de aperturista</p><h2 id="routeSetterDetailTitle">Aperturista</h2></div><button class="dialog-close" value="cancel" aria-label="Cerrar">×</button></div><div class="judge-detail-layout"><div class="photo-box"><button id="routeSetterPhotoPreview" class="photo-preview" type="button">Foto</button><input id="routeSetterPhotoFile" class="file-input" type="file" accept="image/*" /><input data-route-setter-detail="photo_url" type="hidden" /><p class="hint">Presioná la foto para cargar o reemplazar la imagen.</p></div><div class="detail-form"><label>Nombre<input data-route-setter-detail="first_name" readonly /></label><label>Apellido<input data-route-setter-detail="last_name" readonly /></label><label>DNI<input data-route-setter-detail="dni" readonly /></label><label>Mail<input data-route-setter-detail="mail" readonly /></label><label>Club<input data-route-setter-detail="club" readonly /></label><label>Nivel<select data-route-setter-detail="level"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label><label class="inline-check"><input data-route-setter-detail="active" type="checkbox" /> Activo</label></div></div><div class="dialog-actions"><button value="cancel">Cancelar</button><button id="saveRouteSetterDetail" class="primary" type="button">Guardar cambios</button></div><p id="routeSetterDetailStatus"></p></form></dialog>
       </section>
-      <section id="fasaIdManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Base de FASA ID</h2></div><button id="refreshFasaManagement" type="button">Actualizar</button></div><div class="directory-filters" aria-label="Filtros de FASA ID"><label>Buscar persona<input id="fasaManagementSearch" type="search" placeholder="Nombre, apellido, DNI, mail, club o región" /></label><label>Región<select id="fasaManagementRegionFilter"><option value="">Todas</option><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label><label>Rol<select id="fasaManagementRoleFilter"><option value="">Todos</option><option value="competitor">Atleta</option><option value="judge">Juez</option><option value="route_setter">Aperturista</option><option value="chief_route_setter">Jefe de Aperturistas</option><option value="competition_admin">Presidente de jurado</option><option value="organizer">Organizador</option><option value="regional_representative">Referente regional</option><option value="general_admin">Administrador general</option><option value="none">Sin roles</option></select></label><span id="fasaManagementResultCount" class="filter-result-count" aria-live="polite"></span></div><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Club</th><th>Región</th><th>Roles</th></tr></thead><tbody id="fasaManagementTable"></tbody></table></section></section>
+      <section id="fasaIdManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Base de FASA ID</h2></div><button id="refreshFasaManagement" type="button">Actualizar</button></div><div class="directory-filters" aria-label="Filtros de FASA ID"><label>Buscar persona<input id="fasaManagementSearch" type="search" placeholder="Nombre, apellido, DNI, mail, club o región" /></label><label>Región<select id="fasaManagementRegionFilter"><option value="">Todas</option><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label><label>Rol<select id="fasaManagementRoleFilter"><option value="">Todos</option><option value="competitor">Atleta</option><option value="judge">Juez</option><option value="route_setter">Aperturista</option><option value="chief_route_setter">Jefe de Aperturistas</option><option value="competition_admin">Presidente de jurado</option><option value="organizer">Organizador</option><option value="regional_representative">Referente regional</option><option value="general_admin">Administrador general</option><option value="none">Sin roles</option></select></label><span id="fasaManagementResultCount" class="filter-result-count" aria-live="polite"></span></div><div class="directory-table-scroll"><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Club</th><th>Región</th><th>Roles</th></tr></thead><tbody id="fasaManagementTable"></tbody></table></div></section></section>
       <section id="administratorManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Seguridad</p><h2>Administradores</h2></div><button type="button" data-open-role-assignment="general_admin">Asignar administrador</button></div><p class="hint">El sistema impide que queden menos de dos administradores activos.</p><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Estado</th><th></th></tr></thead><tbody id="administratorManagementTable"></tbody></table><p id="administratorManagementStatus"></p></section></section>
       <dialog id="roleAssignmentDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">FASA ID</p><h2 id="roleAssignmentTitle">Asignar rol</h2></div><button class="dialog-close" value="cancel">×</button></div><label>Buscar persona<input id="roleAssignmentSearch" type="search" placeholder="Nombre, apellido, DNI, mail o club" /></label><input id="roleAssignmentPerson" type="hidden" /><div class="picker-table-wrap"><table><thead><tr><th>Persona</th><th>DNI</th><th>Mail</th><th>Club</th><th></th></tr></thead><tbody id="roleAssignmentTable"></tbody></table></div><label id="roleAssignmentLevelField">Nivel<select id="roleAssignmentLevel"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label><input id="roleAssignmentRegion" type="hidden" /><div class="dialog-actions"><button value="cancel">Cancelar</button><button id="confirmRoleAssignment" class="primary" type="button">Asignar rol</button></div><p id="roleAssignmentStatus"></p></form></dialog>
       <dialog id="personPickerDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">Base FASA ID</p><h2 id="personPickerTitle">Elegir persona</h2></div><button class="dialog-close" value="cancel">×</button></div><label>Buscar persona<input id="personPickerSearch" type="search" placeholder="Nombre, apellido, DNI, mail o club" /></label><div class="picker-table-wrap"><table><thead><tr><th>Persona</th><th>DNI</th><th>Mail</th><th>Club</th><th></th></tr></thead><tbody id="personPickerTable"></tbody></table></div></form></dialog>
@@ -1056,6 +1072,6 @@
       <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><dl class="public-athlete-meta"><div><dt>Club</dt><dd id="publicAthleteClub">—</dd></div><div><dt>Región</dt><dd id="publicAthleteRegion">—</dd></div></dl><p id="publicAthleteInstagram" class="instagram-line"><img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> @usuario</p></div></article>
     </dialog>
 
-    <script src="/app.js?v=20260813-private-nav-v2"></script>
+    <script src="/app.js?v=20260814-unified-admin-management"></script>
   </body>
 </html>
