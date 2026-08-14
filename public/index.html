@@ -107,18 +107,17 @@
                 <option value="mayor">Mayor</option><option value="U19">U19</option><option value="U17">U17</option>
               </select>
             </label>
-            <fieldset class="gender-toggle">
-              <legend>Rama</legend>
-              <div class="toggle-track" role="group" aria-label="Rama del ranking">
-                <button class="active" type="button" data-ranking-gender="Mujer">Mujeres</button>
-                <button type="button" data-ranking-gender="Hombre">Hombres</button>
-              </div>
-            </fieldset>
             <label>Disciplina
               <select id="rankingDiscipline">
                 <option value="Boulder">Boulder</option><option value="Dificultad">Dificultad</option><option value="Speed">Speed</option>
               </select>
             </label>
+            <fieldset class="gender-toggle">
+              <div class="toggle-track" role="group" aria-label="Mujeres u hombres">
+                <button class="active" type="button" data-ranking-gender="Mujer">Mujeres</button>
+                <button type="button" data-ranking-gender="Hombre">Hombres</button>
+              </div>
+            </fieldset>
           </div>
           <div id="rankingContext" class="ranking-context" aria-live="polite"></div>
           <div id="publicRankings" class="public-rankings"></div>
