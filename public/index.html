@@ -172,6 +172,9 @@
           <label>Contraseña <input name="password" type="password" required /></label>
           <label>DNI <input name="dni" required inputmode="numeric" pattern="\d{8}" maxlength="8" /></label>
           <label>Fecha de nacimiento <input name="birth_date" type="date" required /></label>
+          <label class="switch-option"><input name="create_athlete_profile" type="checkbox" checked /><span>Crear mi perfil deportivo</span></label>
+          <label>Usuario de Instagram <input name="instagram" placeholder="@usuario" autocomplete="off" /></label>
+          <label class="consent-option"><input name="public_athlete_profile" type="checkbox" /><span>Acepto que se muestren públicamente mi nombre, apellido, categoría, género, foto y usuario de Instagram en rankings y páginas FASA.</span></label>
           <label>Genero
             <select name="gender" required>
               <option>Hombre</option>
@@ -292,6 +295,11 @@
                   <label>Región <select data-unified-field="region"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label>
                 </div>
               </div>
+              <section class="athlete-profile-settings">
+                <label class="switch-option"><input id="editAthleteProfileEnabled" type="checkbox" /><span>Crear o mantener mi perfil deportivo</span></label>
+                <label>Usuario de Instagram <input id="editAthleteInstagram" placeholder="@usuario" /></label>
+                <label class="consent-option"><input id="editAthletePublicConsent" type="checkbox" /><span>Acepto mostrar públicamente nombre, apellido, categoría, género, foto e Instagram.</span></label>
+              </section>
               <div class="dialog-actions"><button value="cancel" type="button" id="cancelProfileEditor">Cancelar</button><button id="saveUnifiedProfile" class="primary" type="button">Guardar datos</button></div>
               <p id="unifiedProfileStatus" aria-live="polite"></p>
             </form>
@@ -996,6 +1004,9 @@
         </section>
       </div>
     </main>
+    <dialog id="publicAthleteDialog" class="public-athlete-dialog">
+      <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><p id="publicAthleteInstagram" class="instagram-line"><span aria-hidden="true">◎</span> @usuario</p></div></article>
+    </dialog>
 
     <script src="/app.js?v=20260813-private-nav-v2"></script>
   </body>

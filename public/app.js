@@ -676,6 +676,10 @@ function renderUnifiedProfile() {
   $("#fasaIdCardDni").textContent = `DNI ${profile.dni || "—"}`;
   $("#fasaIdCardClub").textContent = `Club ${profile.club || "—"}`;
   const roles = state.roles.length ? state.roles : [state.role];
+  const athleteDetails = state.user?.role_details?.competitor || {};
+  $("#editAthleteProfileEnabled").checked = roles.includes("competitor");
+  $("#editAthleteInstagram").value = athleteDetails.instagram || "";
+  $("#editAthletePublicConsent").checked = athleteDetails.public_profile === true;
   $("#fasaIdCardRoles").textContent = roles.map((role) => `${ROLE_LABELS[role] || role}${state.user?.role_details?.[role]?.level ? ` · Nivel ${state.user.role_details[role].level}` : ""}`).join(" · ");
   $("#fasaIdCardEmail").textContent = profile.email || "—";
   $("#fasaIdCardPhone").textContent = profile.phone || "—";
@@ -1808,6 +1812,9 @@ function renderPublicRankings(type = state.publicRankingFilters.type) {
       club: ["AEBA", "CABA", "Club Andino", "Centro", "Cuyo", "Litoral"][index % 6],
       region, category, gender, discipline,
       points: 3100 - index * 19,
+      instagram: `@${String(firstNames[index % firstNames.length]).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()}.climbs`,
+      photo_url: index % 3 === 0 ? "/assets/admin-demo-portrait.png" : "",
+      public_profile: true,
     };
   });
   const rows = athletes
@@ -1820,8 +1827,18 @@ function renderPublicRankings(type = state.publicRankingFilters.type) {
   $("#rankingContext").innerHTML = `<strong>${type === "regional" ? filters.region : "Argentina"}</strong><span>${categoryLabel} · ${filters.gender === "Mujer" ? "Mujeres" : "Hombres"} · ${filters.discipline}</span>`;
   container.innerHTML = `
     <div class="ranking-head"><span>Puesto</span><span>Atleta</span><span>Club / Región</span><span>Puntos</span></div>
-    ${rows.length ? rows.map((athlete) => `<button class="ranking-row" type="button"><strong>#${athlete.rank}</strong><span>${athlete.name}<small>${athlete.category} · ${athlete.discipline}</small></span><span>${athlete.club}<small>${athlete.region}</small></span><strong>${athlete.points}</strong></button>`).join("") : '<p class="ranking-empty">No hay atletas para esta combinación de filtros.</p>'}
+    ${rows.length ? rows.map((athlete, index) => `<button class="ranking-row" type="button" data-public-athlete="${index}"><strong>#${athlete.rank}</strong><span>${athlete.name}<small>${athlete.category} · ${athlete.discipline}</small></span><span>${athlete.club}<small>${athlete.region}</small></span><strong>${athlete.points}</strong></button>`).join("") : '<p class="ranking-empty">No hay atletas para esta combinación de filtros.</p>'}
   `;
+  container.querySelectorAll("[data-public-athlete]").forEach((button) => button.addEventListener("click", () => {
+    const athlete = rows[Number(button.dataset.publicAthlete)];
+    if (!athlete?.public_profile) return;
+    $("#publicAthleteName").textContent = athlete.name;
+    $("#publicAthleteCategory").textContent = athlete.category.toUpperCase();
+    $("#publicAthleteGender").textContent = athlete.gender;
+    $("#publicAthleteInstagram").innerHTML = `<span aria-hidden="true">◎</span> ${athlete.instagram}`;
+    renderPhotoPreview($("#publicAthletePhoto"), athlete.photo_url, `Foto de ${athlete.name}`);
+    $("#publicAthleteDialog").showModal();
+  }));
 }
 
 function hideAccessForms() {
@@ -2601,15 +2618,18 @@ function bindEvents() {
     $("#profileEditDialog").showModal();
   });
   $("#cancelProfileEditor").addEventListener("click", () => $("#profileEditDialog").close());
+  $("#closePublicAthlete").addEventListener("click", () => $("#publicAthleteDialog").close());
   $("#saveUnifiedProfile").addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-unified-field]").forEach((field) => {
       profile[field.dataset.unifiedField] = field.value;
     });
     try {
-      const saved = await api("/api/fasa-profile", { method: "POST", body: JSON.stringify({ profile, roles: state.roles }) });
+      const athleteProfile = { enabled: $("#editAthleteProfileEnabled").checked, instagram: $("#editAthleteInstagram").value.trim(), public_profile: $("#editAthletePublicConsent").checked };
+      const saved = await api("/api/fasa-profile", { method: "POST", body: JSON.stringify({ profile, roles: state.roles, athlete_profile: athleteProfile }) });
       state.user = { ...state.user, ...saved.profile, display_name: `${saved.profile.first_name} ${saved.profile.last_name}`.trim(), username: saved.profile.email };
       state.roles = saved.roles || state.roles;
+      state.user.role_details = { ...(state.user.role_details || {}), competitor: athleteProfile };
       if (state.competitorPortal?.competitor) state.competitorPortal.competitor = { ...state.competitorPortal.competitor, ...saved.profile };
       if (state.judgePortal?.person) state.judgePortal.person = { ...state.judgePortal.person, ...saved.profile, mail: saved.profile.email };
       $("#unifiedProfileStatus").textContent = `FASA ID actualizado · ${saved.profile.fasa_id}`;
@@ -2701,7 +2721,9 @@ function bindEvents() {
     try {
       state.competitorCredentials = { email: payload.email, password: payload.password };
       state.competitorPortal = await api("/api/competitor-register", { method: "POST", body: JSON.stringify(payload) });
-      applyRole("competitor");
+      state.user = { ...state.competitorPortal.competitor, display_name: `${payload.first_name} ${payload.last_name}`, username: payload.email, roles: state.competitorPortal.roles || [] };
+      state.roles = state.competitorPortal.roles || [];
+      applyRole(state.roles.includes("competitor") ? "competitor" : "guest");
     } catch (error) {
       $("#loginStatus").textContent = error.message;
     }

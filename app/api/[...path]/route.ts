@@ -625,8 +625,12 @@ export async function POST(request: Request) {
   if (path === "fasa-profile") {
     try {
       const profile = await upsertFasaProfile((payload.profile || payload) as Record<string, unknown>);
-      const requestedRoles = Array.isArray(payload.roles) && payload.roles.length ? payload.roles.map(String) : ["competitor"];
+      let requestedRoles = Array.isArray(payload.roles) && payload.roles.length ? payload.roles.map(String) : [];
+      if (payload.athlete_profile?.enabled && !requestedRoles.includes("competitor")) requestedRoles.push("competitor");
+      if (!payload.athlete_profile?.enabled) requestedRoles = requestedRoles.filter((role: string) => role !== "competitor");
       for (const role of requestedRoles) await assignRole(profile.fasa_id, role);
+      if (payload.athlete_profile?.enabled) await assignRole(profile.fasa_id, "competitor", { instagram: String(payload.athlete_profile.instagram || ""), public_profile: payload.athlete_profile.public_profile === true });
+      else await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type='competitor'").bind(profile.fasa_id).run();
       const { password: _password, ...safeProfile } = profile;
       return json({ profile: safeProfile, roles: requestedRoles });
     } catch (error) {
@@ -669,9 +673,12 @@ export async function POST(request: Request) {
   if (path === "competitor-register") {
     try {
       const profile = await upsertFasaProfile(payload as Record<string, unknown>);
-      await assignRole(profile.fasa_id, "competitor", { category: payload.category || "", gender: payload.gender || "" });
+      const createAthlete = payload.create_athlete_profile === "on" || payload.create_athlete_profile === true;
+      const age = new Date().getUTCFullYear() - Number(String(payload.birth_date || "2000").slice(0, 4));
+      const category = age <= 16 ? "U17" : age <= 18 ? "U19" : "mayor";
+      if (createAthlete) await assignRole(profile.fasa_id, "competitor", { category, gender: payload.gender || "", instagram: String(payload.instagram || ""), public_profile: payload.public_athlete_profile === "on" || payload.public_athlete_profile === true });
       const { password: _password, ...safeProfile } = profile;
-      return json({ competitor: safeProfile, competitions, registrations: [] });
+      return json({ competitor: { ...safeProfile, instagram: payload.instagram || "", gender: payload.gender || "", category }, competitions, registrations: [], roles: createAthlete ? ["competitor"] : [] });
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "No se pudo crear el Perfil FASA." }, { status: 400 });
     }

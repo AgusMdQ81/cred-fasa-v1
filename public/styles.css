@@ -850,6 +850,18 @@ h2 {
 .official-card > div strong { font-size: 22px; }
 .official-card p { margin: 34px 0 5px; font-size: clamp(26px,4vw,38px); font-weight: 900; text-transform: uppercase; }
 .official-card > span { font-weight: 800; }
+.switch-option, .consent-option { display: flex !important; flex-direction: row !important; align-items: flex-start; gap: 10px; }
+.switch-option input, .consent-option input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 2px; }
+.athlete-profile-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; padding: 18px; background: rgba(40,127,145,.08); border: 1px solid rgba(40,127,145,.2); border-radius: 8px; }
+.athlete-profile-settings .consent-option { grid-column: 1 / -1; }
+.public-athlete-dialog { width: min(620px,calc(100vw - 30px)); padding: 0; border: 0; border-radius: 18px; background: transparent; }
+.public-athlete-dialog::backdrop { background: rgba(18,21,37,.72); backdrop-filter: blur(5px); }
+.public-athlete-card { position: relative; display: grid; grid-template-columns: 150px 1fr; gap: 24px; align-items: center; padding: 28px; color: white; background: linear-gradient(130deg,#292b4d,#287f91); border-radius: 18px; }
+.public-athlete-card .dialog-close { position: absolute; top: 12px; right: 12px; color: white; border-color: rgba(255,255,255,.3); }
+.public-athlete-photo { display: grid; place-items: center; aspect-ratio: 4/5; overflow: hidden; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.7); border-radius: 10px; }
+.public-athlete-photo img { width: 100%; height: 100%; object-fit: cover; }
+.instagram-line { display: flex; align-items: center; gap: 8px; margin-top: 18px; font-weight: 900; }
+.instagram-line span { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid currentColor; border-radius: 7px; }
 
 .current-role-label {
   color: white;
