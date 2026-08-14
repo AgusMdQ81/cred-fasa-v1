@@ -2183,6 +2183,7 @@ function openManagedProfile(fasaId) {
   const person = state.fasaProfiles.find((item) => item.fasa_id === fasaId); if (!person) return;
   $("#managedProfileDialog").dataset.fasaId = fasaId; $("#managedProfileTitle").textContent = `${person.last_name}, ${person.first_name}`;
   document.querySelectorAll("[data-managed-profile]").forEach((field) => { field.value = person[field.dataset.managedProfile] || ""; });
+  renderPhotoPreview($("#managedProfilePhotoPreview"), person.photo_url || "", `Foto de ${person.first_name} ${person.last_name}`);
   $("#managedProfileStatus").textContent = ""; $("#managedProfileDialog").showModal();
 }
 
@@ -2664,6 +2665,12 @@ function bindEvents() {
       syncJudgePersonDetail();
       renderJudgePeople();
     },
+  });
+  bindPhotoPicker({
+    previewSelector: "#managedProfilePhotoPreview",
+    fileSelector: "#managedProfilePhotoFile",
+    fieldSelector: '[data-managed-profile="photo_url"]',
+    statusSelector: "#managedProfileStatus",
   });
   bindPhotoPicker({
     previewSelector: "#judgePortalPhotoPreview",
