@@ -764,7 +764,7 @@ button:hover,
   grid-template-columns: 140px minmax(0, 1fr);
   align-items: start;
   gap: 18px;
-  height: 208px;
+  height: 168px;
   padding: 8px clamp(12px, 2.2vw, 28px);
   background:
     linear-gradient(to bottom, rgba(7,22,35,.97) 0%, rgba(7,22,35,.86) 46%, rgba(7,22,35,.38) 78%, rgba(7,22,35,.08) 100%),
@@ -839,11 +839,19 @@ h2 {
 
 .tabs {
   display: grid;
-  grid-template-rows: 48px 48px 72px;
+  grid-template-rows: 58px 72px;
   gap: 8px;
   margin: 0;
   padding: 6px 0;
   background: transparent;
+}
+
+.private-top-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
 
 .private-account-nav,
@@ -855,9 +863,10 @@ h2 {
 }
 
 .private-account-nav {
-  min-height: 48px;
+  min-height: 36px;
   justify-content: flex-end;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
 .private-secondary-nav {
@@ -876,7 +885,7 @@ h2 {
   align-items: center;
   gap: 8px 14px;
   width: 100%;
-  min-height: 48px;
+  min-height: 40px;
 }
 
 .assigned-roles > span {
@@ -926,17 +935,18 @@ h2 {
 
 .account-icon-button {
   position: relative;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  height: 32px;
   padding: 0;
 }
 
 .user-avatar-icon {
   position: relative;
   display: block;
-  width: 20px;
-  height: 22px;
+  width: 16px;
+  height: 18px;
 }
 
 .user-avatar-icon::before,
@@ -950,23 +960,23 @@ h2 {
 
 .user-avatar-icon::before {
   top: 0;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 
 .user-avatar-icon::after {
   bottom: 0;
-  width: 20px;
-  height: 11px;
+  width: 16px;
+  height: 9px;
   border-radius: 11px 11px 3px 3px;
 }
 
 .exit-door-icon {
   position: relative;
   display: block;
-  width: 17px;
-  height: 22px;
+  width: 14px;
+  height: 18px;
   border: 2px solid currentColor;
   border-radius: 2px;
 }
@@ -974,9 +984,9 @@ h2 {
 .exit-door-icon::before {
   content: "";
   position: absolute;
-  top: 8px;
-  right: -7px;
-  width: 13px;
+  top: 6px;
+  right: -6px;
+  width: 11px;
   height: 2px;
   background: currentColor;
 }
@@ -984,10 +994,10 @@ h2 {
 .exit-door-icon::after {
   content: "";
   position: absolute;
-  top: 5px;
-  right: -7px;
-  width: 7px;
-  height: 7px;
+  top: 3px;
+  right: -6px;
+  width: 6px;
+  height: 6px;
   border-top: 2px solid currentColor;
   border-right: 2px solid currentColor;
   transform: rotate(45deg);
@@ -1037,7 +1047,9 @@ h2 {
 }
 
 .private-account-nav .cv-tab {
-  min-height: 40px;
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 10px;
   border-color: rgba(255,255,255,.35);
   background: rgba(7,22,35,.2);
 }
@@ -1956,7 +1968,7 @@ tbody tr:hover {
   .topbar {
     grid-template-columns: 72px minmax(0, 1fr);
     gap: 8px;
-    height: 208px;
+    height: 168px;
     padding: 6px 8px;
   }
 
@@ -1967,7 +1979,7 @@ tbody tr:hover {
 
   .topbar .tabs {
     min-width: 0;
-    grid-template-rows: 48px 48px 72px;
+    grid-template-rows: 58px 72px;
   }
 
   .private-account-nav {
@@ -1976,8 +1988,8 @@ tbody tr:hover {
   }
 
   .private-account-nav .cv-tab {
-    padding: 0 8px;
-    font-size: 11px;
+    padding: 0 6px;
+    font-size: 10px;
   }
 
   .assigned-roles,

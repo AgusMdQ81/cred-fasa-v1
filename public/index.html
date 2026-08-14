@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260814-sticky-header-contrast" />
+    <link rel="stylesheet" href="/styles.css?v=20260814-compact-private-header" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -200,13 +200,15 @@
     <header id="appHeader" class="topbar hidden">
       <img class="private-site-logo" src="/assets/fasa-logo-white.png" alt="Federación Argentina de Ski y Andinismo - FASA" />
       <nav class="tabs" aria-label="Vistas">
-        <div class="private-account-nav">
-          <button class="tab profile-tab account-icon-button" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" title="Mi FASA ID" aria-label="Mi FASA ID"><span class="user-avatar-icon" aria-hidden="true"></span></button>
-          <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
-          <button class="tab cv-tab" data-view="fasaCv" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" type="button">Mi CV FASA</button>
-          <button id="logoutButton" class="tab logout-tab account-icon-button" type="button" title="Salir" aria-label="Salir"><span class="exit-door-icon" aria-hidden="true"></span></button>
+        <div class="private-top-nav">
+          <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
+          <div class="private-account-nav">
+            <button class="tab profile-tab account-icon-button" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" title="Mi FASA ID" aria-label="Mi FASA ID"><span class="user-avatar-icon" aria-hidden="true"></span></button>
+            <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
+            <button class="tab cv-tab" data-view="fasaCv" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" type="button">Mi CV FASA</button>
+            <button id="logoutButton" class="tab logout-tab account-icon-button" type="button" title="Salir" aria-label="Salir"><span class="exit-door-icon" aria-hidden="true"></span></button>
+          </div>
         </div>
-        <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
         <div class="private-secondary-nav">
           <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juecear evento</button>
           <button class="tab role-hidden" data-view="competitions" data-roles="general_admin regional_representative" hidden>Eventos</button>
