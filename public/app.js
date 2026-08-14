@@ -578,7 +578,7 @@ function openCompetitionView(competitionId, view) {
 
 function applyRole(role, options = {}) {
   state.role = role;
-  state.privateRoleOpen = Boolean(options.openRole);
+  state.privateRoleOpen = true;
   localStorage.setItem("credFasaRole", role);
   $("#loginGate").classList.add("hidden");
   $("#appHeader").classList.remove("hidden");
@@ -631,17 +631,11 @@ function renderAssignedRoles() {
   const roles = state.roles.length ? state.roles : [state.role];
   const pendingApprovals = state.competitions.filter((competition) => competition.status === "pending").length;
   const currentLabel = $("#currentRoleLabel");
-  currentLabel.textContent = state.privateRoleOpen ? (ROLE_LABELS[state.role] || state.role) : "";
-  currentLabel.classList.toggle("hidden", !state.privateRoleOpen);
-  currentLabel.classList.toggle("has-approval-alert", state.privateRoleOpen && state.role === "general_admin" && pendingApprovals > 0);
-  document.querySelectorAll(".private-secondary-nav .tab[data-view]").forEach((button) => {
-    if (!state.privateRoleOpen) {
-      button.hidden = true;
-      button.style.display = "none";
-    }
-  });
-  container.innerHTML = state.privateRoleOpen ? "" : `${roles.map((role) => `
-    <button class="role-chip ${state.privateRoleOpen && role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
+  currentLabel.textContent = "";
+  currentLabel.classList.add("hidden");
+  currentLabel.classList.remove("has-approval-alert");
+  container.innerHTML = `${roles.map((role) => `
+    <button class="role-chip ${role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
       ${ROLE_LABELS[role] || role}${role === "general_admin" && pendingApprovals ? `<span class="approval-alert" title="${pendingApprovals} evento(s) pendiente(s) de aprobación"></span>` : ""}
     </button>
   `).join("")}`;
@@ -3157,10 +3151,6 @@ function bindEvents() {
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
       if (!button.dataset.view) return;
-      if (button.dataset.view === "unifiedProfile") {
-        state.privateRoleOpen = false;
-        renderAssignedRoles();
-      }
       activateView(button.dataset.view, { subview: button.dataset.subview });
     });
   });
