@@ -329,7 +329,6 @@
           </div>
           <form id="competitionForm" class="competition-form">
             <input type="hidden" name="id" />
-            <p class="required-fields-note"><span aria-hidden="true">*</span> Campos obligatorios</p>
             <label><span class="field-label">Nombre <b aria-hidden="true">*</b></span>
               <input name="name" required />
             </label>
@@ -418,8 +417,13 @@
                 <tbody id="chiefRouteSetterSummary"><tr><td><strong>Jefe de Aperturistas</strong></td><td colspan="5">Sin seleccionar</td><td><button id="chooseChiefRouteSetter" type="button">Elegir</button></td></tr></tbody>
               </table>
             </div>
-            <button id="saveCompetitionButton" class="primary" type="submit">Crear evento</button>
-            <button id="cancelCompetitionEdit" type="button" hidden>Cancelar edicion</button>
+            <div class="competition-form-actions">
+              <div class="save-row">
+                <button id="saveCompetitionButton" class="primary" type="submit">Crear evento</button>
+                <button id="cancelCompetitionEdit" type="button" hidden>Cancelar edicion</button>
+              </div>
+              <p class="required-fields-note"><span aria-hidden="true">*</span> Campos obligatorios</p>
+            </div>
           </form>
           <p id="competitionStatus" aria-live="polite"></p>
         </section>
