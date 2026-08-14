@@ -7,22 +7,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260814-logo-blanco" />
+    <link rel="stylesheet" href="/styles.css?v=20260814-header-navigation" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
       <div class="login-panel public-grid">
-        <div class="public-brand">
-          <div class="brand-lockup">
-            <h1>Eventos de Escalada Deportiva</h1>
-            <img src="/assets/fasa-logo-white.png" alt="Federación Argentina de Ski y Andinismo - FASA" />
-          </div>
-        </div>
-        <nav class="public-nav" aria-label="Navegación principal">
-          <button class="public-nav-link active" type="button" data-public-view="calendarView">Calendario</button>
-          <button class="public-nav-link" type="button" data-public-view="athletesView">Atletas</button>
-          <button class="public-nav-link" type="button" data-public-view="accessView">FASA ID</button>
-        </nav>
+        <header class="public-site-header">
+          <img class="public-site-logo" src="/assets/fasa-logo-white.png" alt="Federación Argentina de Ski y Andinismo - FASA" />
+          <nav class="public-nav" aria-label="Navegación principal">
+            <button class="public-nav-link active" type="button" data-public-view="calendarView">Calendario</button>
+            <button class="public-nav-link" type="button" data-public-view="athletesView">Atletas</button>
+            <button class="public-nav-link" type="button" data-public-view="accessView">FASA ID</button>
+          </nav>
+        </header>
         <section id="calendarView" class="calendar-board public-view active">
           <div class="section-head">
             <div>
