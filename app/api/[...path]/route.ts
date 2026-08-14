@@ -465,6 +465,10 @@ export async function GET(request: Request) {
     const { password: _password, created_at: _created, updated_at: _updated, ...safeProfile } = profile;
     return json({ profile: safeProfile, roles: roles.results.map((row) => row.role_type) });
   }
+  if (path === "admin-profile-update") {
+    try { const profile = await upsertFasaProfile((payload.profile || payload) as Record<string, unknown>); const { password: _password, ...safeProfile } = profile; return json({ profile: safeProfile }); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "No se pudo actualizar la FASA ID." }, { status: 400 }); }
+  }
   if (path === "seed-test-data") return json({ error: "Usá POST para regenerar los datos." }, { status: 405 });
   if (path === "regional-representative-assignment") {
     await ensureFasaTables();
@@ -745,6 +749,7 @@ export async function POST(request: Request) {
     return json({ ok: true });
   }
   if (path === "judge-people") return json(await saveRoleDirectory("judge", Array.isArray(payload.people) ? payload.people : []));
+  if (path === "route-setter-people") return json(await saveRoleDirectory("route_setter", Array.isArray(payload.people) ? payload.people : []));
   if (path === "judges") return json(getJudges());
   if (path === "regional-representatives") return json(await saveRoleDirectory("regional_representative", Array.isArray(payload.representatives) ? payload.representatives : []));
   if (path === "judge-portal-login") return json({ profile: judgePeople[0], assignments: competitions });

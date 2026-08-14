@@ -1834,3 +1834,10 @@ tbody tr:hover {
     white-space: nowrap;
   }
 }
+.table-search { display: grid; gap: .45rem; margin: 1rem 0; max-width: 34rem; }
+.table-search input, #personPickerSearch, #roleAssignmentSearch { width: 100%; }
+.picker-table-wrap { max-height: 52vh; overflow: auto; margin: .75rem 0 1rem; }
+.picker-table-wrap thead { position: sticky; top: 0; z-index: 1; }
+.selected-row { outline: 2px solid var(--cyan, #34b6cf); outline-offset: -2px; }
+#judgePeopleTable tr, #routeSetterPeopleTable tr, #fasaManagementTable tr { cursor: pointer; }
+#judgePeopleTable tr:hover, #routeSetterPeopleTable tr:hover, #fasaManagementTable tr:hover { background: rgba(255,255,255,.16); }

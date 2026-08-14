@@ -38,6 +38,7 @@ const REGIONS = ["Buenos Aires", "Centro", "Cuyo", "Noa", "Litoral", "Patagonia 
 const TIMER_STORAGE_KEY = "credFasaLocalTimer";
 const TIMER_CHANNEL_NAME = "cred-fasa-timer";
 const TIMER_PREP_SECONDS = 15;
+let personPickerAction = null;
 const REGISTRATION_STORAGE_KEY = "credFasaRegistrationState";
 const ROUND_SCHEDULE_STORAGE_KEY = "credFasaRoundSchedules";
 const START_ORDER_STORAGE_KEY = "credFasaStartOrders";
@@ -1375,12 +1376,18 @@ function renderJudgePeople() {
 }
 
 function openJudgePersonDetail(index) {
-  const person = state.judgePeople[index];
+  openOfficialPersonDetail("judge", index);
+}
+
+function openOfficialPersonDetail(role, index) {
+  const source = role === "route_setter" ? state.routeSetterPeople : state.judgePeople;
+  const person = source[index];
   if (!person) return;
   $("#judgePersonModal").classList.remove("hidden");
   document.body.classList.add("modal-open");
   $("#judgePersonDetail").dataset.index = String(index);
-  $("#judgePersonDetailTitle").textContent = `${person.last_name || ""}, ${person.first_name || ""}`.trim() || "Nuevo juez";
+  $("#judgePersonDetail").dataset.role = role;
+  $("#judgePersonDetailTitle").textContent = `${person.last_name || ""}, ${person.first_name || ""}`.trim() || (role === "route_setter" ? "Aperturista" : "Juez");
   const editor = $("#judgePersonDetail");
   editor.querySelector('[data-person-field="id"]').value = person.id || "";
   editor.querySelector('[data-person-field="first_name"]').value = person.first_name || "";
@@ -1405,9 +1412,10 @@ function syncJudgePersonDetail() {
   if ($("#judgePersonModal").classList.contains("hidden")) return;
   const detail = $("#judgePersonDetail");
   const index = Number(detail.dataset.index);
-  if (!Number.isInteger(index) || !state.judgePeople[index]) return;
-  state.judgePeople[index] = {
-    ...state.judgePeople[index],
+  const role = detail.dataset.role || "judge"; const source = role === "route_setter" ? state.routeSetterPeople : state.judgePeople;
+  if (!Number.isInteger(index) || !source[index]) return;
+  source[index] = {
+    ...source[index],
     id: detail.querySelector('[data-person-field="id"]').value || null,
     first_name: detail.querySelector('[data-person-field="first_name"]').value,
     last_name: detail.querySelector('[data-person-field="last_name"]').value,
@@ -1419,6 +1427,12 @@ function syncJudgePersonDetail() {
     active: detail.querySelector('[data-person-field="active"]').checked,
     photo_url: detail.querySelector('[data-person-field="photo_url"]').value,
   };
+}
+
+async function saveOfficialPersonDetail() {
+  syncJudgePersonDetail(); const detail = $("#judgePersonDetail"); const role = detail.dataset.role || "judge"; const source = role === "route_setter" ? state.routeSetterPeople : state.judgePeople;
+  try { await api(role === "route_setter" ? "/api/route-setter-people" : "/api/judge-people", { method: "POST", body: JSON.stringify(role === "route_setter" ? { people: source } : { people: source }) }); $("#officialPersonDetailStatus").textContent = "Cambios guardados."; if (role === "route_setter") await loadRouteSetterPeople(); else await loadJudgePeople(); }
+  catch (error) { $("#officialPersonDetailStatus").textContent = error.message; }
 }
 
 function renderJudgePhoto(url) {
@@ -1524,21 +1538,18 @@ function renderOrganizerSummary() {
       <td>${organizer.club || "-"}</td>
       <td><button id="openOrganizerEditor" type="button">Editar</button></td>
     `
-    : '<td><strong>Organizador</strong></td><td colspan="5" id="organizerSummary">Sin cargar</td><td><button id="openOrganizerEditor" type="button">Cargar</button></td>';
+    : '<td><strong>Organizador</strong></td><td colspan="5" id="organizerSummary">Sin seleccionar</td><td><button id="openOrganizerEditor" type="button">Elegir</button></td>';
   row.querySelector("#openOrganizerEditor")?.addEventListener("click", openOrganizerEditor);
 }
 
-function openOrganizerEditor() {
-  const organizer = organizerFormData();
-  $("#organizerModal").classList.remove("hidden");
-  document.body.classList.add("modal-open");
-  populateCompetitionRolePickers();
-  $('[data-organizer-field="last_name"]').value = organizer.last_name || "";
-  $('[data-organizer-field="first_name"]').value = organizer.first_name || "";
-  $('[data-organizer-field="dni"]').value = organizer.dni || "";
-  $('[data-organizer-field="username"]').value = organizer.username || "";
-  $('[data-organizer-field="password"]').value = organizer.password || "";
-  $('[data-organizer-field="club"]').value = organizer.club || "";
+async function openOrganizerEditor() {
+  await openPersonPicker("Elegir organizador", null, (person) => {
+    const form = $("#competitionForm");
+    form.elements.organizer_last_name.value = person.last_name || ""; form.elements.organizer_name.value = person.first_name || "";
+    form.elements.organizer_dni.value = person.dni || ""; form.elements.organizer_username.value = person.email || person.mail || "";
+    form.elements.organizer_password.value = "admin"; form.elements.organizer_person_club.value = person.club || "";
+    renderOrganizerSummary();
+  });
 }
 
 function closeOrganizerEditor() {
@@ -1560,7 +1571,8 @@ function saveOrganizerEditor() {
 
 function renderJuryPresidentPicker() {
   if (!$("#juryPresidentPickerTable")) return;
-  const eligible = state.judgePeople.filter((person) => person.active !== false && Number(person.level) >= 2);
+  const query = ($("#juryPresidentSearch")?.value || "").toLowerCase();
+  const eligible = state.judgePeople.filter((person) => person.active !== false && Number(person.level) >= 2).filter((person) => personSearchText(person).includes(query));
   $("#juryPresidentPickerTable").innerHTML = eligible.length
     ? eligible.map((person) => `
       <tr>
@@ -1616,7 +1628,13 @@ function renderRegionalRepresentatives() {
     const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
     return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button></td></tr>`;
   }).join("");
-  $("#regionalRepresentativesTable").querySelectorAll("[data-choose-regional]").forEach((button) => button.addEventListener("click", async () => { await openRoleAssignment("regional_representative"); $("#roleAssignmentRegion").value = button.dataset.chooseRegional; }));
+  $("#regionalRepresentativesTable").querySelectorAll("[data-choose-regional]").forEach((button) => button.addEventListener("click", async () => {
+    const region = button.dataset.chooseRegional;
+    await openPersonPicker(`Elegir referente · ${region}`, null, async (person) => {
+      await api("/api/assign-person-role", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, role: "regional_representative", region }) });
+      await loadRegionalRepresentatives();
+    });
+  }));
 }
 
 function parseJudgeBatch() {
@@ -2111,9 +2129,8 @@ async function loadRegionalRepresentatives() {
 
 async function loadRouteSetterPeople() {
   state.routeSetterPeople = await api("/api/route-setter-people");
-  $("#routeSetterPeopleTable").innerHTML = state.routeSetterPeople.length ? state.routeSetterPeople.map((person) => `<tr><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay aperturistas asignados.</td></tr>';
-  const chiefPicker = $("#chiefRouteSetterPicker");
-  if (chiefPicker) chiefPicker.innerHTML = '<option value="">Sin seleccionar</option>' + state.routeSetterPeople.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · Nivel ${person.level}</option>`).join("");
+  $("#routeSetterPeopleTable").innerHTML = state.routeSetterPeople.length ? state.routeSetterPeople.map((person, index) => `<tr data-route-setter-row="${index}"><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay aperturistas asignados.</td></tr>';
+  $("#routeSetterPeopleTable").querySelectorAll("[data-route-setter-row]").forEach((row) => row.addEventListener("click", () => openOfficialPersonDetail("route_setter", Number(row.dataset.routeSetterRow))));
 }
 
 async function populateCompetitionRolePickers() {
@@ -2136,7 +2153,47 @@ async function loadFasaCv() {
 
 async function loadFasaManagement() {
   state.fasaProfiles = await api("/api/fasa-profiles");
-  $("#fasaManagementTable").innerHTML = state.fasaProfiles.map((person) => `<tr><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email}</td><td>${person.club || "—"}</td><td>${person.region || "—"}</td><td>${String(person.roles || "").split(",").filter(Boolean).map((role) => ROLE_LABELS[role] || role).join(" · ") || "Sin roles"}</td></tr>`).join("");
+  renderFasaManagementTable();
+}
+
+function personSearchText(person) { return [person.first_name, person.last_name, person.dni, person.email, person.mail, person.club, person.region].filter(Boolean).join(" ").toLowerCase(); }
+function renderFasaManagementTable() {
+  const query = ($("#fasaManagementSearch")?.value || "").toLowerCase();
+  const rows = state.fasaProfiles.filter((person) => personSearchText(person).includes(query));
+  $("#fasaManagementTable").innerHTML = rows.map((person) => `<tr data-managed-fasa-id="${person.fasa_id}"><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email}</td><td>${person.club || "—"}</td><td>${person.region || "—"}</td><td>${String(person.roles || "").split(",").filter(Boolean).map((role) => ROLE_LABELS[role] || role).join(" · ") || "Sin roles"}</td></tr>`).join("");
+  $("#fasaManagementTable").querySelectorAll("[data-managed-fasa-id]").forEach((row) => row.addEventListener("click", () => openManagedProfile(row.dataset.managedFasaId)));
+}
+
+function openManagedProfile(fasaId) {
+  const person = state.fasaProfiles.find((item) => item.fasa_id === fasaId); if (!person) return;
+  $("#managedProfileDialog").dataset.fasaId = fasaId; $("#managedProfileTitle").textContent = `${person.last_name}, ${person.first_name}`;
+  document.querySelectorAll("[data-managed-profile]").forEach((field) => { field.value = person[field.dataset.managedProfile] || ""; });
+  $("#managedProfileStatus").textContent = ""; $("#managedProfileDialog").showModal();
+}
+
+async function saveManagedProfile() {
+  const fasaId = $("#managedProfileDialog").dataset.fasaId; const original = state.fasaProfiles.find((item) => item.fasa_id === fasaId); if (!original) return;
+  const profile = { fasa_id: fasaId }; document.querySelectorAll("[data-managed-profile]").forEach((field) => { profile[field.dataset.managedProfile] = field.value.trim(); });
+  try { await api("/api/admin-profile-update", { method: "POST", body: JSON.stringify({ profile }) }); $("#managedProfileStatus").textContent = "Datos actualizados."; await loadFasaManagement(); }
+  catch (error) { $("#managedProfileStatus").textContent = error.message; }
+}
+
+function renderPersonPicker() {
+  const query = ($("#personPickerSearch").value || "").toLowerCase(); const filter = personPickerAction?.filter;
+  const people = state.fasaProfiles.filter((person) => !filter || filter(person)).filter((person) => personSearchText(person).includes(query));
+  $("#personPickerTable").innerHTML = people.map((person) => `<tr><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email || person.mail || "—"}</td><td>${person.club || "—"}</td><td><button type="button" data-pick-person="${person.fasa_id}">Elegir</button></td></tr>`).join("") || '<tr><td colspan="5">No se encontraron personas.</td></tr>';
+  $("#personPickerTable").querySelectorAll("[data-pick-person]").forEach((button) => button.addEventListener("click", async () => { const person = state.fasaProfiles.find((item) => item.fasa_id === button.dataset.pickPerson); await personPickerAction?.onSelect(person); $("#personPickerDialog").close(); }));
+}
+async function openPersonPicker(title, filter, onSelect) {
+  if (!state.fasaProfiles.length) state.fasaProfiles = await api("/api/fasa-profiles");
+  personPickerAction = { filter, onSelect }; $("#personPickerTitle").textContent = title; $("#personPickerSearch").value = ""; renderPersonPicker(); $("#personPickerDialog").showModal();
+}
+
+function renderRoleAssignmentTable() {
+  const query = ($("#roleAssignmentSearch").value || "").toLowerCase();
+  const people = state.fasaProfiles.filter((person) => personSearchText(person).includes(query));
+  $("#roleAssignmentTable").innerHTML = people.map((person) => `<tr><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email || "—"}</td><td>${person.club || "—"}</td><td><button type="button" data-role-person="${person.fasa_id}">Elegir</button></td></tr>`).join("");
+  $("#roleAssignmentTable").querySelectorAll("[data-role-person]").forEach((button) => button.addEventListener("click", () => { $("#roleAssignmentPerson").value = button.dataset.rolePerson; $("#roleAssignmentTable").querySelectorAll("tr").forEach((row) => row.classList.remove("selected-row")); button.closest("tr").classList.add("selected-row"); }));
 }
 
 async function loadAdministratorManagement() {
@@ -2149,9 +2206,8 @@ async function openRoleAssignment(role) {
   if (!state.fasaProfiles.length) state.fasaProfiles = await api("/api/fasa-profiles");
   $("#roleAssignmentDialog").dataset.role = role;
   $("#roleAssignmentTitle").textContent = `Asignar ${ROLE_LABELS[role] || role}`;
-  $("#roleAssignmentPerson").innerHTML = '<option value="">Seleccionar una persona</option>' + state.fasaProfiles.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · DNI ${person.dni}</option>`).join("");
+  $("#roleAssignmentPerson").value = ""; $("#roleAssignmentSearch").value = ""; renderRoleAssignmentTable();
   $("#roleAssignmentLevelField").hidden = !["judge","route_setter"].includes(role);
-  $("#roleAssignmentRegionField").hidden = role !== "regional_representative";
   $("#roleAssignmentStatus").textContent = "";
   $("#roleAssignmentDialog").showModal();
 }
@@ -2640,6 +2696,12 @@ function bindEvents() {
     } catch (error) { $("#roleAssignmentStatus").textContent = error.message; }
   });
   $("#refreshFasaManagement").addEventListener("click", loadFasaManagement);
+  $("#fasaManagementSearch").addEventListener("input", renderFasaManagementTable);
+  $("#roleAssignmentSearch").addEventListener("input", renderRoleAssignmentTable);
+  $("#personPickerSearch").addEventListener("input", renderPersonPicker);
+  $("#juryPresidentSearch").addEventListener("input", renderJuryPresidentPicker);
+  $("#saveManagedProfile").addEventListener("click", saveManagedProfile);
+  $("#saveOfficialPersonDetail").addEventListener("click", saveOfficialPersonDetail);
   $("#saveUnifiedProfile").addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-unified-field]").forEach((field) => {
@@ -2777,7 +2839,16 @@ function bindEvents() {
     $('[data-organizer-field="dni"]').value = person.dni || ""; $('[data-organizer-field="username"]').value = person.email || "";
     $('[data-organizer-field="password"]').value = "admin"; $('[data-organizer-field="club"]').value = person.club || "";
   });
-  $("#chooseChiefRouteSetter").addEventListener("click", () => $("#chiefRouteSetterPicker").showPicker?.());
+  const chooseChiefRouteSetter = async () => {
+    if (!state.routeSetterPeople.length) await loadRouteSetterPeople();
+    const eligibleIds = new Set(state.routeSetterPeople.filter((person) => person.active !== false).map((person) => person.fasa_id));
+    await openPersonPicker("Elegir Jefe de Aperturistas", (person) => eligibleIds.has(person.fasa_id), (person) => {
+      $("#chiefRouteSetterSelect").value = person.fasa_id;
+      $("#chiefRouteSetterSummary").innerHTML = `<tr><td><strong>Jefe de Aperturistas</strong></td><td>${person.last_name}</td><td>${person.first_name}</td><td>${person.dni}</td><td>${person.email || "—"}</td><td>${person.club || "—"}</td><td><button id="chooseChiefRouteSetter" type="button">Cambiar</button></td></tr>`;
+      $("#chiefRouteSetterSummary #chooseChiefRouteSetter").addEventListener("click", chooseChiefRouteSetter);
+    });
+  };
+  $("#chooseChiefRouteSetter").addEventListener("click", chooseChiefRouteSetter);
   $("#closeOrganizerEditor").addEventListener("click", closeOrganizerEditor);
   $("#saveOrganizerEditor").addEventListener("click", saveOrganizerEditor);
   $("#organizerModal").addEventListener("click", (event) => {
@@ -3039,47 +3110,6 @@ function bindEvents() {
     renderJudges();
   });
 
-  $("#validateJudgeBatch").addEventListener("click", async () => {
-    try {
-      const result = await api("/api/judge-role-batch", {
-        method: "POST",
-        body: JSON.stringify({ rows: parseJudgeBatch(), apply: false }),
-      });
-      state.validatedJudgeBatch = result.rows;
-      renderJudgeBatchResults(result.rows);
-      $("#applyJudgeBatch").disabled = !result.valid_count || result.invalid_count > 0;
-      $("#judgePeopleStatus").textContent = result.invalid_count ? `${result.invalid_count} DNI no pudo validarse.` : `${result.valid_count} DNI encontrados en FASA ID. Listos para asignar el rol de juez.`;
-    } catch (error) {
-      $("#judgePeopleStatus").textContent = error.message;
-    }
-  });
-  $("#judgeBatchInput").addEventListener("input", () => { state.validatedJudgeBatch = []; $("#applyJudgeBatch").disabled = true; });
-  $("#applyJudgeBatch").addEventListener("click", async () => {
-    try {
-      const result = await api("/api/judge-role-batch", { method: "POST", body: JSON.stringify({ rows: parseJudgeBatch(), apply: true }) });
-      renderJudgeBatchResults(result.rows);
-      $("#judgePeopleStatus").textContent = `${result.valid_count} rol(es) de juez asignados correctamente.`;
-      $("#applyJudgeBatch").disabled = true;
-      await loadJudgePeople();
-    } catch (error) { $("#judgePeopleStatus").textContent = error.message; }
-  });
-  $("#validateRouteSetterBatch").addEventListener("click", async () => {
-    try {
-      const rows = $("#routeSetterBatchInput").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => { const [dni, level] = line.split(/[;,\t ]+/); return { dni, level: Number(level) }; });
-      const result = await api("/api/route-setter-role-batch", { method: "POST", body: JSON.stringify({ rows, apply: false }) });
-      state.validatedRouteSetterBatch = result.rows;
-      $("#routeSetterBatchResults").innerHTML = result.rows.map((row) => `<div class="batch-result ${row.valid ? "valid" : "invalid"}"><strong>${row.dni} · Nivel ${row.level || "—"}</strong><span>${row.valid ? `${row.last_name}, ${row.first_name}` : row.message}</span></div>`).join("");
-      $("#applyRouteSetterBatch").disabled = !result.valid_count || result.invalid_count > 0;
-      $("#routeSetterPeopleStatus").textContent = result.invalid_count ? `${result.invalid_count} DNI no pudo validarse.` : `${result.valid_count} DNI listos para asignar.`;
-    } catch (error) { $("#routeSetterPeopleStatus").textContent = error.message; }
-  });
-  $("#routeSetterBatchInput").addEventListener("input", () => { $("#applyRouteSetterBatch").disabled = true; });
-  $("#applyRouteSetterBatch").addEventListener("click", async () => {
-    const rows = $("#routeSetterBatchInput").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => { const [dni, level] = line.split(/[;,\t ]+/); return { dni, level: Number(level) }; });
-    const result = await api("/api/route-setter-role-batch", { method: "POST", body: JSON.stringify({ rows, apply: true }) });
-    $("#routeSetterPeopleStatus").textContent = `${result.valid_count} rol(es) de aperturista asignados.`; $("#applyRouteSetterBatch").disabled = true; await loadRouteSetterPeople();
-  });
-  $("#chiefRouteSetterPicker").addEventListener("change", (event) => { $("#chiefRouteSetterSelect").value = event.target.value; });
   $("#saveRouteSetterTeam").addEventListener("click", async () => {
     const team = Array.from($("#routeSetterTeamList").querySelectorAll('input:checked')).map((input) => input.value);
     await api("/api/competition-route-setters", { method: "POST", body: JSON.stringify({ competition_id: state.currentCompetitionId || 1, chief_fasa_id: state.user?.fasa_id, team_fasa_ids: team }) });
