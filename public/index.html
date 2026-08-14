@@ -208,8 +208,8 @@
       <nav class="tabs" aria-label="Vistas">
         <div class="private-primary-nav">
           <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" title="FASA ID" aria-label="FASA ID"><span aria-hidden="true">●</span></button>
-          <button class="tab cv-tab" data-view="fasaCv" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" type="button">Mi CV FASA</button>
           <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
+          <button id="logoutButton" class="tab logout-tab" type="button">Salir</button>
         </div>
         <div class="private-secondary-nav">
           <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
@@ -225,7 +225,7 @@
           <button class="tab role-hidden" data-view="registrations" data-roles="competition_admin organizer" hidden>Inscriptos</button>
           <button class="tab role-hidden" data-view="config" data-roles="competition_admin" hidden>Configuración</button>
           <button class="tab role-hidden" data-view="results" data-roles="competition_admin judge guest" hidden>Resultados</button>
-          <button id="logoutButton" class="tab logout-tab" type="button">Salir</button>
+          <button class="tab cv-tab" data-view="fasaCv" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" type="button">Mi CV FASA</button>
         </div>
       </nav>
     </header>
@@ -608,52 +608,18 @@
       </section>
 
       <section id="competitorPortal" class="view">
-        <section class="panel">
+        <section class="panel athlete-credential-panel">
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Atletas</p>
-              <h2>Mi ficha</h2>
-            </div>
-            <button id="saveCompetitorProfile" class="primary" type="button">Guardar cambios</button>
+            <div><p class="eyebrow">Atleta FASA</p><h2>Mi credencial deportiva</h2></div>
           </div>
-          <div class="judge-detail-layout">
-            <div class="photo-box">
-              <button id="competitorPhotoPreview" class="photo-preview" type="button">Foto</button>
-              <input id="competitorPhotoFile" class="file-input" type="file" accept="image/*" />
-              <input data-competitor-field="photo_url" type="hidden" />
+          <article class="athlete-card">
+            <div class="athlete-card-head"><span>ATLETA</span><img src="/assets/fasa-logo-official.jpg" alt="FASA" /></div>
+            <div class="athlete-card-body">
+              <div id="competitorPhotoPreview" class="athlete-card-photo">Foto</div>
+              <div class="athlete-card-identity"><h3 id="athleteCardName">Nombre y apellido</h3><span id="athleteCardClub">Club —</span><div class="athlete-card-tags"><strong id="athleteCardCategory">MAYOR</strong><strong id="athleteCardGender">—</strong></div></div>
             </div>
-            <form id="competitorProfileForm" class="detail-form">
-              <label>Nombre <input data-competitor-field="first_name" /></label>
-              <label>Apellido <input data-competitor-field="last_name" /></label>
-              <label>Email <input data-competitor-field="email" type="email" /></label>
-              <label>Nueva contraseña <input data-competitor-field="password" type="password" placeholder="Dejar vacio para mantener" /></label>
-              <label>Celular <input data-competitor-field="phone" /></label>
-              <label>DNI <input data-competitor-field="dni" inputmode="numeric" pattern="\d{8}" maxlength="8" /></label>
-              <label>Club <input data-competitor-field="club" /></label>
-              <label>Direccion <input data-competitor-field="address" /></label>
-              <label>Provincia <input data-competitor-field="province" /></label>
-              <label>Region
-                <select data-competitor-field="region">
-                  <option value="">Seleccionar</option>
-                  <option>Buenos Aires</option>
-                  <option>Centro</option>
-                  <option>Cuyo</option>
-                  <option>Noa</option>
-                  <option>Litoral</option>
-                  <option>Patagonia Norte</option>
-                  <option>Patagonia Sur</option>
-                </select>
-              </label>
-              <label>Nacionalidad <input data-competitor-field="nationality" /></label>
-              <label>Fecha de nacimiento <input data-competitor-field="birth_date" type="date" /></label>
-              <label>Genero
-                <select data-competitor-field="gender">
-                  <option>Hombre</option>
-                  <option>Mujer</option>
-                </select>
-              </label>
-            </form>
-          </div>
+            <div class="athlete-rankings"><div><small>RANKING REGIONAL</small><strong id="athleteRegionalRank">Sin ranking</strong></div><div><small>RANKING ARGENTINO</small><strong id="athleteNationalRank">Sin ranking</strong></div></div>
+          </article>
           <p id="competitorPortalStatus" aria-live="polite"></p>
         </section>
         <section class="panel">

@@ -806,7 +806,7 @@ h2 {
   width: 44px;
   min-height: 44px;
   padding: 0;
-  color: white;
+  color: #f1f3f5;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -825,8 +825,8 @@ h2 {
 
 .profile-tab:hover,
 .profile-tab.active {
-  color: white;
-  background: transparent;
+  color: #dce2e6;
+  background: var(--charcoal);
   opacity: .72;
 }
 
@@ -850,6 +850,25 @@ h2 {
 .logout-tab {
   margin-left: auto;
 }
+
+.private-secondary-nav .cv-tab { margin-left: auto; }
+
+.athlete-credential-panel { display: grid; justify-items: start; }
+.athlete-card { width: min(100%, 720px); overflow: hidden; color: white; background: linear-gradient(130deg, #292b4d 0%, #303252 52%, #287f91 100%); border-radius: 18px; box-shadow: 0 18px 42px rgba(21,25,47,.28); }
+.athlete-card-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; font-weight: 900; letter-spacing: .14em; }
+.athlete-card-head img { width: 72px; height: 48px; object-fit: contain; background: white; border-radius: 6px; }
+.athlete-card-body { display: grid; grid-template-columns: 135px 1fr; gap: 24px; align-items: center; padding: 22px; background: rgba(255,255,255,.08); }
+.athlete-card-photo { display: grid; place-items: center; aspect-ratio: 4/5; overflow: hidden; border: 2px solid rgba(255,255,255,.7); border-radius: 10px; background: rgba(255,255,255,.12); }
+.athlete-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+.athlete-card-identity h3 { margin: 0 0 5px; font-size: clamp(25px,4vw,38px); line-height: 1; text-transform: uppercase; }
+.athlete-card-identity > span { font-size: 18px; font-weight: 800; }
+.athlete-card-tags { display: flex; gap: 9px; margin-top: 18px; }
+.athlete-card-tags strong { padding: 7px 11px; color: var(--charcoal); background: #65d1e5; border-radius: 4px; }
+.athlete-rankings { display: grid; grid-template-columns: 1fr 1fr; }
+.athlete-rankings div { display: grid; gap: 3px; padding: 20px 24px; border-top: 1px solid rgba(255,255,255,.2); }
+.athlete-rankings div + div { border-left: 1px solid rgba(255,255,255,.2); }
+.athlete-rankings small { color: #65d1e5; font-weight: 900; letter-spacing: .08em; }
+.athlete-rankings strong { font-size: 28px; }
 
 .fasa-profile-panel {
   max-width: 1180px;

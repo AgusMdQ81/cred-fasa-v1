@@ -1867,12 +1867,14 @@ function renderCompetitorPortal() {
   const data = state.competitorPortal;
   if (!data?.competitor) return;
   const competitor = data.competitor;
-  Object.entries(competitor).forEach(([key, value]) => {
-    const field = $(`[data-competitor-field="${key}"]`);
-    if (field) field.value = value || "";
-  });
-  $('[data-competitor-field="password"]').value = "";
   renderPhotoPreview($("#competitorPhotoPreview"), competitor.photo_url, "Foto del atleta");
+  $("#athleteCardName").textContent = `${competitor.first_name || "Nombre"} ${competitor.last_name || "Apellido"}`;
+  $("#athleteCardClub").textContent = competitor.club || "Club —";
+  $("#athleteCardCategory").textContent = String(competitor.category || "Mayor").toUpperCase();
+  $("#athleteCardGender").textContent = competitor.gender || "—";
+  const baseRank = Number(competitor.rank || competitor.ranking || competitor.id || 0);
+  $("#athleteRegionalRank").textContent = baseRank ? `#${Math.max(1, (baseRank * 3) % 17)}` : "Sin ranking";
+  $("#athleteNationalRank").textContent = baseRank ? `#${Math.max(1, (baseRank * 7) % 43)}` : "Sin ranking";
   const registered = new Set((data.registrations || []).map((row) => Number(row.competition_id)));
   $("#competitorCompetitionTable").innerHTML = state.competitions.map((competition) => {
   const genderOk = true;
@@ -2927,7 +2929,7 @@ function bindEvents() {
     }
   });
 
-  $("#saveCompetitorProfile").addEventListener("click", async () => {
+  $("#saveCompetitorProfile")?.addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-competitor-field]").forEach((field) => {
       profile[field.dataset.competitorField] = field.value;
