@@ -286,11 +286,20 @@ async function seedTestFasaData() {
     { count: 20, roles: [{ type: "judge", data: {} }, { type: "route_setter", data: {} }] },
     { count: 3, roles: [{ type: "general_admin", data: {} }] }, { count: 20, roles: [] },
   ];
-  let index = 0; const statements = [];
+  let index = 0; let maleNameIndex = 0; let femaleNameIndex = 0; const usedFullNames = new Set<string>(); const statements = [];
   for (const spec of specs) for (let local = 0; local < spec.count; local++) {
     index++; const dni = String(30000000 + index); const fasaId = makeFasaId(dni); const now = new Date().toISOString();
-    const namePool = spec.gender === "Mujer" ? femaleNames : spec.gender === "Hombre" ? maleNames : (index % 2 ? femaleNames : maleNames);
-    const first = namePool[(index * 11 + local) % namePool.length]; const last = lastNames[(index * 17 + local * 3) % lastNames.length];
+    const useFemaleName = spec.gender === "Mujer" || (!spec.gender && index % 2 === 1);
+    const namePool = useFemaleName ? femaleNames : maleNames;
+    let sequence = useFemaleName ? femaleNameIndex++ : maleNameIndex++;
+    let first = namePool[sequence % namePool.length];
+    let last = lastNames[Math.floor(sequence / namePool.length) % lastNames.length];
+    while (usedFullNames.has(`${first}|${last}`)) {
+      sequence++;
+      first = namePool[sequence % namePool.length];
+      last = lastNames[Math.floor(sequence / namePool.length) % lastNames.length];
+    }
+    usedFullNames.add(`${first}|${last}`);
     const photo = spec.gender === "Mujer" ? "/assets/female-athlete-demo.png" : spec.gender === "Hombre" ? "/assets/admin-demo-portrait.png" : "";
     statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],photo,now,now));
     for (const role of spec.roles) {
