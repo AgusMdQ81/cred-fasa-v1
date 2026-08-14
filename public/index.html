@@ -496,17 +496,6 @@
             <tbody id="regionalRepresentativesTable"></tbody>
           </table>
         </section>
-        <dialog id="regionalRepresentativeDialog" class="profile-edit-dialog">
-          <form method="dialog" class="profile-edit-shell" id="regionalRepresentativeForm">
-            <div class="section-head"><div><p class="eyebrow">Referentes regionales</p><h2 id="regionalRepresentativeDialogTitle">Crear referente regional</h2></div><button class="dialog-close" value="cancel">×</button></div>
-            <input id="regionalRepresentativeFasaId" type="hidden" />
-            <label>Región <select id="regionalRepresentativeRegion" required><option value="" selected disabled>Elegir región</option><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label>
-            <div class="representative-person-summary" id="regionalRepresentativePersonSummary">Todavía no se seleccionó una persona.</div>
-            <button id="chooseRegionalRepresentativePerson" type="button">Elegir desde FASA ID</button>
-            <p id="regionalRepresentativeDialogStatus" aria-live="polite"></p>
-            <div class="dialog-actions"><button value="cancel" type="button" id="cancelRegionalRepresentative">Cancelar</button><button id="saveRegionalRepresentative" class="primary" type="submit">Guardar referente</button></div>
-          </form>
-        </dialog>
       </section>
 
       <section id="judgePeople" class="view">
@@ -1079,6 +1068,6 @@
       <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><dl class="public-athlete-meta"><div><dt>Club</dt><dd id="publicAthleteClub">—</dd></div><div><dt>Región</dt><dd id="publicAthleteRegion">—</dd></div></dl><p id="publicAthleteInstagram" class="instagram-line"><img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> @usuario</p></div></article>
     </dialog>
 
-    <script src="/app.js?v=20260814-regional-table-seven-rows"></script>
+    <script src="/app.js?v=20260814-direct-regional-picker"></script>
   </body>
 </html>

@@ -1769,31 +1769,23 @@ function renderRegionalRepresentatives() {
     const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
     return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name || ""}, ${person.first_name || ""}` : ""}</td><td>${person?.dni || ""}</td><td>${person?.mail || person?.email || ""}</td><td>${person?.club || ""}</td><td>${person ? '<span class="status-badge approved">Activo</span>' : ""}</td><td class="row-actions">${person ? `<button type="button" data-edit-regional="${person.fasa_id}">Modificar</button><button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button>` : `<button class="primary" type="button" data-assign-regional="${region}">Asignar</button>`}</td></tr>`;
   }).join("");
-  $("#regionalRepresentativesTable").querySelectorAll("[data-assign-regional]").forEach((button) => button.addEventListener("click", () => openRegionalRepresentativeEditor("", button.dataset.assignRegional)));
-  $("#regionalRepresentativesTable").querySelectorAll("[data-edit-regional]").forEach((button) => button.addEventListener("click", () => openRegionalRepresentativeEditor(button.dataset.editRegional)));
+  $("#regionalRepresentativesTable").querySelectorAll("[data-assign-regional]").forEach((button) => button.addEventListener("click", () => chooseRegionalRepresentative(button.dataset.assignRegional)));
+  $("#regionalRepresentativesTable").querySelectorAll("[data-edit-regional]").forEach((button) => button.addEventListener("click", () => {
+    const person = state.regionalRepresentatives.find((item) => item.fasa_id === button.dataset.editRegional);
+    if (person) chooseRegionalRepresentative(person.region, person.fasa_id);
+  }));
   $("#regionalRepresentativesTable").querySelectorAll("[data-remove-regional]").forEach((button) => button.addEventListener("click", async () => {
     if (!confirm("¿Eliminar este referente regional? La región quedará sin asignar.")) return;
     await api("/api/regional-representative-remove", { method: "POST", body: JSON.stringify({ fasa_id: button.dataset.removeRegional }) }); await loadRegionalRepresentatives();
   }));
 }
 
-function updateRegionalRepresentativeSummary(person) {
-  $("#regionalRepresentativePersonSummary").innerHTML = person
-    ? `<strong>${person.last_name || ""}, ${person.first_name || ""}</strong><span>${person.dni || "Sin DNI"} · ${person.email || person.mail || "Sin mail"} · ${person.club || "Sin club"}</span>`
-    : "Todavía no se seleccionó una persona.";
-}
-
-function openRegionalRepresentativeEditor(fasaId = "", region = "") {
-  const person = state.regionalRepresentatives.find((item) => item.fasa_id === fasaId) || state.fasaProfiles.find((item) => item.fasa_id === fasaId);
-  $("#regionalRepresentativeForm").reset();
-  $("#regionalRepresentativeFasaId").value = person?.fasa_id || "";
-  $("#regionalRepresentativeDialog").dataset.originalFasaId = person?.fasa_id || "";
-  $("#regionalRepresentativeRegion").value = person?.region || region || "";
-  $("#regionalRepresentativeRegion").disabled = true;
-  $("#regionalRepresentativeDialogTitle").textContent = person ? `Modificar referente · ${person.region}` : `Asignar referente · ${region}`;
-  $("#regionalRepresentativeDialogStatus").textContent = "";
-  updateRegionalRepresentativeSummary(person);
-  $("#regionalRepresentativeDialog").showModal();
+async function chooseRegionalRepresentative(region, previousFasaId = "") {
+  await openPersonPicker(`Elegir referente · ${region}`, (person) => person.region === region, async (person) => {
+    await api("/api/regional-representative-assignment", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, region, previous_fasa_id: previousFasaId }) });
+    $("#regionalRepresentativesStatus").textContent = `Referente de ${region} actualizado.`;
+    await loadRegionalRepresentatives();
+  });
 }
 
 function parseJudgeBatch() {
@@ -3022,35 +3014,6 @@ function bindEvents() {
   };
   $("#reviewApproveCompetition")?.addEventListener("click", () => reviewCompetition("approved"));
   $("#reviewRejectCompetition")?.addEventListener("click", () => reviewCompetition("rejected"));
-  $("#cancelRegionalRepresentative")?.addEventListener("click", () => $("#regionalRepresentativeDialog").close());
-  $("#chooseRegionalRepresentativePerson")?.addEventListener("click", async () => {
-    const region = $("#regionalRepresentativeRegion").value;
-    if (!region) {
-      $("#regionalRepresentativeDialogStatus").textContent = "Primero elegí la región.";
-      return;
-    }
-    await openPersonPicker(`Elegir referente · ${region}`, (person) => person.region === region, (person) => {
-      $("#regionalRepresentativeFasaId").value = person.fasa_id;
-      $("#regionalRepresentativeDialogStatus").textContent = "";
-      updateRegionalRepresentativeSummary(person);
-    });
-  });
-  $("#regionalRepresentativeForm")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const region = $("#regionalRepresentativeRegion").value;
-    const fasaId = $("#regionalRepresentativeFasaId").value;
-    if (!region || !fasaId) {
-      $("#regionalRepresentativeDialogStatus").textContent = "Elegí una región y una persona de la base FASA ID.";
-      return;
-    }
-    try {
-      await api("/api/regional-representative-assignment", { method: "POST", body: JSON.stringify({ fasa_id: fasaId, region, previous_fasa_id: $("#regionalRepresentativeDialog").dataset.originalFasaId || "" }) });
-      $("#regionalRepresentativeDialog").close();
-      await loadRegionalRepresentatives();
-    } catch (error) {
-      $("#regionalRepresentativeDialogStatus").textContent = error.message || "No se pudo guardar el referente.";
-    }
-  });
   $("#saveManagedProfile").addEventListener("click", saveManagedProfile);
   $("#saveOfficialPersonDetail").addEventListener("click", saveOfficialPersonDetail);
   $("#saveRouteSetterDetail").addEventListener("click", saveRouteSetterDetail);
