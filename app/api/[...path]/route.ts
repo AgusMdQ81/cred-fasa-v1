@@ -698,13 +698,24 @@ export async function POST(request: Request) {
   if (path === "competitions") {
     await ensureCompetitionRecords();
     const creatorRole = String(payload.creator_role || "general_admin"); const status = creatorRole === "regional_representative" ? "pending" : "approved"; const now = new Date().toISOString();
-    const data = { ...payload }; delete data.id; delete data.status;
+    const requestedId = Number(payload.id || 0); const recordId = Number(payload.record_id || (requestedId >= 1000 ? requestedId - 1000 : 0));
+    const data = { ...payload }; delete data.id; delete data.record_id; delete data.status; delete data.creator_role; delete data.creator_fasa_id;
+    if (recordId) {
+      const current = await env.DB.prepare("SELECT status,creator_role,creator_fasa_id FROM competition_records WHERE id=?").bind(recordId).first<{ status: string; creator_role: string; creator_fasa_id: string }>();
+      if (!current) return json({ error: "Competencia no encontrada." }, { status: 404 });
+      if (creatorRole === "regional_representative" && current.creator_fasa_id && payload.creator_fasa_id && current.creator_fasa_id !== String(payload.creator_fasa_id)) return json({ error: "No podés editar un evento creado por otro referente." }, { status: 403 });
+      const nextStatus = creatorRole === "regional_representative" ? "pending" : current.status;
+      await env.DB.prepare("UPDATE competition_records SET data=?,status=?,updated_at=? WHERE id=?").bind(JSON.stringify(data), nextStatus, now, recordId).run();
+      return json({ ok: true, id: recordId + 1000, status: nextStatus });
+    }
     const result = await env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,?,?,?,?,?)").bind(JSON.stringify(data), status, creatorRole, String(payload.creator_fasa_id || ""), now, now).run();
     return json({ ok: true, id: Number(result.meta.last_row_id || 0) + 1000, status });
   }
   if (path === "competition-approval") {
     await ensureCompetitionRecords(); const recordId = Number(payload.record_id || 0); if (!recordId) return json({ error: "Competencia inválida." }, { status: 400 });
-    await env.DB.prepare("UPDATE competition_records SET status='approved',updated_at=? WHERE id=?").bind(new Date().toISOString(), recordId).run(); return json({ ok: true, status: "approved" });
+    const decision = String(payload.decision || "approved");
+    if (!["approved", "rejected"].includes(decision)) return json({ error: "Decisión inválida." }, { status: 400 });
+    await env.DB.prepare("UPDATE competition_records SET status=?,updated_at=? WHERE id=?").bind(decision, new Date().toISOString(), recordId).run(); return json({ ok: true, status: decision });
   }
   if (path === "competitors") return json({ ok: true, id: Date.now() });
   if (path === "seed") return json(competitors);

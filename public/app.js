@@ -1674,15 +1674,29 @@ function syncRegionalRepresentatives() {
 
 function renderCompetitions() {
   if (!$("#competitionsTable")) return;
+  const isAdministrator = state.role === "general_admin" || state.roles.includes("general_admin");
   const scopedCompetitions = state.role === "regional_representative"
-    ? state.competitions.filter((competition) => competition.competition_type === "CRED" && competition.region === state.user?.region)
+    ? state.competitions.filter((competition) => competition.competition_type === "CRED" && (competition.creator_fasa_id ? competition.creator_fasa_id === state.user?.fasa_id : competition.region === state.user?.region))
     : state.competitions;
   const pending = scopedCompetitions.filter((competition) => competition.status === "pending");
-  const visibleCompetitions = scopedCompetitions.filter((competition) => competition.status !== "pending");
-  $("#pendingCompetitionsPanel").hidden = !pending.length && state.role !== "general_admin" && state.role !== "regional_representative";
-  $("#pendingCompetitionsCount").textContent = `${pending.length} pendiente${pending.length === 1 ? "" : "s"}`;
-  $("#pendingCompetitionsTable").innerHTML = pending.length ? pending.map((competition) => `<tr class="pending-event-row"><td>${competition.event_date}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge pending">Pendiente</span></td><td>${state.role === "general_admin" ? `<button class="primary" data-approve-competition="${competition.record_id}">Aprobar</button>` : '<span class="hint">En revisión</span>'}</td></tr>`).join("") : '<tr><td colspan="9">No hay eventos pendientes.</td></tr>';
-  $("#pendingCompetitionsTable").querySelectorAll("[data-approve-competition]").forEach((button) => button.addEventListener("click", async () => { await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ record_id: Number(button.dataset.approveCompetition) }) }); await loadCompetitions(); }));
+  const rejected = scopedCompetitions.filter((competition) => competition.status === "rejected");
+  const reviewCompetitions = [...pending, ...rejected];
+  const visibleCompetitions = scopedCompetitions.filter((competition) => competition.status === "approved");
+  $("#pendingCompetitionsPanel").hidden = !reviewCompetitions.length && !isAdministrator && state.role !== "regional_representative";
+  $("#pendingCompetitionsCount").textContent = rejected.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"} · ${rejected.length} rechazado${rejected.length === 1 ? "" : "s"}` : `${pending.length} pendiente${pending.length === 1 ? "" : "s"}`;
+  $("#pendingCompetitionsTable").innerHTML = reviewCompetitions.length ? reviewCompetitions.map((competition) => {
+    const isPending = competition.status === "pending";
+    const adminActions = isPending ? `<button class="primary" data-review-competition="approved" data-record-id="${competition.record_id}">Aprobar</button><button class="delete" data-review-competition="rejected" data-record-id="${competition.record_id}">Rechazar</button>` : '<span class="hint">Evento rechazado</span>';
+    const regionalActions = `<button data-edit-pending-competition="${competition.id}">${isPending ? "Ver / editar" : "Editar y reenviar"}</button>`;
+    return `<tr class="${isPending ? "pending-event-row" : "rejected-event-row"}"><td>${competition.event_date}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge ${competition.status}">${isPending ? "Pendiente" : "Rechazado"}</span></td><td class="review-actions">${isAdministrator ? adminActions : regionalActions}</td></tr>`;
+  }).join("") : '<tr><td colspan="9">No hay eventos pendientes de revisión.</td></tr>';
+  $("#pendingCompetitionsTable").querySelectorAll("[data-review-competition]").forEach((button) => button.addEventListener("click", async () => {
+    const decision = button.dataset.reviewCompetition;
+    if (decision === "rejected" && !confirm("¿Rechazar este evento? El referente podrá editarlo y volver a enviarlo.")) return;
+    await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ record_id: Number(button.dataset.recordId), decision }) });
+    await loadCompetitions();
+  }));
+  $("#pendingCompetitionsTable").querySelectorAll("[data-edit-pending-competition]").forEach((button) => button.addEventListener("click", () => editCompetition(Number(button.dataset.editPendingCompetition))));
   $("#competitionsTable").innerHTML = visibleCompetitions.map((competition) => {
     const president = competition.jury_president || {};
     const adminUser = competition.admin_user?.username
@@ -1735,7 +1749,7 @@ function renderCompetitions() {
 function renderPublicCalendar() {
   if (!$("#publicCompetitionCalendar")) return;
   renderMonthRail();
-  const filtered = state.competitions.filter((competition) => competition.status !== "pending").filter((competition) => {
+  const filtered = state.competitions.filter((competition) => competition.status === "approved").filter((competition) => {
     const filters = state.publicCalendarFilters;
     if (filters.category && competition.category !== filters.category) return false;
     if (filters.type && competition.competition_type !== filters.type) return false;
@@ -1771,7 +1785,7 @@ function renderMonthRail() {
   const rail = $("#calendarMonthRail");
   if (!rail) return;
   const formatter = new Intl.DateTimeFormat("es-AR", { month: "long" });
-  const eventMonths = new Set(state.competitions.filter((competition) => competition.status !== "pending").map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean));
+  const eventMonths = new Set(state.competitions.filter((competition) => competition.status === "approved").map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean));
   const months = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
   rail.innerHTML = months.map((month) => {
     const date = new Date(`${month}-02T12:00:00`);
@@ -2006,7 +2020,9 @@ function editCompetition(id) {
   renderJuryPresidentOptions();
   $("#saveCompetitionButton").textContent = "Guardar cambios";
   $("#cancelCompetitionEdit").hidden = false;
+  $("#competitionStatus").textContent = competition.status === "pending" ? "Estás viendo un evento pendiente. Podés modificarlo y volver a enviarlo para aprobación." : competition.status === "rejected" ? "Este evento fue rechazado. Editalo y volvé a enviarlo para una nueva revisión." : "Editando competencia aprobada.";
   $("#competitionType").dispatchEvent(new Event("change"));
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function collectJudges() {
@@ -2908,6 +2924,7 @@ function bindEvents() {
   $("#competitionForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const wasEditing = Boolean(payload.id);
     const organizer = organizerFormData();
     const hasOrganizerData = organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.password || organizer.club;
     if (hasOrganizerData && (!organizer.first_name || !organizer.last_name || !organizer.dni || !organizer.username || !organizer.password)) {
@@ -2931,7 +2948,7 @@ function bindEvents() {
       await api("/api/competitions", { method: "POST", body: JSON.stringify(payload) });
       if (payload.chief_route_setter_id) await api("/api/competition-route-setters", { method: "POST", body: JSON.stringify({ competition_id: payload.id || state.currentCompetitionId || 1, chief_fasa_id: payload.chief_route_setter_id, team_fasa_ids: [] }) });
       resetCompetitionForm();
-      $("#competitionStatus").textContent = state.role === "regional_representative" ? "Evento enviado a revisión. Quedará publicado cuando un administrador lo apruebe." : "Competencia guardada y aprobada. El formulario quedó listo para crear una nueva.";
+      $("#competitionStatus").textContent = state.role === "regional_representative" ? (wasEditing ? "Evento actualizado y enviado nuevamente para aprobación." : "Evento creado con estado pendiente. Podés verlo y editarlo mientras espera la aprobación.") : (wasEditing ? "Competencia actualizada." : "Competencia guardada y aprobada. El formulario quedó listo para crear una nueva.");
       await loadCompetitions();
     } catch (error) {
       $("#competitionStatus").textContent = error.message;

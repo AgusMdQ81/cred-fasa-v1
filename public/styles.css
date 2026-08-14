@@ -1852,8 +1852,12 @@ tbody tr:hover {
 .status-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
 .status-badge.pending { color: #6b3e00; background: #ffd68d; }
 .status-badge.approved { color: #155d43; background: #bfead9; }
+.status-badge.rejected { color: #7a1f1f; background: #ffd0d0; }
 .pending-events-panel { border-left-color: #d69a27; }
 .pending-event-row { background: rgba(255, 200, 92, .14); }
+.rejected-event-row { background: rgba(230, 61, 61, .1); }
+.review-actions { display: flex; gap: .5rem; align-items: center; }
+.review-actions button { white-space: nowrap; }
 .pending-count { color: #8a5100; font-weight: 900; }
 .approval-alert, .current-role-label.has-approval-alert::after { display: inline-block; width: 9px; height: 9px; margin-left: 7px; border-radius: 50%; background: #e63d3d; box-shadow: 0 0 0 3px rgba(230,61,61,.2); }
 .current-role-label.has-approval-alert::after { content: ""; vertical-align: middle; }
