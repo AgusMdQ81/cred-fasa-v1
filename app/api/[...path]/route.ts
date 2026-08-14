@@ -291,10 +291,11 @@ async function seedTestFasaData() {
     index++; const dni = String(30000000 + index); const fasaId = makeFasaId(dni); const now = new Date().toISOString();
     const namePool = spec.gender === "Mujer" ? femaleNames : spec.gender === "Hombre" ? maleNames : (index % 2 ? femaleNames : maleNames);
     const first = namePool[(index * 11 + local) % namePool.length]; const last = lastNames[(index * 17 + local * 3) % lastNames.length];
-    statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],"",now,now));
+    const photo = spec.gender === "Mujer" ? "/assets/female-athlete-demo.png" : spec.gender === "Hombre" ? "/assets/admin-demo-portrait.png" : "";
+    statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],photo,now,now));
     for (const role of spec.roles) {
       const level = role.type === "judge" || role.type === "route_setter" ? (local % 5) + 1 : undefined;
-      const data = { ...role.data, ...(level ? { level } : {}), ...(role.type === "competitor" ? { instagram: `@${first.toLowerCase()}.climbs` } : {}) };
+      const data = { ...role.data, ...(level ? { level } : {}), ...(role.type === "competitor" ? { instagram: `@${first.toLowerCase()}.climbs`, discipline: "Boulder" } : {}) };
       statements.push(env.DB.prepare("INSERT INTO fasa_roles (fasa_id,role_type,active) VALUES (?,?,1)").bind(fasaId,role.type));
       statements.push(env.DB.prepare(`INSERT INTO ${roleDetailTable(role.type)} (fasa_id,data) VALUES (?,?)`).bind(fasaId,JSON.stringify(data)));
     }
@@ -412,6 +413,16 @@ export async function GET(request: Request) {
       COALESCE(GROUP_CONCAT(CASE WHEN r.active=1 THEN r.role_type END), '') AS roles
       FROM fasa_profiles p LEFT JOIN fasa_roles r ON r.fasa_id=p.fasa_id GROUP BY p.fasa_id ORDER BY p.last_name,p.first_name`).all();
     return json(result.results);
+  }
+  if (path === "public-athlete-rankings") {
+    const type = String(url.searchParams.get("type") || "argentine"); const region = String(url.searchParams.get("region") || "");
+    const gender = String(url.searchParams.get("gender") || "Mujer"); const category = String(url.searchParams.get("category") || "mayor"); const discipline = String(url.searchParams.get("discipline") || "Boulder");
+    const athletes = await loadRoleDirectory("competitor", []);
+    const rows = athletes.filter((person) => person.public_profile === true && person.gender === gender && person.category === category && String(person.discipline || "Boulder") === discipline)
+      .filter((person) => type !== "regional" || person.region === region)
+      .map((person, index) => ({ ...person, name: `${person.first_name} ${person.last_name}`, points: 3100 - index * 37 }))
+      .sort((a,b) => Number(b.points)-Number(a.points)).map((person,index) => ({ ...person, rank:index+1 }));
+    return json(rows);
   }
   if (path === "fasa-cv") {
     await ensureFasaTables();

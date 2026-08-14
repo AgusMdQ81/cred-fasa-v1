@@ -1791,35 +1791,15 @@ function switchPublicView(viewId) {
   if (viewId === "athletesView") renderPublicRankings("argentine");
 }
 
-function renderPublicRankings(type = state.publicRankingFilters.type) {
+async function renderPublicRankings(type = state.publicRankingFilters.type) {
   const container = $("#publicRankings");
   if (!container) return;
   state.publicRankingFilters.type = type;
   const filters = state.publicRankingFilters;
   $("#rankingRegionField").classList.toggle("hidden", type !== "regional");
-  const firstNames = ["Sofía", "Mateo", "Camila", "Lucas", "Martina", "Tomás", "Julia", "Nicolás", "Valentina", "Bruno", "Malena", "Franco", "Pilar", "Benjamín"];
-  const lastNames = ["Pérez", "Gómez", "Costa", "Rivas", "Díaz", "Sosa", "Molina", "Suárez", "Fernández", "López", "Romero", "Acosta", "Navarro", "Vega"];
-  const athletes = Array.from({ length: 252 }, (_, index) => {
-    const region = REGIONS[index % REGIONS.length];
-    const category = ["mayor", "U19", "U17"][Math.floor(index / REGIONS.length) % 3];
-    const gender = ["Mujer", "Hombre"][Math.floor(index / 21) % 2];
-    const discipline = ["Boulder", "Dificultad", "Speed"][Math.floor(index / 42) % 3];
-    return {
-      name: `${firstNames[index % firstNames.length]} ${lastNames[(index * 3) % lastNames.length]}`,
-      club: ["AEBA", "CABA", "Club Andino", "Centro", "Cuyo", "Litoral"][index % 6],
-      region, category, gender, discipline,
-      points: 3100 - index * 19,
-      instagram: `@${String(firstNames[index % firstNames.length]).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()}.climbs`,
-      photo_url: index % 3 === 0 ? "/assets/admin-demo-portrait.png" : "",
-      public_profile: true,
-    };
-  });
-  const rows = athletes
-    .filter((athlete) => athlete.category === filters.category && athlete.gender === filters.gender && athlete.discipline === filters.discipline)
-    .filter((athlete) => type !== "regional" || athlete.region === filters.region)
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 12)
-    .map((athlete, index) => ({ ...athlete, rank: index + 1 }));
+  container.innerHTML = '<p class="ranking-empty">Cargando atletas…</p>';
+  const params = new URLSearchParams({ type, region: filters.region, category: filters.category, gender: filters.gender, discipline: filters.discipline });
+  const rows = await api(`/api/public-athlete-rankings?${params}`);
   const categoryLabel = filters.category === "mayor" ? "Mayor" : filters.category;
   $("#rankingContext").innerHTML = `<strong>${type === "regional" ? filters.region : "Argentina"}</strong><span>${categoryLabel} · ${filters.gender === "Mujer" ? "Mujeres" : "Hombres"} · ${filters.discipline}</span>`;
   container.innerHTML = `
