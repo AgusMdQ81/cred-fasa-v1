@@ -563,6 +563,7 @@ function activateView(view, options = {}) {
   document.querySelectorAll(".tab, .view").forEach((element) => element.classList.remove("active"));
   document.querySelectorAll(`.tab[data-view="${safeView}"]`).forEach((element) => element.classList.add("active"));
   $(`#${safeView}`).classList.add("active");
+  renderActiveEventActions(safeView);
   if (safeView === "judge") loadCompetitors();
   if (safeView === "judgePeople") loadJudgePeople();
   if (safeView === "competitions") {
@@ -602,6 +603,8 @@ function applyRole(role, options = {}) {
   $("#loginGate").classList.add("hidden");
   $("#appHeader").classList.remove("hidden");
   $("#appMain").classList.remove("hidden");
+  const secondaryNav = $(".private-secondary-nav");
+  if (secondaryNav) secondaryNav.hidden = eventScopedRole(role);
   document.querySelectorAll(".tab[data-view]").forEach((button) => {
     const roles = button.dataset.roles.split(" ");
     const requiresEvent = EVENT_DETAIL_VIEWS.has(button.dataset.view);
@@ -720,6 +723,26 @@ function renderActiveEventContext() {
   $("#activeEventRole").textContent = ROLE_LABELS[state.role] || state.role;
   $("#activeEventName").textContent = competition.name;
   $("#activeEventMeta").textContent = `${formatEventDateRange(competition)} · ${competition.competition_type}${competition.region ? ` · ${competition.region}` : ""} · ${competition.modality}`;
+}
+
+function eventActionsForRole(role) {
+  if (role === "competition_admin") return [["computos", "Cómputos"], ["registrations", "Inscriptos"], ["config", "Configuración"], ["results", "Resultados"]];
+  if (role === "organizer") return [["registrations", "Inscriptos"]];
+  if (role === "judge") return [["judge", "Juecear"], ["results", "Resultados"]];
+  if (role === "route_setter") return [["routeSetterEvent", "Evento"]];
+  if (role === "chief_route_setter") return [["routeSetterTeam", "Equipo de aperturistas"]];
+  return [];
+}
+
+function renderActiveEventActions(activeView = "") {
+  const container = $("#activeEventActions");
+  if (!container) return;
+  if (!state.eventRoleActive) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = eventActionsForRole(state.role).map(([view, label]) => `<button type="button" class="${view === activeView ? "active" : ""}" data-event-view="${view}">${label}</button>`).join("");
+  container.querySelectorAll("[data-event-view]").forEach((button) => button.addEventListener("click", () => activateView(button.dataset.eventView)));
 }
 
 function renderRouteSetterEvent() {

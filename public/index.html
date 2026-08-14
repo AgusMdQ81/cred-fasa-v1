@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260814-unified-admin-management" />
+    <link rel="stylesheet" href="/styles.css?v=20260814-event-context-navigation" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -220,7 +220,6 @@
           <button class="tab role-hidden" data-view="routeSetterEvent" data-roles="route_setter" hidden>Evento</button>
           <button class="tab role-hidden" data-view="routeSetterTeam" data-roles="chief_route_setter" hidden>Equipo de aperturistas</button>
           <button class="tab role-hidden" data-view="officialProfile" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Perfil profesional</button>
-          <button class="tab role-hidden" data-view="officialAssignments" data-roles="competition_admin organizer judge judge_portal route_setter chief_route_setter" hidden>Eventos asignados</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-subview="profile" data-roles="competitor" hidden>Perfil deportivo</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-subview="registrations" data-roles="competitor" hidden>Inscripción a eventos</button>
           <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Cómputos</button>
@@ -234,7 +233,8 @@
     <main id="appMain" class="hidden">
       <section id="activeEventContext" class="active-event-context" hidden>
         <div><span id="activeEventRole">Rol</span><strong id="activeEventName">Evento seleccionado</strong><small id="activeEventMeta"></small></div>
-        <button id="backToAssignedEvents" type="button">← Eventos asignados</button>
+        <nav id="activeEventActions" class="active-event-actions" aria-label="Funciones del evento"></nav>
+        <button id="backToAssignedEvents" class="event-return-button" type="button" title="Volver a eventos asignados" aria-label="Volver a eventos asignados">↩</button>
       </section>
       <section id="unifiedProfile" class="view">
         <section class="fasa-profile-panel">
@@ -1080,6 +1080,6 @@
       <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><dl class="public-athlete-meta"><div><dt>Club</dt><dd id="publicAthleteClub">—</dd></div><div><dt>Región</dt><dd id="publicAthleteRegion">—</dd></div></dl><p id="publicAthleteInstagram" class="instagram-line"><img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> @usuario</p></div></article>
     </dialog>
 
-    <script src="/app.js?v=20260814-assigned-events-flow"></script>
+    <script src="/app.js?v=20260814-event-context-navigation"></script>
   </body>
 </html>
