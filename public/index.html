@@ -217,9 +217,10 @@
           <button class="tab role-hidden" data-view="routeSetterPeople" data-roles="general_admin" hidden>Aperturistas</button>
           <button class="tab role-hidden" data-view="fasaIdManagement" data-roles="general_admin" hidden>FASA ID</button>
           <button class="tab role-hidden" data-view="administratorManagement" data-roles="general_admin" hidden>Administradores</button>
+          <button class="tab role-hidden" data-view="routeSetterEvent" data-roles="route_setter" hidden>Evento</button>
           <button class="tab role-hidden" data-view="routeSetterTeam" data-roles="chief_route_setter" hidden>Equipo de aperturistas</button>
           <button class="tab role-hidden" data-view="officialProfile" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Perfil profesional</button>
-          <button class="tab role-hidden" data-view="officialAssignments" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Eventos asignados</button>
+          <button class="tab role-hidden" data-view="officialAssignments" data-roles="competition_admin organizer judge judge_portal route_setter chief_route_setter" hidden>Eventos asignados</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-subview="profile" data-roles="competitor" hidden>Perfil deportivo</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-subview="registrations" data-roles="competitor" hidden>Inscripción a eventos</button>
           <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Cómputos</button>
@@ -231,6 +232,10 @@
     </header>
 
     <main id="appMain" class="hidden">
+      <section id="activeEventContext" class="active-event-context" hidden>
+        <div><span id="activeEventRole">Rol</span><strong id="activeEventName">Evento seleccionado</strong><small id="activeEventMeta"></small></div>
+        <button id="backToAssignedEvents" type="button">← Eventos asignados</button>
+      </section>
       <section id="unifiedProfile" class="view">
         <section class="fasa-profile-panel">
           <div id="fasaIdFlip" class="fasa-id-flip">
@@ -638,6 +643,9 @@
       </dialog>
       <section id="routeSetterTeam" class="view">
         <section class="panel"><div class="section-head"><div><p class="eyebrow">Evento</p><h2>Equipo de aperturistas</h2></div><button id="saveRouteSetterTeam" class="primary" type="button">Guardar equipo</button></div><p>Como Jefe de Aperturistas podés seleccionar el equipo entre los aperturistas habilitados.</p><div id="routeSetterTeamList" class="team-picker"></div><p id="routeSetterTeamStatus" aria-live="polite"></p></section>
+      </section>
+      <section id="routeSetterEvent" class="view">
+        <section class="panel"><div class="section-head"><div><p class="eyebrow">Aperturismo</p><h2 id="routeSetterEventTitle">Evento asignado</h2></div></div><div id="routeSetterEventDetails" class="event-role-details"></div></section>
       </section>
 
       <section id="judgePortal" class="view">
@@ -1072,6 +1080,6 @@
       <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><dl class="public-athlete-meta"><div><dt>Club</dt><dd id="publicAthleteClub">—</dd></div><div><dt>Región</dt><dd id="publicAthleteRegion">—</dd></div></dl><p id="publicAthleteInstagram" class="instagram-line"><img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> @usuario</p></div></article>
     </dialog>
 
-    <script src="/app.js?v=20260814-unified-admin-management"></script>
+    <script src="/app.js?v=20260814-assigned-events-flow"></script>
   </body>
 </html>

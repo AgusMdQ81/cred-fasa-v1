@@ -310,6 +310,9 @@ async function requireCompetitionProfile(fasaId: string, label: string, roleType
 async function syncCompetitionRoles(competitionId: number, assignments: { organizer: string; juryPresident: string; chiefRouteSetter: string }) {
   await ensureFasaTables();
   const now = new Date().toISOString();
+  if (assignments.organizer) await assignRole(assignments.organizer, "organizer", { active: true });
+  if (assignments.juryPresident) await assignRole(assignments.juryPresident, "competition_admin", { active: true });
+  if (assignments.chiefRouteSetter) await assignRole(assignments.chiefRouteSetter, "chief_route_setter", { active: true });
   const statements = [env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=? AND role_type IN ('organizer','jury_president','chief_route_setter')").bind(competitionId)];
   if (assignments.organizer) statements.push(env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?)").bind(competitionId, assignments.organizer, "organizer", "Organizador", now));
   if (assignments.juryPresident) statements.push(env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?)").bind(competitionId, assignments.juryPresident, "jury_president", "Presidente de Jurado", now));
@@ -708,7 +711,10 @@ export async function POST(request: Request) {
     if (stored) {
       if (stored.password && String(stored.password) !== password) return json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
       const storedRoles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(stored.fasa_id).all<{ role_type: string }>();
-      const roles = storedRoles.results.map((row) => row.role_type);
+      let roles = storedRoles.results.map((row) => row.role_type);
+      const participationRoles = await env.DB.prepare("SELECT DISTINCT role_type FROM competition_participations WHERE fasa_id=?").bind(stored.fasa_id).all<{ role_type: string }>();
+      const participationRoleMap: Record<string, string> = { jury_president: "competition_admin", organizer: "organizer", judge: "judge", route_setter: "route_setter", chief_route_setter: "chief_route_setter" };
+      roles = [...new Set([...roles, ...participationRoles.results.map((row) => participationRoleMap[row.role_type] || row.role_type)])];
       const roleDetails: Record<string, unknown> = {};
       for (const role of roles) {
         const item = await env.DB.prepare(`SELECT data FROM ${roleDetailTable(role)} WHERE fasa_id=? LIMIT 1`).bind(stored.fasa_id).first<{ data: string }>();
@@ -980,7 +986,21 @@ export async function POST(request: Request) {
   }
   if (path === "judge-people") return json(await saveRoleDirectory("judge", Array.isArray(payload.people) ? payload.people : []));
   if (path === "route-setter-people") return json(await saveRoleDirectory("route_setter", Array.isArray(payload.people) ? payload.people : []));
-  if (path === "judges") return json(getJudges());
+  if (path === "judges") {
+    await ensureFasaTables();
+    const competitionId = Number(payload.competition_id || 0);
+    const submittedJudges = Array.isArray(payload.judges) ? payload.judges : [];
+    if (competitionId) {
+      const now = new Date().toISOString();
+      const statements = [env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=? AND role_type='judge'").bind(competitionId)];
+      for (const judge of submittedJudges) {
+        const fasaId = String(judge.judge_fasa_id || "");
+        if (fasaId) statements.push(env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?) ON CONFLICT(competition_id,fasa_id,role_type) DO UPDATE SET role_label=excluded.role_label").bind(competitionId, fasaId, "judge", "Juez", now));
+      }
+      await env.DB.batch(statements);
+    }
+    return json(submittedJudges.length ? submittedJudges : getJudges());
+  }
   if (path === "regional-representatives") return json(await saveRoleDirectory("regional_representative", Array.isArray(payload.representatives) ? payload.representatives : []));
   if (path === "judge-portal-login") return json({ profile: judgePeople[0], assignments: competitions });
   if (path === "judge-portal-profile") return json({ profile: payload.profile || judgePeople[0], assignments: competitions });

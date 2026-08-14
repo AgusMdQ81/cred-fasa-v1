@@ -20,6 +20,7 @@ const state = {
   competitions: [],
   registrations: [],
   currentCompetitionId: null,
+  eventRoleActive: false,
   reviewCompetitionInternalId: null,
   loginCompetitionId: null,
   competitorFilters: { category: "mayor", gender: "Mujer" },
@@ -518,10 +519,10 @@ function judgeRole(roundKey) {
 function allowedViews(role) {
   if (role === "general_admin") return ["unifiedProfile", "fasaCv", "competitions", "regionalRepresentatives", "judgePeople", "routeSetterPeople", "fasaIdManagement", "administratorManagement"];
   if (role === "regional_representative") return ["unifiedProfile", "fasaCv", "competitions"];
-  if (role === "competition_admin") return ["unifiedProfile", "fasaCv", "computos", "registrations", "config", "results"];
-  if (role === "organizer") return ["unifiedProfile", "fasaCv", "registrations"];
+  if (role === "competition_admin") return ["unifiedProfile", "fasaCv", "officialAssignments", "computos", "registrations", "config", "results"];
+  if (role === "organizer") return ["unifiedProfile", "fasaCv", "officialAssignments", "registrations"];
   if (role === "judge") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments", "judge", "results"];
-  if (role === "route_setter") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments"];
+  if (role === "route_setter") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments", "routeSetterEvent"];
   if (role === "chief_route_setter") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments", "routeSetterTeam"];
   if (role === "judge_portal") return ["unifiedProfile", "fasaCv", "officialProfile", "officialAssignments"];
   if (role === "competitor") return ["unifiedProfile", "fasaCv", "competitorPortal"];
@@ -535,14 +536,26 @@ function defaultView(role) {
 function roleHome(role) {
   if (role === "general_admin") return "competitions";
   if (role === "regional_representative") return "competitions";
-  if (role === "competition_admin") return "computos";
-  if (role === "organizer") return "registrations";
-  if (role === "judge") return "judge";
-  if (role === "chief_route_setter") return "routeSetterTeam";
+  if (["competition_admin", "organizer", "judge", "route_setter", "chief_route_setter"].includes(role)) return "officialAssignments";
   if (role === "judge_portal") return "judgePortal";
   if (role === "competitor") return "competitorPortal";
   return "results";
 }
+
+function roleEventHome(role) {
+  if (role === "competition_admin") return "computos";
+  if (role === "organizer") return "registrations";
+  if (role === "judge") return "judge";
+  if (role === "route_setter") return "routeSetterEvent";
+  if (role === "chief_route_setter") return "routeSetterTeam";
+  return "officialAssignments";
+}
+
+function eventScopedRole(role) {
+  return ["competition_admin", "organizer", "judge", "route_setter", "chief_route_setter"].includes(role);
+}
+
+const EVENT_DETAIL_VIEWS = new Set(["computos", "registrations", "config", "results", "judge", "routeSetterEvent", "routeSetterTeam"]);
 
 function activateView(view, options = {}) {
   const allowed = allowedViews(state.role);
@@ -559,6 +572,7 @@ function activateView(view, options = {}) {
   if (safeView === "regionalRepresentatives") loadRegionalRepresentatives();
   if (safeView === "routeSetterPeople") loadRouteSetterPeople();
   if (safeView === "routeSetterTeam") loadRouteSetterTeam();
+  if (safeView === "routeSetterEvent") renderRouteSetterEvent();
   if (safeView === "fasaCv") loadFasaCv();
   if (safeView === "fasaIdManagement") loadFasaManagement();
   if (safeView === "administratorManagement") loadAdministratorManagement();
@@ -580,13 +594,18 @@ function openCompetitionView(competitionId, view) {
 function applyRole(role, options = {}) {
   state.role = role;
   state.privateRoleOpen = Boolean(options.openRole);
+  if (eventScopedRole(role) && !options.eventSelected) {
+    state.eventRoleActive = false;
+    state.currentCompetitionId = null;
+  }
   localStorage.setItem("credFasaRole", role);
   $("#loginGate").classList.add("hidden");
   $("#appHeader").classList.remove("hidden");
   $("#appMain").classList.remove("hidden");
   document.querySelectorAll(".tab[data-view]").forEach((button) => {
     const roles = button.dataset.roles.split(" ");
-    const allowed = allowedViews(role).includes(button.dataset.view) && roles.includes(role);
+    const requiresEvent = EVENT_DETAIL_VIEWS.has(button.dataset.view);
+    const allowed = allowedViews(role).includes(button.dataset.view) && roles.includes(role) && (!requiresEvent || state.eventRoleActive);
     button.hidden = !allowed;
     button.classList.toggle("role-hidden", !allowed);
     button.removeAttribute("aria-hidden");
@@ -611,7 +630,8 @@ function applyRole(role, options = {}) {
   renderCompetitions();
   renderAssignedRoles();
   applyCompetitionFormRole();
-  activateView(options.openRole ? roleHome(role) : defaultView(role));
+  renderActiveEventContext();
+  activateView(options.view || (options.openRole ? roleHome(role) : defaultView(role)));
 }
 
 const ROLE_LABELS = {
@@ -664,10 +684,49 @@ async function renderOfficialArea() {
   $("#officialProfileLevel").textContent = details.level ? `Nivel ${details.level}` : "Nivel sin asignar";
   $("#officialProfileName").textContent = state.user?.display_name || "Usuario FASA";
   $("#officialProfileClub").textContent = state.user?.club || "Club —";
-  if (!state.user?.fasa_id) { $("#officialAssignmentsList").innerHTML = "<p>No hay eventos asignados en este perfil de demostración.</p>"; return; }
-  const cv = await api(`/api/fasa-cv?fasa_id=${encodeURIComponent(state.user.fasa_id)}`);
-  const applicable = cv.history.filter((item) => role === "judge" ? item.role_type === "judge" : ["route_setter", "chief_route_setter"].includes(item.role_type));
-  $("#officialAssignmentsList").innerHTML = applicable.length ? applicable.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Evento FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>No hay eventos asignados.</p>";
+  const roleTypes = role === "competition_admin" ? ["jury_president"] : role === "chief_route_setter" ? ["chief_route_setter"] : [role];
+  let applicable = [];
+  if (state.user?.fasa_id) {
+    const cv = await api(`/api/fasa-cv?fasa_id=${encodeURIComponent(state.user.fasa_id)}`);
+    applicable = cv.history.filter((item) => roleTypes.includes(item.role_type)).map((item) => ({ ...item, competition: state.competitions.find((competition) => Number(competition.id) === Number(item.competition_id)) || item.competition }));
+  } else if (role === "judge" && state.judgePortal?.assignments) {
+    applicable = state.judgePortal.assignments.map((competition) => ({ competition_id: competition.competition_id || competition.id, competition, role_label: "Juez" }));
+  } else if (eventScopedRole(role)) {
+    applicable = state.competitions.filter((competition) => competition.status === "approved").map((competition) => ({ competition_id: competition.id, competition, role_label: ROLE_LABELS[role] || role }));
+  }
+  const unique = applicable.filter((item, index, list) => item.competition && list.findIndex((candidate) => Number(candidate.competition_id) === Number(item.competition_id)) === index);
+  $("#officialAssignmentsList").innerHTML = unique.length ? unique.map((item) => {
+    const competition = item.competition;
+    return `<article class="assigned-event-card"><time>${formatEventDateRange(competition)}</time><div><strong>${competition.name || "Evento FASA"}</strong><span>${item.role_label || label} · ${competition.competition_type || "Evento"}${competition.region ? ` · ${competition.region}` : ""}</span></div><button type="button" data-enter-assigned-event="${item.competition_id}">Entrar</button></article>`;
+  }).join("") : "<p>No hay eventos asignados para este rol.</p>";
+  $("#officialAssignmentsList").querySelectorAll("[data-enter-assigned-event]").forEach((button) => button.addEventListener("click", () => enterAssignedCompetition(Number(button.dataset.enterAssignedEvent))));
+}
+
+function enterAssignedCompetition(competitionId) {
+  state.currentCompetitionId = Number(competitionId);
+  state.eventRoleActive = true;
+  if (state.user) state.user.competition_id = state.currentCompetitionId;
+  applyRole(state.role, { openRole: true, eventSelected: true, view: roleEventHome(state.role) });
+  loadJudges();
+}
+
+function renderActiveEventContext() {
+  const context = $("#activeEventContext");
+  if (!context) return;
+  const competition = currentCompetition();
+  const visible = eventScopedRole(state.role) && state.eventRoleActive && competition;
+  context.hidden = !visible;
+  if (!visible) return;
+  $("#activeEventRole").textContent = ROLE_LABELS[state.role] || state.role;
+  $("#activeEventName").textContent = competition.name;
+  $("#activeEventMeta").textContent = `${formatEventDateRange(competition)} · ${competition.competition_type}${competition.region ? ` · ${competition.region}` : ""} · ${competition.modality}`;
+}
+
+function renderRouteSetterEvent() {
+  const competition = currentCompetition();
+  if (!competition) return;
+  $("#routeSetterEventTitle").textContent = competition.name;
+  $("#routeSetterEventDetails").innerHTML = `<div><span>Fechas</span><strong>${formatEventDateRange(competition)}</strong></div><div><span>Club organizador</span><strong>${competition.organizer_club || "—"}</strong></div><div><span>Modalidad</span><strong>${competition.modality || "—"}</strong></div><div><span>Categoría</span><strong>${competition.category || "—"}</strong></div>${competition.infosheet_url ? `<a class="button-link" href="${competition.infosheet_url}" download>Descargar Infosheet</a>` : ""}`;
 }
 
 function unifiedProfileData() {
@@ -723,6 +782,7 @@ function logout() {
   state.privateRoleOpen = false;
   state.user = null;
   state.currentCompetitionId = null;
+  state.eventRoleActive = false;
   state.judgePortal = null;
   state.judgePortalCredentials = null;
   state.competitorPortal = null;
@@ -2142,6 +2202,7 @@ function editCompetition(id, { review = false } = {}) {
 function collectJudges() {
   return Array.from($("#judgesGrid").querySelectorAll("[data-judge-index]")).map((card) => ({
     judge_person_id: Number(card.querySelector('[data-judge-field="judge_person_id"]').value),
+    judge_fasa_id: judgePersonById(Number(card.querySelector('[data-judge-field="judge_person_id"]').value))?.fasa_id || "",
     username: card.querySelector('[data-judge-field="username"]').value,
     password: card.querySelector('[data-judge-field="password"]').value,
     active: card.querySelector('[data-judge-field="active"]').checked,
@@ -2910,6 +2971,7 @@ function bindEvents() {
   $("#roleAssignmentSearch").addEventListener("input", renderRoleAssignmentTable);
   $("#personPickerSearch").addEventListener("input", renderPersonPicker);
   $("#juryPresidentSearch").addEventListener("input", renderJuryPresidentPicker);
+  $("#backToAssignedEvents")?.addEventListener("click", () => applyRole(state.role, { openRole: true }));
   $("#openCompetitionCreator")?.addEventListener("click", () => {
     resetCompetitionForm();
     openCompetitionEditor();
