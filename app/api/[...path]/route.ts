@@ -678,6 +678,11 @@ export async function POST(request: Request) {
     const person = await env.DB.prepare("SELECT fasa_id FROM fasa_profiles WHERE fasa_id=?").bind(fasaId).first();
     if (!person) return json({ error: "FASA ID no encontrada." }, { status: 404 });
     const details = role === "judge" || role === "route_setter" ? { level: Math.max(1,Math.min(5,Number(payload.level || 1))), active: true } : role === "regional_representative" ? { region: String(payload.region || ""), active: true } : { active: true };
+    if (role === "regional_representative") {
+      const current = await env.DB.prepare("SELECT fasa_id,data FROM regional_representative_profiles").all<{ fasa_id: string; data: string }>();
+      const previous = current.results.find((item) => { try { return JSON.parse(item.data).region === details.region && item.fasa_id !== fasaId; } catch { return false; } });
+      if (previous) await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type='regional_representative'").bind(previous.fasa_id).run();
+    }
     await assignRole(fasaId, role, details); return json({ ok: true });
   }
   if (path === "administrator-status") {

@@ -1612,17 +1612,11 @@ function defaultRegionalRepresentative(index) {
 
 function renderRegionalRepresentatives() {
   if (!$("#regionalRepresentativesTable")) return;
-  $("#regionalRepresentativesTable").innerHTML = state.regionalRepresentatives.map((person, index) => `
-    <tr data-regional-representative="${index}">
-      <td>${person.fasa_id || "—"}</td>
-      <td>${person.last_name || ""}, ${person.first_name || ""}</td>
-      <td>${person.dni || "—"}</td>
-      <td>${person.mail || person.email || "—"}</td>
-      <td>${person.region || "—"}</td>
-      <td>${person.active !== false ? "Activo" : "Inactivo"}</td>
-    </tr>
-  `).join("");
-  if (!state.regionalRepresentatives.length) $("#regionalRepresentativesTable").innerHTML = '<tr><td colspan="6">Todavía no hay referentes asignados.</td></tr>';
+  $("#regionalRepresentativesTable").innerHTML = REGIONS.map((region) => {
+    const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
+    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button></td></tr>`;
+  }).join("");
+  $("#regionalRepresentativesTable").querySelectorAll("[data-choose-regional]").forEach((button) => button.addEventListener("click", async () => { await openRoleAssignment("regional_representative"); $("#roleAssignmentRegion").value = button.dataset.chooseRegional; }));
 }
 
 function parseJudgeBatch() {
@@ -2132,7 +2126,6 @@ async function loadJudgePeople() {
 
 async function loadRegionalRepresentatives() {
   [state.regionalRepresentatives, state.fasaProfiles] = await Promise.all([api("/api/regional-representatives"), api("/api/fasa-profiles")]);
-  $("#regionalFasaProfile").innerHTML = '<option value="">Seleccionar una persona registrada</option>' + state.fasaProfiles.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · DNI ${person.dni} · ${person.fasa_id}</option>`).join("");
   renderRegionalRepresentatives();
 }
 
@@ -2854,22 +2847,6 @@ function bindEvents() {
   });
   $("#cancelCompetitionEdit").addEventListener("click", resetCompetitionForm);
   $("#refreshCompetitions").addEventListener("click", loadCompetitions);
-
-  $("#assignRegionalRepresentative").addEventListener("click", async () => {
-    try {
-      const fasaId = $("#regionalFasaProfile").value;
-      const region = $("#regionalAssignmentRegion").value;
-      if (!fasaId) throw new Error("Seleccioná una persona de la base FASA ID.");
-      await api("/api/regional-representative-assignment", {
-        method: "POST",
-        body: JSON.stringify({ fasa_id: fasaId, region }),
-      });
-      $("#regionalRepresentativesStatus").textContent = "Rol de referente regional asignado.";
-      await loadRegionalRepresentatives();
-    } catch (error) {
-      $("#regionalRepresentativesStatus").textContent = error.message;
-    }
-  });
 
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {

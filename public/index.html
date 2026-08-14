@@ -464,20 +464,12 @@
               <p class="eyebrow">Administrador general</p>
               <h2>Referentes regionales</h2>
             </div>
-            <button id="assignRegionalRepresentative" class="primary" type="button">Asignar referente</button>
           </div>
-          <div class="role-assignment-form">
-            <label>Persona con FASA ID
-              <select id="regionalFasaProfile"><option value="">Seleccionar una persona registrada</option></select>
-            </label>
-            <label>Región
-              <select id="regionalAssignmentRegion"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select>
-            </label>
-            <p id="regionalRepresentativesStatus" aria-live="polite"></p>
-          </div>
+          <p class="profile-intro">Cada región admite un referente. Elegí una persona desde la base FASA ID.</p>
+          <p id="regionalRepresentativesStatus" aria-live="polite"></p>
           <table>
             <thead>
-              <tr><th>FASA ID</th><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Región</th><th>Estado</th></tr>
+              <tr><th>Región</th><th>Referente asignado</th><th>DNI</th><th>Email</th><th>Estado</th><th></th></tr>
             </thead>
             <tbody id="regionalRepresentativesTable"></tbody>
           </table>
