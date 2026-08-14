@@ -278,7 +278,7 @@ async function seedTestFasaData() {
   await env.DB.batch([env.DB.prepare("DELETE FROM competition_participations"), env.DB.prepare("DELETE FROM fasa_roles"), ...roleTables.map((table) => env.DB.prepare(`DELETE FROM ${table}`)), env.DB.prepare("DELETE FROM fasa_profiles"), env.DB.prepare("DELETE FROM directory_records")]);
   const maleNames = ["Mateo","Lucas","Tomas","Nicolas","Bruno","Franco","Santiago","Joaquin","Benjamin","Bautista","Lautaro","Agustin","Facundo","Martin","Ignacio","Felipe","Valentin","Ramiro","Gonzalo","Leandro","Emiliano","Federico","Marcos","Sebastian","Maximo","Thiago","Dante","Simon","Juan Cruz","Pedro","Manuel","Alejo","Salvador","Jeremias","Lisandro","Nahuel","Ezequiel","Renzo","Luciano","Cristobal"];
   const femaleNames = ["Sofia","Camila","Martina","Julia","Valentina","Malena","Catalina","Delfina","Lucia","Victoria","Renata","Juana","Pilar","Emilia","Mora","Paula","Carolina","Antonella","Milagros","Abril","Clara","Agustina","Lola","Josefina","Candela","Bianca","Florencia","Micaela","Rocio","Lara","Elena","Aitana","Alma","Olivia","Ines","Noelia","Mariana","Daniela","Sol","Celeste"];
-  const lastNames = ["Perez","Gomez","Costa","Rivas","Diaz","Sosa","Molina","Suarez","Fernandez","Lopez","Romero","Acosta","Navarro","Vega","Herrera","Castro","Medina","Aguirre","Benitez","Cabrera","Dominguez","Farias","Gimenez","Ibarra","Luna","Mendez","Nuñez","Ortega","Ponce","Quiroga","Ramirez","Silva","Torres","Vargas","Villalba","Alvarez","Blanco","Campos","Correa","Duarte","Escobar","Ferreyra","Godoy","Ledesma","Mansilla","Peralta","Reyes","Roldan","Santillan","Zarate"];
+  const lastNames = ["Perez","Gomez","Costa","Rivas","Diaz","Sosa","Molina","Suarez","Fernandez","Lopez","Romero","Acosta","Navarro","Vega","Herrera","Castro","Medina","Aguirre","Benitez","Cabrera","Dominguez","Farias","Gimenez","Ibarra","Luna","Mendez","Nuñez","Ortega","Ponce","Quiroga","Ramirez","Silva","Torres","Vargas","Villalba","Alvarez","Blanco","Campos","Correa","Duarte","Escobar","Ferreyra","Godoy","Ledesma","Mansilla","Peralta","Reyes","Roldan","Santillan","Zarate","Andrada","Barrios","Bustamante","Cardozo","Carrizo","Cejas","Contreras","Delgado","Farina","Flores","Franco","Gauna","Juarez","Leiva","Lucero","Maldonado","Marquez","Miranda","Montenegro","Morales","Muñoz","Ojeda","Olmedo","Paez","Palacios","Paredes","Paz","Pereyra","Ramos","Rivero","Robledo","Rojas","Ruiz","Salinas","Sandoval","Toledo","Valdez","Velazquez","Vera","Zamora"];
   const specs: Array<{ count: number; roles: Array<{ type: string; data: Record<string, unknown> }>; gender?: string }> = [
     { count: 40, gender: "Hombre", roles: [{ type: "competitor", data: { category: "mayor", gender: "Hombre", public_profile: true } }] },
     { count: 20, gender: "Mujer", roles: [{ type: "competitor", data: { category: "mayor", gender: "Mujer", public_profile: true } }] },
@@ -293,7 +293,8 @@ async function seedTestFasaData() {
     const namePool = useFemaleName ? femaleNames : maleNames;
     let sequence = useFemaleName ? femaleNameIndex++ : maleNameIndex++;
     let first = namePool[sequence % namePool.length];
-    let last = lastNames[Math.floor(sequence / namePool.length) % lastNames.length];
+    const isAthlete = spec.roles.some((role) => role.type === "competitor");
+    let last = isAthlete ? lastNames[index - 1] : lastNames[Math.floor(sequence / namePool.length) % lastNames.length];
     while (usedFullNames.has(`${first}|${last}`)) {
       sequence++;
       first = namePool[sequence % namePool.length];
