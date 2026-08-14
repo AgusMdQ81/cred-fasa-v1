@@ -496,7 +496,7 @@ function judgeRole(roundKey) {
 }
 
 function allowedViews(role) {
-  if (role === "general_admin") return ["unifiedProfile", "fasaCv", "competitions", "regionalRepresentatives", "judgePeople", "routeSetterPeople"];
+  if (role === "general_admin") return ["unifiedProfile", "fasaCv", "competitions", "regionalRepresentatives", "judgePeople", "routeSetterPeople", "fasaIdManagement", "administratorManagement"];
   if (role === "regional_representative") return ["unifiedProfile", "fasaCv", "competitions"];
   if (role === "competition_admin") return ["unifiedProfile", "fasaCv", "computos", "registrations", "config", "results"];
   if (role === "organizer") return ["unifiedProfile", "fasaCv", "registrations"];
@@ -537,6 +537,8 @@ function activateView(view, options = {}) {
   if (safeView === "routeSetterPeople") loadRouteSetterPeople();
   if (safeView === "routeSetterTeam") loadRouteSetterTeam();
   if (safeView === "fasaCv") loadFasaCv();
+  if (safeView === "fasaIdManagement") loadFasaManagement();
+  if (safeView === "administratorManagement") loadAdministratorManagement();
   if (safeView === "results") loadLeaderboard();
   if (safeView === "registrations") loadRegistrations();
   if (safeView === "computos") refreshComputed();
@@ -2153,6 +2155,28 @@ async function loadFasaCv() {
   $("#fasaCvHistory").innerHTML = cv.history.length ? cv.history.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Competencia FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>Todavía no hay participaciones registradas.</p>";
 }
 
+async function loadFasaManagement() {
+  state.fasaProfiles = await api("/api/fasa-profiles");
+  $("#fasaManagementTable").innerHTML = state.fasaProfiles.map((person) => `<tr><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email}</td><td>${person.club || "—"}</td><td>${person.region || "—"}</td><td>${String(person.roles || "").split(",").filter(Boolean).map((role) => ROLE_LABELS[role] || role).join(" · ") || "Sin roles"}</td></tr>`).join("");
+}
+
+async function loadAdministratorManagement() {
+  const administrators = await api("/api/administrators");
+  $("#administratorManagementTable").innerHTML = administrators.map((person) => `<tr><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email || person.mail}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td><td><button data-disable-administrator="${person.fasa_id}">Desactivar</button></td></tr>`).join("");
+  $("#administratorManagementTable").querySelectorAll("[data-disable-administrator]").forEach((button) => button.addEventListener("click", async () => { try { await api("/api/administrator-status", { method: "POST", body: JSON.stringify({ fasa_id: button.dataset.disableAdministrator, active: false }) }); await loadAdministratorManagement(); } catch (error) { $("#administratorManagementStatus").textContent = error.message; } }));
+}
+
+async function openRoleAssignment(role) {
+  if (!state.fasaProfiles.length) state.fasaProfiles = await api("/api/fasa-profiles");
+  $("#roleAssignmentDialog").dataset.role = role;
+  $("#roleAssignmentTitle").textContent = `Asignar ${ROLE_LABELS[role] || role}`;
+  $("#roleAssignmentPerson").innerHTML = '<option value="">Seleccionar una persona</option>' + state.fasaProfiles.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · DNI ${person.dni}</option>`).join("");
+  $("#roleAssignmentLevelField").hidden = !["judge","route_setter"].includes(role);
+  $("#roleAssignmentRegionField").hidden = role !== "regional_representative";
+  $("#roleAssignmentStatus").textContent = "";
+  $("#roleAssignmentDialog").showModal();
+}
+
 async function loadCompetitions() {
   state.competitions = await api("/api/competitions");
   renderCompetitions();
@@ -2621,6 +2645,22 @@ function bindEvents() {
   });
   $("#cancelProfileEditor").addEventListener("click", () => $("#profileEditDialog").close());
   $("#closePublicAthlete").addEventListener("click", () => $("#publicAthleteDialog").close());
+  document.querySelectorAll("[data-open-role-assignment]").forEach((button) => button.addEventListener("click", () => openRoleAssignment(button.dataset.openRoleAssignment)));
+  $("#confirmRoleAssignment").addEventListener("click", async () => {
+    try {
+      const role = $("#roleAssignmentDialog").dataset.role;
+      const fasaId = $("#roleAssignmentPerson").value;
+      if (!fasaId) throw new Error("Seleccioná una persona con FASA ID.");
+      await api("/api/assign-person-role", { method: "POST", body: JSON.stringify({ fasa_id: fasaId, role, level: Number($("#roleAssignmentLevel").value), region: $("#roleAssignmentRegion").value }) });
+      $("#roleAssignmentStatus").textContent = "Rol asignado correctamente.";
+      setTimeout(() => $("#roleAssignmentDialog").close(), 400);
+      if (role === "judge") await loadJudgePeople();
+      if (role === "route_setter") await loadRouteSetterPeople();
+      if (role === "general_admin") await loadAdministratorManagement();
+      if (role === "regional_representative") await loadRegionalRepresentatives();
+    } catch (error) { $("#roleAssignmentStatus").textContent = error.message; }
+  });
+  $("#refreshFasaManagement").addEventListener("click", loadFasaManagement);
   $("#saveUnifiedProfile").addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-unified-field]").forEach((field) => {

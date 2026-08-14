@@ -220,6 +220,8 @@
           <button class="tab role-hidden" data-view="regionalRepresentatives" data-roles="general_admin" hidden>Gestionar referentes regionales</button>
           <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Gestionar jueces</button>
           <button class="tab role-hidden" data-view="routeSetterPeople" data-roles="general_admin" hidden>Gestionar aperturistas</button>
+          <button class="tab role-hidden" data-view="fasaIdManagement" data-roles="general_admin" hidden>Gestionar FASA ID</button>
+          <button class="tab role-hidden" data-view="administratorManagement" data-roles="general_admin" hidden>Gestionar administradores</button>
           <button class="tab role-hidden" data-view="routeSetterTeam" data-roles="chief_route_setter" hidden>Equipo de aperturistas</button>
           <button class="tab role-hidden" data-view="officialProfile" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Perfil profesional</button>
           <button class="tab role-hidden" data-view="officialAssignments" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Competencias asignadas</button>
@@ -487,7 +489,7 @@
               <p class="eyebrow">Base de datos</p>
               <h2>Jueces</h2>
             </div>
-            <button id="applyJudgeBatch" class="primary" type="button" disabled>Asignar roles validados</button>
+            <div class="save-row"><button type="button" data-open-role-assignment="judge">Asignar rol</button><button id="applyJudgeBatch" class="primary" type="button" disabled>Asignar roles validados</button></div>
           </div>
           <div class="judge-batch-panel">
             <div>
@@ -566,12 +568,15 @@
       </section>
       <section id="routeSetterPeople" class="view">
         <section class="panel">
-          <div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Aperturistas</h2></div><button id="applyRouteSetterBatch" class="primary" type="button" disabled>Asignar roles validados</button></div>
+          <div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Aperturistas</h2></div><div class="save-row"><button type="button" data-open-role-assignment="route_setter">Asignar rol</button><button id="applyRouteSetterBatch" class="primary" type="button" disabled>Asignar roles validados</button></div></div>
           <div class="judge-batch-panel"><div><label for="routeSetterBatchInput">Carga masiva: DNI y nivel</label><p>Se comprueba únicamente la existencia de FASA ID mediante DNI. El nivel debe ser de 1 a 5.</p><textarea id="routeSetterBatchInput" rows="7" placeholder="30111222, 3&#10;28444555, 2"></textarea><button id="validateRouteSetterBatch" type="button">Comprobar DNI en FASA ID</button></div><div><p class="eyebrow">Resultado de validación</p><div id="routeSetterBatchResults" class="batch-results"><p>Cargá la lista para verificar los DNI.</p></div></div></div>
           <p id="routeSetterPeopleStatus" aria-live="polite"></p>
           <table><thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr></thead><tbody id="routeSetterPeopleTable"></tbody></table>
         </section>
       </section>
+      <section id="fasaIdManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Base de FASA ID</h2></div><button id="refreshFasaManagement" type="button">Actualizar</button></div><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Club</th><th>Región</th><th>Roles</th></tr></thead><tbody id="fasaManagementTable"></tbody></table></section></section>
+      <section id="administratorManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Seguridad</p><h2>Administradores</h2></div><button type="button" data-open-role-assignment="general_admin">Asignar administrador</button></div><p class="hint">El sistema impide que queden menos de dos administradores activos.</p><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Estado</th><th></th></tr></thead><tbody id="administratorManagementTable"></tbody></table><p id="administratorManagementStatus"></p></section></section>
+      <dialog id="roleAssignmentDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">FASA ID</p><h2 id="roleAssignmentTitle">Asignar rol</h2></div><button class="dialog-close" value="cancel">×</button></div><label>Persona<select id="roleAssignmentPerson"><option value="">Seleccionar FASA ID</option></select></label><label id="roleAssignmentLevelField">Nivel<select id="roleAssignmentLevel"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label><label id="roleAssignmentRegionField" hidden>Región<select id="roleAssignmentRegion"><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label><div class="dialog-actions"><button value="cancel">Cancelar</button><button id="confirmRoleAssignment" class="primary" type="button">Asignar rol</button></div><p id="roleAssignmentStatus"></p></form></dialog>
       <section id="routeSetterTeam" class="view">
         <section class="panel"><div class="section-head"><div><p class="eyebrow">Competencia</p><h2>Equipo de aperturistas</h2></div><button id="saveRouteSetterTeam" class="primary" type="button">Guardar equipo</button></div><p>Como Jefe de Aperturistas podés seleccionar el equipo entre los aperturistas habilitados.</p><div id="routeSetterTeamList" class="team-picker"></div><p id="routeSetterTeamStatus" aria-live="polite"></p></section>
       </section>

@@ -272,6 +272,35 @@ async function saveRoleDirectory(roleType: string, records: Array<Record<string,
   return saved;
 }
 
+async function seedTestFasaData() {
+  await ensureFasaTables();
+  const roleTables = ["athlete_profiles","judge_profiles","route_setter_profiles","chief_route_setter_profiles","jury_president_profiles","regional_representative_profiles","organizer_profiles","administrator_profiles"];
+  await env.DB.batch([env.DB.prepare("DELETE FROM competition_participations"), env.DB.prepare("DELETE FROM fasa_roles"), ...roleTables.map((table) => env.DB.prepare(`DELETE FROM ${table}`)), env.DB.prepare("DELETE FROM fasa_profiles"), env.DB.prepare("DELETE FROM directory_records")]);
+  const firstNames = ["Sofia","Mateo","Camila","Lucas","Martina","Tomas","Julia","Nicolas","Valentina","Bruno","Malena","Franco"];
+  const lastNames = ["Perez","Gomez","Costa","Rivas","Diaz","Sosa","Molina","Suarez","Fernandez","Lopez","Romero","Acosta"];
+  const specs: Array<{ count: number; roles: Array<{ type: string; data: Record<string, unknown> }>; gender?: string }> = [
+    { count: 40, gender: "Hombre", roles: [{ type: "competitor", data: { category: "mayor", gender: "Hombre", public_profile: true } }] },
+    { count: 20, gender: "Mujer", roles: [{ type: "competitor", data: { category: "mayor", gender: "Mujer", public_profile: true } }] },
+    { count: 20, roles: [{ type: "judge", data: {} }] }, { count: 20, roles: [{ type: "route_setter", data: {} }] },
+    { count: 20, roles: [{ type: "judge", data: {} }, { type: "route_setter", data: {} }] },
+    { count: 3, roles: [{ type: "general_admin", data: {} }] }, { count: 20, roles: [] },
+  ];
+  let index = 0; const statements = [];
+  for (const spec of specs) for (let local = 0; local < spec.count; local++) {
+    index++; const dni = String(30000000 + index); const fasaId = makeFasaId(dni); const now = new Date().toISOString();
+    const first = firstNames[(index - 1) % firstNames.length]; const last = lastNames[(index * 3) % lastNames.length];
+    statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],"",now,now));
+    for (const role of spec.roles) {
+      const level = role.type === "judge" || role.type === "route_setter" ? (local % 5) + 1 : undefined;
+      const data = { ...role.data, ...(level ? { level } : {}), ...(role.type === "competitor" ? { instagram: `@${first.toLowerCase()}.climbs` } : {}) };
+      statements.push(env.DB.prepare("INSERT INTO fasa_roles (fasa_id,role_type,active) VALUES (?,?,1)").bind(fasaId,role.type));
+      statements.push(env.DB.prepare(`INSERT INTO ${roleDetailTable(role.type)} (fasa_id,data) VALUES (?,?)`).bind(fasaId,JSON.stringify(data)));
+    }
+  }
+  for (let i=0;i<statements.length;i+=75) await env.DB.batch(statements.slice(i,i+75));
+  return { profiles: index, athletes: 60, judges: 20, route_setters: 20, dual: 20, administrators: 3, without_roles: 20 };
+}
+
 async function loadDirectoryRecords(recordType: string, fallback: unknown[]) {
   await ensureDirectoryTable();
   const result = await env.DB.prepare("SELECT data FROM directory_records WHERE record_type = ? ORDER BY id").bind(recordType).all<{ data: string }>();
@@ -373,11 +402,13 @@ export async function GET(request: Request) {
   if (path === "competitions") return json(competitions);
   if (path === "judge-people") return json(await loadRoleDirectory("judge", []));
   if (path === "route-setter-people") return json(await loadRoleDirectory("route_setter", []));
+  if (path === "administrators") return json(await loadRoleDirectory("general_admin", []));
   if (path === "regional-representatives") return json(await loadRoleDirectory("regional_representative", []));
   if (path === "fasa-profiles") {
     await ensureFasaTables();
-    const result = await env.DB.prepare(`SELECT fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,phone,address,province,region,photo_url
-      FROM fasa_profiles ORDER BY last_name,first_name`).all();
+    const result = await env.DB.prepare(`SELECT p.fasa_id,p.dni,p.first_name,p.last_name,p.nationality,p.club,p.birth_date,p.email,p.phone,p.address,p.province,p.region,p.photo_url,
+      COALESCE(GROUP_CONCAT(CASE WHEN r.active=1 THEN r.role_type END), '') AS roles
+      FROM fasa_profiles p LEFT JOIN fasa_roles r ON r.fasa_id=p.fasa_id GROUP BY p.fasa_id ORDER BY p.last_name,p.first_name`).all();
     return json(result.results);
   }
   if (path === "fasa-cv") {
@@ -408,6 +439,7 @@ export async function GET(request: Request) {
     const { password: _password, created_at: _created, updated_at: _updated, ...safeProfile } = profile;
     return json({ profile: safeProfile, roles: roles.results.map((row) => row.role_type) });
   }
+  if (path === "seed-test-data") return json({ error: "Usá POST para regenerar los datos." }, { status: 405 });
   if (path === "regional-representative-assignment") {
     await ensureFasaTables();
     const fasaId = String(payload.fasa_id || "");
@@ -636,6 +668,22 @@ export async function POST(request: Request) {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "No se pudo guardar el Perfil FASA." }, { status: 400 });
     }
+  }
+  if (path === "seed-test-data") return json(await seedTestFasaData());
+  if (path === "assign-person-role") {
+    const fasaId = String(payload.fasa_id || ""); const role = String(payload.role || "");
+    if (!fasaId || !["judge","route_setter","regional_representative","organizer","general_admin"].includes(role)) return json({ error: "Asignación inválida." }, { status: 400 });
+    const person = await env.DB.prepare("SELECT fasa_id FROM fasa_profiles WHERE fasa_id=?").bind(fasaId).first();
+    if (!person) return json({ error: "FASA ID no encontrada." }, { status: 404 });
+    const details = role === "judge" || role === "route_setter" ? { level: Math.max(1,Math.min(5,Number(payload.level || 1))), active: true } : role === "regional_representative" ? { region: String(payload.region || ""), active: true } : { active: true };
+    await assignRole(fasaId, role, details); return json({ ok: true });
+  }
+  if (path === "administrator-status") {
+    const fasaId = String(payload.fasa_id || ""); const active = payload.active === true;
+    const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM fasa_roles WHERE role_type='general_admin' AND active=1").first<{ total: number }>();
+    if (!active && Number(count?.total || 0) <= 2) return json({ error: "Nunca puede haber menos de dos administradores activos." }, { status: 400 });
+    if (active) await assignRole(fasaId,"general_admin",{}); else await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type='general_admin'").bind(fasaId).run();
+    return json({ ok: true });
   }
   if (path === "regional-representative-assignment") {
     const fasaId = String(payload.fasa_id || ""); const region = String(payload.region || "");
