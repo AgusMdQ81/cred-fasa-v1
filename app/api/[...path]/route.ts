@@ -276,8 +276,9 @@ async function seedTestFasaData() {
   await ensureFasaTables();
   const roleTables = ["athlete_profiles","judge_profiles","route_setter_profiles","chief_route_setter_profiles","jury_president_profiles","regional_representative_profiles","organizer_profiles","administrator_profiles"];
   await env.DB.batch([env.DB.prepare("DELETE FROM competition_participations"), env.DB.prepare("DELETE FROM fasa_roles"), ...roleTables.map((table) => env.DB.prepare(`DELETE FROM ${table}`)), env.DB.prepare("DELETE FROM fasa_profiles"), env.DB.prepare("DELETE FROM directory_records")]);
-  const firstNames = ["Sofia","Mateo","Camila","Lucas","Martina","Tomas","Julia","Nicolas","Valentina","Bruno","Malena","Franco"];
-  const lastNames = ["Perez","Gomez","Costa","Rivas","Diaz","Sosa","Molina","Suarez","Fernandez","Lopez","Romero","Acosta"];
+  const maleNames = ["Mateo","Lucas","Tomas","Nicolas","Bruno","Franco","Santiago","Joaquin","Benjamin","Bautista","Lautaro","Agustin","Facundo","Martin","Ignacio","Felipe","Valentin","Ramiro","Gonzalo","Leandro","Emiliano","Federico","Marcos","Sebastian","Maximo","Thiago","Dante","Simon","Juan Cruz","Pedro","Manuel","Alejo","Salvador","Jeremias","Lisandro","Nahuel","Ezequiel","Renzo","Luciano","Cristobal"];
+  const femaleNames = ["Sofia","Camila","Martina","Julia","Valentina","Malena","Catalina","Delfina","Lucia","Victoria","Renata","Juana","Pilar","Emilia","Mora","Paula","Carolina","Antonella","Milagros","Abril","Clara","Agustina","Lola","Josefina","Candela","Bianca","Florencia","Micaela","Rocio","Lara","Elena","Aitana","Alma","Olivia","Ines","Noelia","Mariana","Daniela","Sol","Celeste"];
+  const lastNames = ["Perez","Gomez","Costa","Rivas","Diaz","Sosa","Molina","Suarez","Fernandez","Lopez","Romero","Acosta","Navarro","Vega","Herrera","Castro","Medina","Aguirre","Benitez","Cabrera","Dominguez","Farias","Gimenez","Ibarra","Luna","Mendez","Nuñez","Ortega","Ponce","Quiroga","Ramirez","Silva","Torres","Vargas","Villalba","Alvarez","Blanco","Campos","Correa","Duarte","Escobar","Ferreyra","Godoy","Ledesma","Mansilla","Peralta","Reyes","Roldan","Santillan","Zarate"];
   const specs: Array<{ count: number; roles: Array<{ type: string; data: Record<string, unknown> }>; gender?: string }> = [
     { count: 40, gender: "Hombre", roles: [{ type: "competitor", data: { category: "mayor", gender: "Hombre", public_profile: true } }] },
     { count: 20, gender: "Mujer", roles: [{ type: "competitor", data: { category: "mayor", gender: "Mujer", public_profile: true } }] },
@@ -288,7 +289,8 @@ async function seedTestFasaData() {
   let index = 0; const statements = [];
   for (const spec of specs) for (let local = 0; local < spec.count; local++) {
     index++; const dni = String(30000000 + index); const fasaId = makeFasaId(dni); const now = new Date().toISOString();
-    const first = firstNames[(index - 1) % firstNames.length]; const last = lastNames[(index * 3) % lastNames.length];
+    const namePool = spec.gender === "Mujer" ? femaleNames : spec.gender === "Hombre" ? maleNames : (index % 2 ? femaleNames : maleNames);
+    const first = namePool[(index * 11 + local) % namePool.length]; const last = lastNames[(index * 17 + local * 3) % lastNames.length];
     statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],"",now,now));
     for (const role of spec.roles) {
       const level = role.type === "judge" || role.type === "route_setter" ? (local % 5) + 1 : undefined;
