@@ -26,6 +26,7 @@ const competitions = [
     id: 1,
     name: "CRED Buenos Aires Boulder",
     event_date: "2026-09-12",
+    end_date: "2026-09-12",
     competition_type: "CRED",
     modality: "Boulder",
     category: "Mayores",
@@ -48,6 +49,7 @@ const competitions = [
     id: 2,
     name: "CRED Patagonia Norte",
     event_date: "2026-10-03",
+    end_date: "2026-10-04",
     competition_type: "CRED",
     modality: "Boulder",
     category: "Juveniles",
@@ -62,6 +64,7 @@ const competitions = [
     id: 3,
     name: "CAED Nacional",
     event_date: "2026-11-21",
+    end_date: "2026-11-22",
     competition_type: "CAED",
     modality: "Dificultad",
     category: "Mayores",
@@ -384,6 +387,12 @@ function pathFrom(request: Request) {
   return new URL(request.url).pathname.replace(/^\/api\/?/, "");
 }
 
+function safeDownloadName(value: unknown) {
+  const normalized = String(value || "infosheet.pdf").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const clean = normalized.replace(/[^a-zA-Z0-9._ -]/g, "").trim().slice(0, 120);
+  return clean.toLowerCase().endsWith(".pdf") ? clean : `${clean || "infosheet"}.pdf`;
+}
+
 function getJudges() {
   return judgePeople.slice(0, 5).map((person, index) => ({
     id: index + 1,
@@ -458,6 +467,17 @@ function leaderboard(url: URL) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const path = pathFrom(request);
+  if (path.startsWith("infosheets/")) {
+    const key = decodeURIComponent(path.slice("infosheets/".length));
+    const object = await env.BUCKET.get(key);
+    if (!object) return json({ error: "Infosheet no encontrado." }, { status: 404 });
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("content-type", "application/pdf");
+    headers.set("content-disposition", `attachment; filename="${safeDownloadName(object.customMetadata?.filename)}"`);
+    headers.set("cache-control", "public, max-age=3600");
+    return new Response(object.body, { headers });
+  }
   if (path === "config") return json({ rounds });
   if (path === "competitions") {
     await ensureCompetitionRecords();
@@ -476,6 +496,7 @@ export async function GET(request: Request) {
       const legacyOrganizer = data.organizer_name || data.organizer_last_name ? { first_name: data.organizer_name, last_name: data.organizer_last_name, dni: data.organizer_dni, email: data.organizer_username, username: data.organizer_username, club: data.organizer_person_club } : null;
       storedEvents.push({
         ...data,
+        end_date: String(data.end_date || data.event_date || ""),
         id: row.id + 1000,
         internal_event_id: row.id,
         record_id: row.id,
@@ -490,7 +511,7 @@ export async function GET(request: Request) {
         chief_route_setter: chiefRouteSetter,
       });
     }
-    const builtinEvents = competitions.filter((item) => !hiddenBuiltins.has(item.id)).map((item) => ({ ...item, internal_event_id: `builtin-${item.id}`, status: "approved", creator_role: "general_admin" }));
+    const builtinEvents = competitions.filter((item) => !hiddenBuiltins.has(item.id)).map((item) => ({ ...item, end_date: item.end_date || item.event_date, internal_event_id: `builtin-${item.id}`, status: "approved", creator_role: "general_admin" }));
     return json([...builtinEvents, ...storedEvents]);
   }
   if (path === "judge-people") return json(await loadRoleDirectory("judge", []));
@@ -618,6 +639,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const path = pathFrom(request);
+  if (path === "infosheet-upload") {
+    const formData = await request.formData().catch(() => null);
+    const file = formData?.get("file");
+    if (!(file instanceof File)) return json({ error: "Seleccioná un archivo PDF." }, { status: 400 });
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) return json({ error: "El Infosheet debe ser un archivo PDF." }, { status: 400 });
+    if (file.size > 15 * 1024 * 1024) return json({ error: "El Infosheet no puede superar los 15 MB." }, { status: 400 });
+    const bytes = await file.arrayBuffer();
+    const signature = new TextDecoder().decode(bytes.slice(0, 5));
+    if (signature !== "%PDF-") return json({ error: "El archivo seleccionado no es un PDF válido." }, { status: 400 });
+    const key = `infosheet-${crypto.randomUUID()}.pdf`;
+    const filename = safeDownloadName(file.name);
+    await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: "application/pdf" }, customMetadata: { filename } });
+    return json({ key, filename, url: `/api/infosheets/${encodeURIComponent(key)}` });
+  }
   const payload = await request.json().catch(() => ({}));
   if (path === "unified-login") {
     const username = String(payload.username || "").trim().toLowerCase();
@@ -759,8 +794,12 @@ export async function POST(request: Request) {
     const creatorRole = String(payload.creator_role || "general_admin"); const status = creatorRole === "regional_representative" ? "pending" : "approved"; const now = new Date().toISOString();
     const requestedId = Number(payload.id || 0); const recordId = Number(payload.record_id || (requestedId >= 1000 ? requestedId - 1000 : 0));
     const currentRecord = recordId ? await env.DB.prepare("SELECT data,status,creator_role,creator_fasa_id FROM competition_records WHERE id=?").bind(recordId).first<{ data: string; status: string; creator_role: string; creator_fasa_id: string }>() : null;
-    if (recordId && !currentRecord) return json({ error: "Competencia no encontrada." }, { status: 404 });
+    if (recordId && !currentRecord) return json({ error: "Evento no encontrado." }, { status: 404 });
     const currentData = currentRecord?.data ? JSON.parse(currentRecord.data) as Record<string, unknown> : {};
+    const startDate = String(payload.event_date || currentData.event_date || "");
+    const endDate = String(payload.end_date || currentData.end_date || startDate);
+    if (!startDate || !endDate) return json({ error: "Ingresá las fechas de inicio y finalización del evento." }, { status: 400 });
+    if (endDate < startDate) return json({ error: "La fecha de finalización no puede ser anterior a la fecha de inicio." }, { status: 400 });
     const organizerFasaId = String(payload.organizer_fasa_id || currentData.organizer_fasa_id || "");
     const juryPresidentFasaId = String(payload.jury_president_fasa_id || payload.jury_president_id || currentData.jury_president_fasa_id || "");
     const chiefRouteSetterFasaId = String(payload.chief_route_setter_fasa_id || payload.chief_route_setter_id || currentData.chief_route_setter_fasa_id || "");
@@ -770,9 +809,9 @@ export async function POST(request: Request) {
       if (juryPresidentFasaId) await requireCompetitionProfile(juryPresidentFasaId, "Presidente de Jurado", "judge", 2);
       if (chiefRouteSetterFasaId) await requireCompetitionProfile(chiefRouteSetterFasaId, "Jefe de Aperturistas", "route_setter");
     } catch (error) {
-      return json({ error: error instanceof Error ? error.message : "No se pudieron validar los roles de la competencia." }, { status: 400 });
+      return json({ error: error instanceof Error ? error.message : "No se pudieron validar los roles del evento." }, { status: 400 });
     }
-    const data = { ...currentData, ...payload, organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
+    const data = { ...currentData, ...payload, event_date: startDate, end_date: endDate, organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
     delete data.id; delete data.record_id; delete data.internal_event_id; delete data.status; delete data.creator_role; delete data.creator_fasa_id;
     delete data.jury_president_id; delete data.chief_route_setter_id; delete data.organizer_password;
     if (requestedId > 0 && requestedId < 1000) data.replaces_builtin_id = requestedId;
@@ -780,6 +819,9 @@ export async function POST(request: Request) {
       if (creatorRole === "regional_representative" && currentRecord?.creator_fasa_id && payload.creator_fasa_id && currentRecord.creator_fasa_id !== String(payload.creator_fasa_id)) return json({ error: "No podés editar un evento creado por otro referente." }, { status: 403 });
       const nextStatus = creatorRole === "regional_representative" ? "pending" : String(currentRecord?.status || status);
       await env.DB.prepare("UPDATE competition_records SET data=?,status=?,updated_at=? WHERE id=?").bind(JSON.stringify(data), nextStatus, now, recordId).run();
+      const previousInfosheetKey = String(currentData.infosheet_key || "");
+      const nextInfosheetKey = String(data.infosheet_key || "");
+      if (previousInfosheetKey && nextInfosheetKey && previousInfosheetKey !== nextInfosheetKey) await env.BUCKET.delete(previousInfosheetKey);
       const competitionId = recordId + 1000;
       await syncCompetitionRoles(competitionId, { organizer: organizerFasaId, juryPresident: juryPresidentFasaId, chiefRouteSetter: chiefRouteSetterFasaId });
       return json({ ok: true, id: competitionId, internal_event_id: recordId, status: nextStatus });
@@ -790,7 +832,7 @@ export async function POST(request: Request) {
     return json({ ok: true, id: competitionId, internal_event_id: internalEventId, status });
   }
   if (path === "competition-approval") {
-    await ensureCompetitionRecords(); const recordId = Number(payload.internal_event_id || payload.record_id || 0); if (!recordId) return json({ error: "Competencia inválida." }, { status: 400 });
+    await ensureCompetitionRecords(); const recordId = Number(payload.internal_event_id || payload.record_id || 0); if (!recordId) return json({ error: "Evento inválido." }, { status: 400 });
     const decision = String(payload.decision || "approved");
     if (!["approved", "rejected"].includes(decision)) return json({ error: "Decisión inválida." }, { status: 400 });
     await env.DB.prepare("UPDATE competition_records SET status=?,updated_at=? WHERE id=?").bind(decision, new Date().toISOString(), recordId).run(); return json({ ok: true, status: decision });
@@ -912,9 +954,9 @@ export async function DELETE(request: Request) {
   if (!match) return json({ error: "Ruta de eliminación inválida." }, { status: 404 });
   await ensureCompetitionRecords();
   const competitionId = Number(match[1]);
-  if (!competitionId) return json({ error: "Competencia inválida." }, { status: 400 });
+  if (!competitionId) return json({ error: "Evento inválido." }, { status: 400 });
   if (competitionId < 1000) {
-    if (!competitions.some((item) => item.id === competitionId)) return json({ error: "Competencia no encontrada." }, { status: 404 });
+    if (!competitions.some((item) => item.id === competitionId)) return json({ error: "Evento no encontrado." }, { status: 404 });
     const now = new Date().toISOString();
     await env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,'deleted','general_admin','',?,?)").bind(JSON.stringify({ deleted_builtin_id: competitionId }), now, now).run();
     await env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=?").bind(competitionId).run();
@@ -922,8 +964,9 @@ export async function DELETE(request: Request) {
   }
   const recordId = competitionId - 1000;
   const existing = await env.DB.prepare("SELECT data FROM competition_records WHERE id=? LIMIT 1").bind(recordId).first<{ data: string }>();
-  if (!existing) return json({ error: "Competencia no encontrada." }, { status: 404 });
+  if (!existing) return json({ error: "Evento no encontrado." }, { status: 404 });
   const data = JSON.parse(existing.data) as Record<string, unknown>;
+  const infosheetKey = String(data.infosheet_key || "");
   const replacedBuiltinId = Number(data.replaces_builtin_id || 0);
   const statements = [env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=?").bind(competitionId), env.DB.prepare("DELETE FROM competition_records WHERE id=?").bind(recordId)];
   if (replacedBuiltinId) {
@@ -931,5 +974,6 @@ export async function DELETE(request: Request) {
     statements.push(env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,'deleted','general_admin','',?,?)").bind(JSON.stringify({ deleted_builtin_id: replacedBuiltinId }), now, now));
   }
   await env.DB.batch(statements);
+  if (infosheetKey) await env.BUCKET.delete(infosheetKey);
   return json({ ok: true });
 }

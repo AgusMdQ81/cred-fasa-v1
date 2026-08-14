@@ -62,6 +62,15 @@ const api = async (url, options = {}) => {
   return response.json();
 };
 
+async function uploadInfosheet(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch("/api/infosheet-upload", { method: "POST", body: formData });
+  const result = await response.json().catch(() => ({ error: "No se pudo subir el Infosheet." }));
+  if (!response.ok) throw new Error(result.error || "No se pudo subir el Infosheet.");
+  return result;
+}
+
 function activeRounds() {
   return Object.entries(state.rounds).filter(([, data]) => data.active);
 }
@@ -598,7 +607,7 @@ function applyRole(role, options = {}) {
 const ROLE_LABELS = {
   competitor: "Atleta",
   judge_portal: "Juez",
-  judge: "Juez de competencia",
+  judge: "Juez de evento",
   route_setter: "Aperturista",
   chief_route_setter: "Jefe de Aperturistas",
   organizer: "Organizador",
@@ -645,10 +654,10 @@ async function renderOfficialArea() {
   $("#officialProfileLevel").textContent = details.level ? `Nivel ${details.level}` : "Nivel sin asignar";
   $("#officialProfileName").textContent = state.user?.display_name || "Usuario FASA";
   $("#officialProfileClub").textContent = state.user?.club || "Club —";
-  if (!state.user?.fasa_id) { $("#officialAssignmentsList").innerHTML = "<p>No hay competencias asignadas en este perfil de demostración.</p>"; return; }
+  if (!state.user?.fasa_id) { $("#officialAssignmentsList").innerHTML = "<p>No hay eventos asignados en este perfil de demostración.</p>"; return; }
   const cv = await api(`/api/fasa-cv?fasa_id=${encodeURIComponent(state.user.fasa_id)}`);
   const applicable = cv.history.filter((item) => role === "judge" ? item.role_type === "judge" : ["route_setter", "chief_route_setter"].includes(item.role_type));
-  $("#officialAssignmentsList").innerHTML = applicable.length ? applicable.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Competencia FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>No hay competencias asignadas.</p>";
+  $("#officialAssignmentsList").innerHTML = applicable.length ? applicable.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Evento FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>No hay eventos asignados.</p>";
 }
 
 function unifiedProfileData() {
@@ -965,7 +974,7 @@ function renderRoundSchedule() {
   const competitionId = scheduleCompetitionKey();
   const competition = currentCompetition();
   if (!competitionId) {
-    table.innerHTML = '<tr><td colspan="6">Selecciona una competencia.</td></tr>';
+    table.innerHTML = '<tr><td colspan="6">Seleccioná un evento.</td></tr>';
     return;
   }
   const schedules = readRoundScheduleStore()[competitionId] || {};
@@ -1161,7 +1170,7 @@ async function exportStartOrderPdf(row) {
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>Orden de salida - ${escapeHtml(competition?.name || "Competencia")}</title>
+        <title>Orden de salida - ${escapeHtml(competition?.name || "Evento")}</title>
         <style>
           body { font-family: Arial, sans-serif; color: #202124; margin: 32px; }
           h1 { font-size: 22px; margin: 0 0 8px; }
@@ -1175,7 +1184,7 @@ async function exportStartOrderPdf(row) {
       <body>
         <h1>Orden de salida</h1>
         <div class="meta">
-          <span><strong>Competencia:</strong> ${escapeHtml(competition?.name || "-")}</span>
+          <span><strong>Evento:</strong> ${escapeHtml(competition?.name || "-")}</span>
           <span><strong>Ronda:</strong> ${escapeHtml(round?.label || roundKey)}</span>
           <span><strong>Categoria:</strong> ${escapeHtml(titleCategory)}</span>
           <span><strong>Genero:</strong> ${escapeHtml(gender)}</span>
@@ -1712,7 +1721,7 @@ function renderCompetitions() {
     const isPending = competition.status === "pending";
     const adminActions = isPending ? `<button class="primary" data-review-competition="approved" data-internal-event-id="${competition.internal_event_id}">Aprobar</button><button class="delete" data-review-competition="rejected" data-internal-event-id="${competition.internal_event_id}">Rechazar</button>` : '<span class="hint">Evento rechazado</span>';
     const regionalActions = `<button data-edit-pending-competition="${competition.id}">${isPending ? "Ver / editar" : "Editar y reenviar"}</button>`;
-    return `<tr class="${isPending ? "pending-event-row" : "rejected-event-row"}"><td>${competition.event_date}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge ${competition.status}">${isPending ? "Pendiente" : "Rechazado"}</span></td><td class="review-actions">${isAdministrator ? adminActions : regionalActions}</td></tr>`;
+    return `<tr class="${isPending ? "pending-event-row" : "rejected-event-row"}"><td>${formatEventDateRange(competition)}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge ${competition.status}">${isPending ? "Pendiente" : "Rechazado"}</span></td><td class="review-actions">${isAdministrator ? adminActions : regionalActions}</td></tr>`;
   }).join("") : '<tr><td colspan="9">No hay eventos pendientes de revisión.</td></tr>';
   $("#pendingCompetitionsTable").querySelectorAll("[data-review-competition]").forEach((button) => button.addEventListener("click", async () => {
     const decision = button.dataset.reviewCompetition;
@@ -1728,7 +1737,7 @@ function renderCompetitions() {
     const personName = (person) => person.first_name || person.last_name ? `${person.last_name || ""}, ${person.first_name || ""}`.replace(/^, |, $/, "") : "—";
     return `
       <tr>
-        <td>${competition.event_date}</td>
+        <td>${formatEventDateRange(competition)}</td>
         <td>${competition.name}</td>
         <td>${competition.competition_type}</td>
         <td>${competition.region || "-"}</td>
@@ -1752,18 +1761,34 @@ function renderCompetitions() {
   $("#competitionsTable").querySelectorAll("[data-delete-competition]").forEach((button) => {
     button.addEventListener("click", async () => {
       const competition = state.competitions.find((item) => Number(item.id) === Number(button.dataset.deleteCompetition));
-      const description = competition ? `“${competition.name}” · ${competition.event_date} · ${competition.region || "Nacional"}` : "esta competencia";
+      const description = competition ? `“${competition.name}” · ${formatEventDateRange(competition)} · ${competition.region || "Nacional"}` : "este evento";
       if (!confirm(`¿Eliminar definitivamente ${description}?`)) return;
       try {
         await api(`/api/competitions/${button.dataset.deleteCompetition}`, { method: "DELETE" });
         if (Number(button.dataset.deleteCompetition) === state.currentCompetitionId) state.currentCompetitionId = null;
-        $("#competitionStatus").textContent = "Competencia eliminada.";
+        $("#competitionStatus").textContent = "Evento eliminado.";
         await loadCompetitions();
       } catch (error) {
-        $("#competitionStatus").textContent = error.message || "No se pudo eliminar la competencia.";
+        $("#competitionStatus").textContent = error.message || "No se pudo eliminar el evento.";
       }
     });
   });
+}
+
+function formatEventDateRange(competition) {
+  const start = String(competition?.event_date || "");
+  const end = String(competition?.end_date || start);
+  return end && end !== start ? `${start} al ${end}` : start;
+}
+
+function eventTouchesMonth(competition, month) {
+  if (!month) return true;
+  const monthStart = `${month}-01`;
+  const monthDate = new Date(`${monthStart}T12:00:00Z`);
+  const monthEnd = new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  const start = String(competition.event_date || "");
+  const end = String(competition.end_date || start);
+  return Boolean(start && start <= monthEnd && end >= monthStart);
 }
 
 function renderPublicCalendar() {
@@ -1775,41 +1800,42 @@ function renderPublicCalendar() {
     if (filters.type && competition.competition_type !== filters.type) return false;
     if (filters.modality && competition.modality !== filters.modality) return false;
     if (filters.region && (competition.region || "") !== filters.region) return false;
-    if (filters.month && String(competition.event_date || "").slice(0, 7) !== filters.month) return false;
+    if (filters.month && !eventTouchesMonth(competition, filters.month)) return false;
     return true;
   }).sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
   if (state.competitions.length === 0) {
-    $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay competencias programadas.</p>';
+    $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay eventos programados.</p>';
     return;
   }
   if (filtered.length === 0) {
-    $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay competencias para los filtros seleccionados.</p>';
+    $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay eventos para los filtros seleccionados.</p>';
     return;
   }
   $("#publicCompetitionCalendar").innerHTML = filtered.map((competition) => `
     <article class="calendar-item" data-public-competition="${competition.id}">
-      <time>${competition.event_date}</time>
+      <time>${formatEventDateRange(competition)}</time>
       <div>
         <strong>${competition.name}</strong>
         <span>${competition.competition_type} - ${competition.modality} - ${competition.category}</span>
         <span>${competition.organizer_club}${competition.region ? ` - ${competition.region}` : ""}</span>
+        ${competition.infosheet_url ? `<a class="infosheet-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
       </div>
     </article>
   `).join("");
   $("#publicCompetitionCalendar").querySelectorAll("[data-public-competition]").forEach((item) => {
     item.addEventListener("click", () => selectPublicCompetition(Number(item.dataset.publicCompetition)));
   });
+  $("#publicCompetitionCalendar").querySelectorAll(".infosheet-link").forEach((link) => link.addEventListener("click", (event) => event.stopPropagation()));
 }
 
 function renderMonthRail() {
   const rail = $("#calendarMonthRail");
   if (!rail) return;
   const formatter = new Intl.DateTimeFormat("es-AR", { month: "long" });
-  const eventMonths = new Set(state.competitions.filter((competition) => competition.status === "approved").map((competition) => String(competition.event_date || "").slice(0, 7)).filter(Boolean));
   const months = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
   rail.innerHTML = months.map((month) => {
     const date = new Date(`${month}-02T12:00:00`);
-    const enabled = eventMonths.has(month);
+    const enabled = state.competitions.some((competition) => competition.status === "approved" && eventTouchesMonth(competition, month));
     return `<button class="month-button ${state.publicCalendarFilters.month === month ? "active" : ""}" type="button" data-month="${month}" ${enabled ? "" : "disabled"}><strong>${formatter.format(date)}</strong></button>`;
   }).join("");
   $("#calendarYear").classList.toggle("active", !state.publicCalendarFilters.month);
@@ -1829,11 +1855,12 @@ async function selectPublicCompetition(id) {
     <p class="eyebrow">${competition.competition_type} · ${competition.category}</p>
     <h2>${competition.name}</h2>
     <div class="competition-meta">
-      <span><strong>Fecha</strong>${competition.event_date}</span>
+      <span><strong>Fechas</strong>${formatEventDateRange(competition)}</span>
       <span><strong>Disciplina</strong>${competition.modality}</span>
       <span><strong>Región</strong>${competition.region || "Nacional"}</span>
       <span><strong>Organiza</strong>${competition.organizer_club}</span>
     </div>
+    ${competition.infosheet_url ? `<a class="button-link infosheet-detail-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
   `;
   const results = $("#competitionPublicResults");
   results.innerHTML = '<p class="hint">Cargando resultados…</p>';
@@ -1923,7 +1950,7 @@ function renderJudgePortal() {
       <td><button data-enter-official="${competition.competition_id}" data-official-role="judge">Entrar</button></td>
     </tr>
   `).join("");
-  $("#judgePortalCompetitions").innerHTML = administered + assigned || '<tr><td colspan="7">No tenes competencias asignadas.</td></tr>';
+  $("#judgePortalCompetitions").innerHTML = administered + assigned || '<tr><td colspan="7">No tenés eventos asignados.</td></tr>';
   $("#judgePortalCompetitions").querySelectorAll("[data-enter-official]").forEach((button) => {
     button.addEventListener("click", async () => {
       state.currentCompetitionId = Number(button.dataset.enterOfficial);
@@ -1991,6 +2018,7 @@ function renderCompetitorPortal() {
 
 function resetCompetitionForm() {
   $("#competitionForm").reset();
+  $("#competitionForm").elements.end_date.min = "";
   $("#competitionForm").elements.id.value = "";
   $("#competitionForm").elements.organizer_fasa_id.value = "";
   $("#competitionForm").elements.jury_president_fasa_id.value = "";
@@ -2000,7 +2028,8 @@ function resetCompetitionForm() {
   $("#competitionForm").elements.organizer_dni.value = "";
   $("#competitionForm").elements.organizer_username.value = "";
   $("#competitionForm").elements.organizer_person_club.value = "";
-  $("#saveCompetitionButton").textContent = "Crear competencia";
+  $("#saveCompetitionButton").textContent = "Crear evento";
+  $("#infosheetCurrent").textContent = "Podés adjuntar un PDF de hasta 15 MB. Será público desde el calendario.";
   $("#cancelCompetitionEdit").hidden = true;
   $("#competitionStatus").textContent = "";
   applyCompetitionFormRole();
@@ -2026,11 +2055,16 @@ function editCompetition(id) {
   form.elements.id.value = competition.id;
   form.elements.name.value = competition.name;
   form.elements.event_date.value = competition.event_date;
+  form.elements.end_date.value = competition.end_date || competition.event_date;
+  form.elements.end_date.min = competition.event_date;
   form.elements.competition_type.value = competition.competition_type;
   form.elements.region.value = competition.region || "Buenos Aires";
   form.elements.modality.value = competition.modality;
   form.elements.category.value = competition.category;
   form.elements.organizer_club.value = competition.organizer_club;
+  $("#infosheetCurrent").innerHTML = competition.infosheet_url
+    ? `Infosheet actual: <a href="${competition.infosheet_url}" download>${competition.infosheet_filename || "Descargar PDF"}</a>. Elegí otro archivo para reemplazarlo.`
+    : "Este evento todavía no tiene un Infosheet. Podés adjuntar un PDF de hasta 15 MB.";
   const organizer = competition.organizer_person || competition.organizer_user || {};
   form.elements.organizer_fasa_id.value = competition.organizer_fasa_id || organizer.fasa_id || "";
   form.elements.organizer_last_name.value = organizer.last_name || "";
@@ -2045,7 +2079,7 @@ function editCompetition(id) {
   renderChiefRouteSetterSummary();
   $("#saveCompetitionButton").textContent = "Guardar cambios";
   $("#cancelCompetitionEdit").hidden = false;
-  $("#competitionStatus").textContent = competition.status === "pending" ? "Estás viendo un evento pendiente. Podés modificarlo y volver a enviarlo para aprobación." : competition.status === "rejected" ? "Este evento fue rechazado. Editalo y volvé a enviarlo para una nueva revisión." : "Editando competencia aprobada.";
+  $("#competitionStatus").textContent = competition.status === "pending" ? "Estás viendo un evento pendiente. Podés modificarlo y volver a enviarlo para aprobación." : competition.status === "rejected" ? "Este evento fue rechazado. Editalo y volvé a enviarlo para una nueva revisión." : "Editando evento aprobado.";
   $("#competitionType").dispatchEvent(new Event("change"));
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -2221,7 +2255,7 @@ async function loadFasaCv() {
   if (!state.user?.fasa_id) { $("#fasaCvHistory").innerHTML = "<p>El perfil de demostración todavía no tiene un historial asociado.</p>"; return; }
   const cv = await api(`/api/fasa-cv?fasa_id=${encodeURIComponent(state.user.fasa_id)}`);
   $("#fasaCvRoles").innerHTML = cv.roles.map((role) => { const level = cv.role_details?.[role]?.level; return `<span>${ROLE_LABELS[role] || role}${level ? ` · Nivel ${level}` : ""}</span>`; }).join("");
-  $("#fasaCvHistory").innerHTML = cv.history.length ? cv.history.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Competencia FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>Todavía no hay participaciones registradas.</p>";
+  $("#fasaCvHistory").innerHTML = cv.history.length ? cv.history.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Evento FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>Todavía no hay participaciones registradas.</p>";
 }
 
 async function loadFasaManagement() {
@@ -2331,7 +2365,7 @@ async function loadRegistrations() {
   const competitionId = state.currentCompetitionId || state.user?.competition_id;
   if (!competitionId) {
     $("#registrationsTitle").textContent = "Inscriptos";
-    $("#registrationsTable").innerHTML = '<tr><td colspan="14">Selecciona una competencia.</td></tr>';
+    $("#registrationsTable").innerHTML = '<tr><td colspan="14">Seleccioná un evento.</td></tr>';
     renderRegistrationActions();
     return;
   }
@@ -2450,7 +2484,7 @@ function deleteRegistration(row) {
 
 function closeAccreditations() {
   if (!canManageRegistrations() || !registrationCompetitionKey()) return;
-  if (!confirm("Cerrar acreditaciones para esta competencia? Despues no se podran modificar pagos ni acreditaciones.")) return;
+  if (!confirm("¿Cerrar acreditaciones para este evento? Después no se podrán modificar pagos ni acreditaciones.")) return;
   const store = readRegistrationStore();
   store.closed = store.closed || {};
   store.closed[registrationCompetitionKey()] = true;
@@ -2920,6 +2954,11 @@ function bindEvents() {
   }
   $("#competitionType").addEventListener("change", toggleRegionField);
   toggleRegionField();
+  $("#competitionForm").elements.event_date.addEventListener("change", (event) => {
+    const endDate = $("#competitionForm").elements.end_date;
+    endDate.min = event.target.value;
+    if (!endDate.value || endDate.value < event.target.value) endDate.value = event.target.value;
+  });
   $("#openOrganizerEditor")?.addEventListener("click", openOrganizerEditor);
   $("#organizerFasaPicker").addEventListener("change", (event) => {
     const person = state.fasaProfiles.find((item) => item.fasa_id === event.target.value); if (!person) return;
@@ -2943,6 +2982,8 @@ function bindEvents() {
   $("#competitionForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const infosheetFile = event.currentTarget.elements.infosheet_file.files[0];
+    delete payload.infosheet_file;
     const wasEditing = Boolean(payload.id);
     const organizer = organizerFormData();
     const hasOrganizerData = organizer.fasa_id || organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.club;
@@ -2958,6 +2999,14 @@ function bindEvents() {
       $("#competitionStatus").textContent = "El DNI del organizador debe tener exactamente 8 digitos numericos.";
       return;
     }
+    if (payload.end_date < payload.event_date) {
+      $("#competitionStatus").textContent = "La fecha de finalización no puede ser anterior a la fecha de inicio.";
+      return;
+    }
+    if (infosheetFile && infosheetFile.size > 15 * 1024 * 1024) {
+      $("#competitionStatus").textContent = "El Infosheet no puede superar los 15 MB.";
+      return;
+    }
     payload.sport_category = payload.category === "Mayores" ? "mayor" : "";
     if (state.role === "regional_representative") {
       payload.creator_role = "regional_representative";
@@ -2967,13 +3016,24 @@ function bindEvents() {
     }
     if (!payload.id) delete payload.id;
     if (payload.competition_type !== "CRED") payload.region = "";
+    const saveButton = $("#saveCompetitionButton");
+    saveButton.disabled = true;
     try {
+      if (infosheetFile && infosheetFile.size) {
+        $("#competitionStatus").textContent = "Subiendo Infosheet…";
+        const uploaded = await uploadInfosheet(infosheetFile);
+        payload.infosheet_key = uploaded.key;
+        payload.infosheet_filename = uploaded.filename;
+        payload.infosheet_url = uploaded.url;
+      }
       await api("/api/competitions", { method: "POST", body: JSON.stringify(payload) });
       resetCompetitionForm();
-      $("#competitionStatus").textContent = state.role === "regional_representative" ? (wasEditing ? "Evento actualizado y enviado nuevamente para aprobación." : "Evento creado con estado pendiente. Podés verlo y editarlo mientras espera la aprobación.") : (wasEditing ? "Competencia actualizada." : "Competencia guardada y aprobada. El formulario quedó listo para crear una nueva.");
+      $("#competitionStatus").textContent = state.role === "regional_representative" ? (wasEditing ? "Evento actualizado y enviado nuevamente para aprobación." : "Evento creado con estado pendiente. Podés verlo y editarlo mientras espera la aprobación.") : (wasEditing ? "Evento actualizado." : "Evento guardado y aprobado. El formulario quedó listo para crear uno nuevo.");
       await loadCompetitions();
     } catch (error) {
       $("#competitionStatus").textContent = error.message;
+    } finally {
+      saveButton.disabled = false;
     }
   });
   $("#cancelCompetitionEdit").addEventListener("click", resetCompetitionForm);
@@ -3209,7 +3269,7 @@ function bindEvents() {
 
   $("#saveJudges").addEventListener("click", async () => {
     if (!state.currentCompetitionId) {
-      $("#judgesStatus").textContent = "Primero hay que ingresar como presidente de jurado de una competencia.";
+      $("#judgesStatus").textContent = "Primero hay que ingresar como presidente de jurado de un evento.";
       return;
     }
     try {

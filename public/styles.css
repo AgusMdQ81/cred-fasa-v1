@@ -654,6 +654,30 @@ button:hover,
   margin-top: 4px;
 }
 
+.calendar-item .infosheet-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 10px;
+  color: var(--charcoal);
+  font-weight: 900;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.infosheet-detail-link {
+  margin-top: 18px;
+}
+
+.infosheet-field {
+  grid-column: 1 / -1;
+}
+
+.infosheet-field small {
+  display: block;
+  margin-top: 6px;
+  text-transform: none;
+}
+
 .competition-actions {
   margin-top: 16px;
   border: 1px solid var(--line);

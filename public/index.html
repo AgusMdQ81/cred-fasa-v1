@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Competencias Escalada Deportiva FASA</title>
+    <title>Eventos de Escalada Deportiva FASA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
@@ -14,7 +14,7 @@
       <div class="login-panel public-grid">
         <div class="public-brand">
           <div class="brand-lockup">
-            <h1>Competencias de Escalada Deportiva</h1>
+            <h1>Eventos de Escalada Deportiva</h1>
             <img src="/assets/fasa-logo-official.jpg" alt="Federación Argentina de Ski y Andinismo - FASA" />
           </div>
         </div>
@@ -27,7 +27,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Calendario</p>
-              <h2>Competencias programadas</h2>
+              <h2>Eventos programados</h2>
             </div>
           </div>
           <div class="calendar-filters">
@@ -79,7 +79,7 @@
           <div id="competitionPublicHeader" class="competition-hero"></div>
           <section class="public-results-panel">
             <div class="section-head">
-              <div><p class="eyebrow">Resultados</p><h2>Clasificación de la competencia</h2></div>
+              <div><p class="eyebrow">Resultados</p><h2>Clasificación del evento</h2></div>
             </div>
             <div id="competitionPublicResults" class="public-rankings"></div>
           </section>
@@ -203,7 +203,7 @@
     <header id="appHeader" class="topbar hidden">
       <div>
         <div class="brand-lockup compact">
-          <h1>Competencias de Escalada Deportiva</h1>
+          <h1>Eventos de Escalada Deportiva</h1>
           <img src="/assets/fasa-logo-official.jpg" alt="Federación Argentina de Ski y Andinismo - FASA" />
         </div>
       </div>
@@ -215,7 +215,7 @@
         </div>
         <div class="private-secondary-nav">
           <div id="assignedRoles" class="assigned-roles" aria-label="Roles asignados"></div>
-          <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juecear competencia</button>
+          <button class="tab active role-hidden" data-view="judge" data-roles="judge" hidden>Juecear evento</button>
           <button class="tab role-hidden" data-view="competitions" data-roles="general_admin regional_representative" hidden>Gestionar eventos</button>
           <button class="tab role-hidden" data-view="regionalRepresentatives" data-roles="general_admin" hidden>Gestionar referentes regionales</button>
           <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Gestionar jueces</button>
@@ -224,7 +224,7 @@
           <button class="tab role-hidden" data-view="administratorManagement" data-roles="general_admin" hidden>Gestionar administradores</button>
           <button class="tab role-hidden" data-view="routeSetterTeam" data-roles="chief_route_setter" hidden>Equipo de aperturistas</button>
           <button class="tab role-hidden" data-view="officialProfile" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Perfil profesional</button>
-          <button class="tab role-hidden" data-view="officialAssignments" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Competencias asignadas</button>
+          <button class="tab role-hidden" data-view="officialAssignments" data-roles="judge judge_portal route_setter chief_route_setter" hidden>Eventos asignados</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-subview="profile" data-roles="competitor" hidden>Perfil deportivo</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-subview="registrations" data-roles="competitor" hidden>Inscripción a eventos</button>
           <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Cómputos</button>
@@ -318,13 +318,13 @@
       <section id="competitions" class="view">
         <section id="pendingCompetitionsPanel" class="panel pending-events-panel">
           <div class="section-head"><div><p class="eyebrow">Revisión administrativa</p><h2>Eventos no publicados</h2></div><span id="pendingCompetitionsCount" class="pending-count">0 pendientes</span></div>
-          <table><thead><tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club</th><th>Estado</th><th></th></tr></thead><tbody id="pendingCompetitionsTable"></tbody></table>
+          <table><thead><tr><th>Fechas</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club</th><th>Estado</th><th></th></tr></thead><tbody id="pendingCompetitionsTable"></tbody></table>
         </section>
         <section class="panel">
           <div class="section-head">
             <div>
               <p class="eyebrow">Administrador general</p>
-              <h2>Crear competencia</h2>
+              <h2>Crear evento</h2>
             </div>
           </div>
           <form id="competitionForm" class="competition-form">
@@ -332,8 +332,11 @@
             <label>Nombre
               <input name="name" required />
             </label>
-            <label>Fecha
+            <label>Fecha de inicio
               <input name="event_date" type="date" required />
+            </label>
+            <label>Fecha de finalización
+              <input name="end_date" type="date" required />
             </label>
             <label>Tipo
               <select name="competition_type" id="competitionType" required>
@@ -368,9 +371,13 @@
             <label>Club organizador
               <input name="organizer_club" required />
             </label>
+            <label class="infosheet-field">Infosheet (PDF)
+              <input name="infosheet_file" type="file" accept="application/pdf,.pdf" />
+              <small id="infosheetCurrent" class="hint">Podés adjuntar un PDF de hasta 15 MB. Será público desde el calendario.</small>
+            </label>
             <div class="form-table-block">
               <div class="section-head compact-head">
-                <h3>Roles de competencia</h3>
+                <h3>Roles del evento</h3>
               </div>
               <input name="organizer_fasa_id" type="hidden" />
               <input name="jury_president_fasa_id" id="juryPresidentSelect" type="hidden" />
@@ -401,7 +408,7 @@
                 <tbody id="chiefRouteSetterSummary"><tr><td><strong>Jefe de Aperturistas</strong></td><td colspan="5">Sin seleccionar</td><td><button id="chooseChiefRouteSetter" type="button">Elegir</button></td></tr></tbody>
               </table>
             </div>
-            <button id="saveCompetitionButton" class="primary" type="submit">Crear competencia</button>
+            <button id="saveCompetitionButton" class="primary" type="submit">Crear evento</button>
             <button id="cancelCompetitionEdit" type="button" hidden>Cancelar edicion</button>
           </form>
           <p id="competitionStatus" aria-live="polite"></p>
@@ -410,7 +417,7 @@
           <section class="panel detail-panel" role="dialog" aria-modal="true" aria-labelledby="organizerModalTitle">
             <div class="section-head">
               <div>
-                <p class="eyebrow">Rol de competencia</p>
+                <p class="eyebrow">Rol del evento</p>
                 <h2 id="organizerModalTitle">Datos del organizador</h2>
               </div>
               <button id="closeOrganizerEditor" type="button">Cerrar</button>
@@ -448,12 +455,12 @@
         </div>
         <section class="panel">
           <div class="section-head">
-            <h2>Competencias creadas</h2>
+            <h2>Eventos creados</h2>
             <button id="refreshCompetitions" type="button">Actualizar</button>
           </div>
           <table>
             <thead>
-              <tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Acciones</th></tr>
+              <tr><th>Fechas</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Acciones</th></tr>
             </thead>
             <tbody id="competitionsTable"></tbody>
           </table>
@@ -468,7 +475,7 @@
               <h2>Referentes regionales</h2>
             </div>
           </div>
-          <p class="profile-intro">Cada región admite un referente. Actúa como administrador regional: acompaña a clubes y muros de su región y los ayuda a crear y gestionar competencias regionales CRED. No se asigna como autoridad de cada evento.</p>
+          <p class="profile-intro">Cada región admite un referente. Actúa como administrador regional: acompaña a clubes y muros de su región y los ayuda a crear y gestionar eventos regionales CRED. No se asigna como autoridad de cada evento.</p>
           <p id="regionalRepresentativesStatus" aria-live="polite"></p>
           <table>
             <thead>
@@ -587,7 +594,7 @@
         </form>
       </dialog>
       <section id="routeSetterTeam" class="view">
-        <section class="panel"><div class="section-head"><div><p class="eyebrow">Competencia</p><h2>Equipo de aperturistas</h2></div><button id="saveRouteSetterTeam" class="primary" type="button">Guardar equipo</button></div><p>Como Jefe de Aperturistas podés seleccionar el equipo entre los aperturistas habilitados.</p><div id="routeSetterTeamList" class="team-picker"></div><p id="routeSetterTeamStatus" aria-live="polite"></p></section>
+        <section class="panel"><div class="section-head"><div><p class="eyebrow">Evento</p><h2>Equipo de aperturistas</h2></div><button id="saveRouteSetterTeam" class="primary" type="button">Guardar equipo</button></div><p>Como Jefe de Aperturistas podés seleccionar el equipo entre los aperturistas habilitados.</p><div id="routeSetterTeamList" class="team-picker"></div><p id="routeSetterTeamStatus" aria-live="polite"></p></section>
       </section>
 
       <section id="judgePortal" class="view">
@@ -619,11 +626,11 @@
         </section>
         <section class="panel">
           <div class="section-head">
-            <h2>Competencias asignadas</h2>
+            <h2>Eventos asignados</h2>
           </div>
           <table>
             <thead>
-              <tr><th>Fecha</th><th>Competencia</th><th>Rol</th><th>Clasi</th><th>Semi</th><th>Final</th><th></th></tr>
+              <tr><th>Fecha</th><th>Evento</th><th>Rol</th><th>Clasi</th><th>Semi</th><th>Final</th><th></th></tr>
             </thead>
             <tbody id="judgePortalCompetitions"></tbody>
           </table>
@@ -647,12 +654,12 @@
         </section>
         <section class="panel" data-athlete-subview="registrations">
           <div class="section-head">
-            <h2>Inscripcion a competencias</h2>
+            <h2>Inscripcion a eventos</h2>
             <button id="refreshCompetitorCalendar" type="button">Actualizar</button>
           </div>
           <table>
             <thead>
-              <tr><th>Fecha</th><th>Competencia</th><th>Categoria</th><th>Estado</th><th></th></tr>
+              <tr><th>Fecha</th><th>Evento</th><th>Categoria</th><th>Estado</th><th></th></tr>
             </thead>
             <tbody id="competitorCompetitionTable"></tbody>
           </table>
@@ -662,7 +669,7 @@
         <section class="panel fasa-profile-panel"><div class="section-head"><div><p class="eyebrow">Oficial FASA</p><h2 id="officialProfileTitle">Perfil profesional</h2></div></div><article class="official-card"><div><span id="officialProfileRole">Rol</span><strong id="officialProfileLevel">Nivel —</strong></div><p id="officialProfileName">Nombre y apellido</p><span id="officialProfileClub">Club —</span></article></section>
       </section>
       <section id="officialAssignments" class="view">
-        <section class="panel fasa-profile-panel"><div class="section-head"><div><p class="eyebrow">Actividad actual</p><h2>Competencias asignadas</h2></div></div><div id="officialAssignmentsList" class="cv-history"></div></section>
+        <section class="panel fasa-profile-panel"><div class="section-head"><div><p class="eyebrow">Actividad actual</p><h2>Eventos asignados</h2></div></div><div id="officialAssignmentsList" class="cv-history"></div></section>
       </section>
 
       <section id="judge" class="view active">
@@ -748,7 +755,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Control central</p>
-              <h2>Tiempo de competencia</h2>
+              <h2>Tiempo del evento</h2>
             </div>
             <div class="timer-head">
               <span id="timerRoundTitle">Ronda</span>
@@ -887,7 +894,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Formato</p>
-              <h2>Configuracion de competencia</h2>
+              <h2>Configuracion del evento</h2>
             </div>
             <button id="saveConfig" class="primary">Guardar configuracion</button>
           </div>
@@ -910,7 +917,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Accesos</p>
-              <h2>Jueces de la competencia</h2>
+              <h2>Jueces del evento</h2>
             </div>
             <button id="saveJudges" class="primary">Guardar jueces</button>
           </div>
@@ -937,7 +944,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Competencia</p>
+              <p class="eyebrow">Evento</p>
               <h2 id="registrationsTitle">Inscriptos</h2>
             </div>
             <div class="save-row">
