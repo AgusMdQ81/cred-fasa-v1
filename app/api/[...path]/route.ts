@@ -841,9 +841,17 @@ export async function POST(request: Request) {
     if (recordId && !currentRecord) return json({ error: "Evento no encontrado." }, { status: 404 });
     const currentData = currentRecord?.data ? JSON.parse(currentRecord.data) as Record<string, unknown> : {};
     const startDate = String(payload.event_date || currentData.event_date || "");
-    const endDate = String(payload.end_date || currentData.end_date || startDate);
+    const endDate = Object.prototype.hasOwnProperty.call(payload, "end_date") ? String(payload.end_date || startDate) : String(currentData.end_date || startDate);
     if (!startDate || !endDate) return json({ error: "Ingresá las fechas de inicio y finalización del evento." }, { status: 400 });
     if (endDate < startDate) return json({ error: "La fecha de finalización no puede ser anterior a la fecha de inicio." }, { status: 400 });
+    const competitionType = String(payload.competition_type || currentData.competition_type || "");
+    const modality = String(payload.modality || currentData.modality || "");
+    const category = String(payload.category || currentData.category || "");
+    const region = String(payload.region || currentData.region || "");
+    if (!['CRED', 'CAED'].includes(competitionType)) return json({ error: "Elegí si el evento es CRED o CAED." }, { status: 400 });
+    if (!['Boulder', 'Dificultad', 'Velocidad'].includes(modality)) return json({ error: "Elegí la modalidad del evento." }, { status: 400 });
+    if (!['Juveniles', 'Mayores'].includes(category)) return json({ error: "Elegí la categoría del evento." }, { status: 400 });
+    if (competitionType === 'CRED' && !region) return json({ error: "Elegí la región del evento CRED." }, { status: 400 });
     const organizerFasaId = String(payload.organizer_fasa_id || currentData.organizer_fasa_id || "");
     const juryPresidentFasaId = String(payload.jury_president_fasa_id || payload.jury_president_id || currentData.jury_president_fasa_id || "");
     const chiefRouteSetterFasaId = String(payload.chief_route_setter_fasa_id || payload.chief_route_setter_id || currentData.chief_route_setter_fasa_id || "");
@@ -855,7 +863,7 @@ export async function POST(request: Request) {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "No se pudieron validar los roles del evento." }, { status: 400 });
     }
-    const data = { ...currentData, ...payload, event_date: startDate, end_date: endDate, organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
+    const data = { ...currentData, ...payload, event_date: startDate, end_date: endDate, competition_type: competitionType, modality, category, region: competitionType === 'CRED' ? region : '', organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
     delete data.id; delete data.record_id; delete data.internal_event_id; delete data.status; delete data.creator_role; delete data.creator_fasa_id;
     delete data.jury_president_id; delete data.chief_route_setter_id; delete data.organizer_password;
     if (requestedId > 0 && requestedId < 1000) data.replaces_builtin_id = requestedId;

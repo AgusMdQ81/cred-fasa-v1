@@ -336,16 +336,19 @@
               <input name="event_date" type="date" required />
             </label>
             <label>Fecha de finalización
-              <input name="end_date" type="date" required />
+              <input name="end_date" type="date" />
+              <small class="hint">Opcional. Si queda vacía, el evento dura un solo día.</small>
             </label>
             <label>Tipo
               <select name="competition_type" id="competitionType" required>
+                <option value="" selected disabled>Elegir CRED o CAED</option>
                 <option value="CRED">CRED</option>
                 <option value="CAED">CAED</option>
               </select>
             </label>
             <label id="regionField">Region
               <select name="region" id="competitionRegion">
+                <option value="" selected disabled>Elegir región</option>
                 <option>Buenos Aires</option>
                 <option>Centro</option>
                 <option>Cuyo</option>
@@ -357,6 +360,7 @@
             </label>
             <label>Modalidad
               <select name="modality" required>
+                <option value="" selected disabled>Elegir modalidad</option>
                 <option>Boulder</option>
                 <option>Dificultad</option>
                 <option>Velocidad</option>
@@ -364,6 +368,7 @@
             </label>
             <label>Categoria
               <select name="category" required>
+                <option value="" selected disabled>Elegir categoría</option>
                 <option>Juveniles</option>
                 <option>Mayores</option>
               </select>
@@ -378,7 +383,7 @@
             </label>
             <label class="infosheet-field">Infosheet (PDF)
               <input name="infosheet_file" type="file" accept="application/pdf,.pdf" />
-              <small id="infosheetCurrent" class="hint">Podés adjuntar un PDF de hasta 15 MB. Será público desde el calendario.</small>
+              <small id="infosheetCurrent" class="hint">Opcional. Podés adjuntar un PDF de hasta 15 MB; será público desde el calendario.</small>
             </label>
             <div class="form-table-block">
               <div class="section-head compact-head">

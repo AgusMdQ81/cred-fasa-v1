@@ -2044,7 +2044,7 @@ function resetCompetitionForm() {
   $("#organizerLogoCurrent").textContent = "Podés adjuntar una imagen PNG, JPG o WebP de hasta 5 MB.";
   $("#organizerLogoPreview").hidden = true;
   $("#organizerLogoPreview").removeAttribute("src");
-  $("#infosheetCurrent").textContent = "Podés adjuntar un PDF de hasta 15 MB. Será público desde el calendario.";
+  $("#infosheetCurrent").textContent = "Opcional. Podés adjuntar un PDF de hasta 15 MB; será público desde el calendario.";
   $("#cancelCompetitionEdit").hidden = true;
   $("#competitionStatus").textContent = "";
   applyCompetitionFormRole();
@@ -2970,14 +2970,17 @@ function bindEvents() {
   });
 
   function toggleRegionField() {
-    $("#regionField").hidden = $("#competitionType").value !== "CRED";
+    const isCred = $("#competitionType").value === "CRED";
+    $("#regionField").hidden = !isCred;
+    $("#competitionRegion").required = isCred;
+    if (!isCred && state.role !== "regional_representative") $("#competitionRegion").value = "";
   }
   $("#competitionType").addEventListener("change", toggleRegionField);
   toggleRegionField();
   $("#competitionForm").elements.event_date.addEventListener("change", (event) => {
     const endDate = $("#competitionForm").elements.end_date;
     endDate.min = event.target.value;
-    if (!endDate.value || endDate.value < event.target.value) endDate.value = event.target.value;
+    if (endDate.value && endDate.value < event.target.value) endDate.value = "";
   });
   $("#competitionForm").elements.organizer_logo_file.addEventListener("change", (event) => {
     const file = event.target.files[0];
@@ -3021,6 +3024,7 @@ function bindEvents() {
     delete payload.infosheet_file;
     delete payload.organizer_logo_file;
     const wasEditing = Boolean(payload.id);
+    payload.end_date = payload.end_date || payload.event_date;
     const organizer = organizerFormData();
     const hasOrganizerData = organizer.fasa_id || organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.club;
     if (!organizer.fasa_id) {
