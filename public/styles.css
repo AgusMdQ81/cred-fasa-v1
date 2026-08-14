@@ -1083,7 +1083,7 @@ h2 {
 .athlete-rankings strong { font-size: 28px; }
 
 .fasa-profile-panel {
-  max-width: 1180px;
+  width: min(100%, 1180px);
   margin: 0 auto;
   padding: clamp(8px, 2vw, 24px);
 }
@@ -1342,6 +1342,8 @@ main {
 #unifiedProfile.view.active {
   background: transparent;
   border: 0;
+  justify-items: stretch;
+  min-height: 500px;
 }
 
 #judge.active {
