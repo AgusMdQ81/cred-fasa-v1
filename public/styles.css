@@ -92,16 +92,6 @@ button:hover,
   transition: background-image .35s ease;
 }
 
-.login-gate::before {
-  content: "";
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: -1;
-  height: 220px;
-  pointer-events: none;
-  background: linear-gradient(to bottom, rgba(7, 22, 35, .97) 0%, rgba(7, 22, 35, .86) 46%, rgba(7, 22, 35, .38) 76%, transparent 100%);
-}
-
 .login-gate[data-public-view="athletesView"] {
   background-image:
     linear-gradient(110deg, rgba(7, 22, 35, 0.88) 0%, rgba(7, 22, 35, 0.48) 42%, rgba(7, 22, 35, 0.12) 100%),
@@ -149,7 +139,10 @@ button:hover,
   gap: 18px;
   min-height: 148px;
   padding: 8px clamp(10px, 1.6vw, 24px);
-  background: transparent;
+  background: linear-gradient(to bottom, rgba(7, 22, 35, .98) 0%, rgba(7, 22, 35, .9) 42%, rgba(7, 22, 35, .68) 72%, rgba(7, 22, 35, .38) 100%);
+  box-shadow: 0 14px 30px rgba(7, 22, 35, .14);
+  backdrop-filter: blur(7px) saturate(.9);
+  -webkit-backdrop-filter: blur(7px) saturate(.9);
 }
 
 .public-site-header::after {
