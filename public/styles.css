@@ -138,11 +138,12 @@ button:hover,
   align-items: center;
   gap: 18px;
   min-height: 148px;
-  padding: 8px clamp(10px, 1.6vw, 24px);
-  background: linear-gradient(to bottom, rgba(7, 22, 35, .98) 0%, rgba(7, 22, 35, .9) 42%, rgba(7, 22, 35, .68) 72%, rgba(7, 22, 35, .38) 100%);
-  box-shadow: 0 14px 30px rgba(7, 22, 35, .14);
-  backdrop-filter: blur(7px) saturate(.9);
-  -webkit-backdrop-filter: blur(7px) saturate(.9);
+  width: 100vw;
+  margin-top: calc(clamp(12px, 2.2vw, 28px) * -1);
+  margin-bottom: -22px;
+  margin-left: calc(50% - 50vw);
+  padding: 8px max(clamp(10px, 1.6vw, 24px), calc((100vw - 1480px) / 2 + 24px));
+  background: linear-gradient(to bottom, rgba(7, 22, 35, .98) 0%, rgba(7, 22, 35, .9) 38%, rgba(7, 22, 35, .58) 68%, rgba(7, 22, 35, .24) 84%, rgba(7, 22, 35, 0) 100%);
 }
 
 .public-site-header::after {
@@ -767,7 +768,7 @@ button:hover,
   height: 168px;
   padding: 8px clamp(12px, 2.2vw, 28px);
   background:
-    linear-gradient(to bottom, rgba(7,22,35,.97) 0%, rgba(7,22,35,.86) 46%, rgba(7,22,35,.38) 78%, rgba(7,22,35,.08) 100%),
+    linear-gradient(to bottom, rgba(7,22,35,.97) 0%, rgba(7,22,35,.86) 42%, rgba(7,22,35,.42) 72%, rgba(7,22,35,0) 100%),
     url("/assets/climber-clean-background.png") center 35% / cover;
   color: white;
 }
@@ -1050,8 +1051,18 @@ h2 {
   min-height: 32px;
   padding: 0 9px;
   font-size: 10px;
-  border-color: rgba(255,255,255,.35);
-  background: rgba(7,22,35,.2);
+  border-color: transparent;
+  background: transparent;
+}
+
+.private-account-nav .tab,
+.private-account-nav .tab:hover,
+.private-account-nav .tab.active {
+  color: white;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
 }
 
 .athlete-credential-panel { display: grid; justify-items: start; }

@@ -578,7 +578,7 @@ function openCompetitionView(competitionId, view) {
 
 function applyRole(role, options = {}) {
   state.role = role;
-  state.privateRoleOpen = true;
+  state.privateRoleOpen = Boolean(options.openRole);
   localStorage.setItem("credFasaRole", role);
   $("#loginGate").classList.add("hidden");
   $("#appHeader").classList.remove("hidden");
@@ -634,8 +634,14 @@ function renderAssignedRoles() {
   currentLabel.textContent = "";
   currentLabel.classList.add("hidden");
   currentLabel.classList.remove("has-approval-alert");
+  document.querySelectorAll(".private-secondary-nav .tab[data-view]").forEach((button) => {
+    if (!state.privateRoleOpen) {
+      button.hidden = true;
+      button.style.display = "none";
+    }
+  });
   container.innerHTML = `${roles.map((role) => `
-    <button class="role-chip ${role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
+    <button class="role-chip ${state.privateRoleOpen && role === state.role ? "active" : ""}" type="button" data-switch-role="${role}">
       ${ROLE_LABELS[role] || role}${role === "general_admin" && pendingApprovals ? `<span class="approval-alert" title="${pendingApprovals} evento(s) pendiente(s) de aprobación"></span>` : ""}
     </button>
   `).join("")}`;
@@ -3151,6 +3157,10 @@ function bindEvents() {
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
       if (!button.dataset.view) return;
+      if (["unifiedProfile", "fasaCv"].includes(button.dataset.view)) {
+        state.privateRoleOpen = false;
+        renderAssignedRoles();
+      }
       activateView(button.dataset.view, { subview: button.dataset.subview });
     });
   });
