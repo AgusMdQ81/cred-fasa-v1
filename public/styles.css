@@ -791,16 +791,22 @@ h2 {
   text-transform: uppercase;
 }
 
-.role-chip {
+.role-chip,
+.private-secondary-nav > .tab {
   min-height: 34px;
   padding: 0 10px;
   border-color: rgba(255,255,255,.35);
   background: transparent;
   color: white;
   font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
-.role-chip.active {
+.role-chip.active,
+.private-secondary-nav > .tab.active {
   color: var(--charcoal);
   background: white;
 }
@@ -834,7 +840,7 @@ h2 {
   opacity: .72;
 }
 
-.cv-tab { border-color: rgba(255,255,255,.35); white-space: nowrap; }
+.cv-tab { border-color: rgba(255,255,255,.35); }
 .cv-role-summary { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 24px; }
 .cv-role-summary span { padding: 9px 13px; color: white; background: var(--charcoal); font-weight: 900; }
 .cv-history { display: grid; gap: 10px; }
