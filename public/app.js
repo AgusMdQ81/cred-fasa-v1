@@ -1670,7 +1670,7 @@ function renderRegionalRepresentatives() {
   if (!$("#regionalRepresentativesTable")) return;
   $("#regionalRepresentativesTable").innerHTML = REGIONS.map((region) => {
     const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
-    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button>${person ? `<button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button>` : ""}</td></tr>`;
+    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name}, ${person.first_name}` : "Sin asignar"}</td><td>${person?.dni || "—"}</td><td>${person?.mail || person?.email || "—"}</td><td>${person?.club || "—"}</td><td>${person ? "Activo" : "Sin asignar"}</td><td><button type="button" data-choose-regional="${region}">${person ? "Cambiar" : "Elegir"}</button>${person ? `<button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button>` : ""}</td></tr>`;
   }).join("");
   $("#regionalRepresentativesTable").querySelectorAll("[data-choose-regional]").forEach((button) => button.addEventListener("click", async () => {
     const region = button.dataset.chooseRegional;
