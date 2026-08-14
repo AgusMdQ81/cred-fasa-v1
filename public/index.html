@@ -372,13 +372,13 @@
               <div class="section-head compact-head">
                 <h3>Roles de competencia</h3>
               </div>
-              <input name="jury_president_id" id="juryPresidentSelect" type="hidden" />
-              <input name="chief_route_setter_id" id="chiefRouteSetterSelect" type="hidden" />
+              <input name="organizer_fasa_id" type="hidden" />
+              <input name="jury_president_fasa_id" id="juryPresidentSelect" type="hidden" />
+              <input name="chief_route_setter_fasa_id" id="chiefRouteSetterSelect" type="hidden" />
               <input name="organizer_last_name" type="hidden" />
               <input name="organizer_name" type="hidden" />
               <input name="organizer_dni" type="hidden" />
               <input name="organizer_username" type="hidden" />
-              <input name="organizer_password" type="hidden" />
               <input name="organizer_person_club" type="hidden" />
               <table id="competitionRolesTable" class="form-table">
                 <thead>
@@ -421,7 +421,6 @@
               <label>Nombre <input data-organizer-field="first_name" /></label>
               <label>DNI <input data-organizer-field="dni" inputmode="numeric" pattern="\d{8}" maxlength="8" /></label>
               <label>Mail <input data-organizer-field="username" type="email" /></label>
-              <label>Contraseña <input data-organizer-field="password" /></label>
               <label>Club <input data-organizer-field="club" /></label>
             </div>
             <div class="save-row">
@@ -454,7 +453,7 @@
           </div>
           <table>
             <thead>
-              <tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Region</th><th>Modalidad</th><th>Categoria</th><th>Club</th><th>Estado</th><th>Presidente</th><th>Usuario PJ</th><th>Usuario organizador</th><th></th></tr>
+              <tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Acciones</th></tr>
             </thead>
             <tbody id="competitionsTable"></tbody>
           </table>

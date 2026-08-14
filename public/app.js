@@ -533,7 +533,10 @@ function activateView(view, options = {}) {
   $(`#${safeView}`).classList.add("active");
   if (safeView === "judge") loadCompetitors();
   if (safeView === "judgePeople") loadJudgePeople();
-  if (safeView === "competitions" && state.role === "general_admin") loadRouteSetterPeople();
+  if (safeView === "competitions") {
+    loadRouteSetterPeople();
+    populateCompetitionRolePickers();
+  }
   if (safeView === "regionalRepresentatives") loadRegionalRepresentatives();
   if (safeView === "routeSetterPeople") loadRouteSetterPeople();
   if (safeView === "routeSetterTeam") loadRouteSetterTeam();
@@ -586,6 +589,7 @@ function applyRole(role, options = {}) {
     $("#judgeName").readOnly = false;
   }
   renderRounds();
+  renderCompetitions();
   renderAssignedRoles();
   applyCompetitionFormRole();
   activateView(options.openRole ? roleHome(role) : defaultView(role));
@@ -1491,8 +1495,8 @@ function renderJuryPresidentOptions() {
   }
   renderOrganizerSummary();
   const eligible = state.judgePeople.filter((person) => person.active !== false && Number(person.level) >= 2);
-  const selectedId = Number($("#juryPresidentSelect").value || 0);
-  const selected = eligible.find((person) => Number(person.id) === selectedId);
+  const selectedId = String($("#juryPresidentSelect").value || "");
+  const selected = eligible.find((person) => String(person.fasa_id || person.id) === selectedId);
   if ($("#juryPresidentSummary")) {
     $("#juryPresidentSummary").innerHTML = selected
       ? `
@@ -1515,11 +1519,11 @@ function renderJuryPresidentOptions() {
 function organizerFormData() {
   const form = $("#competitionForm");
   return {
+    fasa_id: form.elements.organizer_fasa_id.value,
     last_name: form.elements.organizer_last_name.value,
     first_name: form.elements.organizer_name.value,
     dni: form.elements.organizer_dni.value,
     username: form.elements.organizer_username.value,
-    password: form.elements.organizer_password.value,
     club: form.elements.organizer_person_club.value,
   };
 }
@@ -1547,9 +1551,10 @@ function renderOrganizerSummary() {
 async function openOrganizerEditor() {
   await openPersonPicker("Elegir organizador", null, (person) => {
     const form = $("#competitionForm");
+    form.elements.organizer_fasa_id.value = person.fasa_id || "";
     form.elements.organizer_last_name.value = person.last_name || ""; form.elements.organizer_name.value = person.first_name || "";
     form.elements.organizer_dni.value = person.dni || ""; form.elements.organizer_username.value = person.email || person.mail || "";
-    form.elements.organizer_password.value = "admin"; form.elements.organizer_person_club.value = person.club || "";
+    form.elements.organizer_person_club.value = person.club || "";
     renderOrganizerSummary();
   });
 }
@@ -1565,7 +1570,6 @@ function saveOrganizerEditor() {
   form.elements.organizer_name.value = $('[data-organizer-field="first_name"]').value.trim();
   form.elements.organizer_dni.value = $('[data-organizer-field="dni"]').value.trim();
   form.elements.organizer_username.value = $('[data-organizer-field="username"]').value.trim();
-  form.elements.organizer_password.value = $('[data-organizer-field="password"]').value.trim();
   form.elements.organizer_person_club.value = $('[data-organizer-field="club"]').value.trim();
   closeOrganizerEditor();
   renderOrganizerSummary();
@@ -1583,7 +1587,7 @@ function renderJuryPresidentPicker() {
         <td>${person.dni || "-"}</td>
         <td>${person.mail || "-"}</td>
         <td>${person.club || "-"}</td>
-        <td><button type="button" data-select-jury-president="${person.id}">Elegir</button></td>
+        <td><button type="button" data-select-jury-president="${person.fasa_id || person.id}">Elegir</button></td>
       </tr>
     `).join("")
     : '<tr><td colspan="6">No hay jueces activos de nivel 2 o superior.</td></tr>';
@@ -1605,6 +1609,26 @@ function openJuryPresidentPicker() {
 function closeJuryPresidentPicker() {
   $("#juryPresidentModal").classList.add("hidden");
   document.body.classList.remove("modal-open");
+}
+
+function renderChiefRouteSetterSummary() {
+  const container = $("#chiefRouteSetterSummary");
+  if (!container) return;
+  const selectedId = String($("#chiefRouteSetterSelect").value || "");
+  const person = state.routeSetterPeople.find((item) => String(item.fasa_id || item.id) === selectedId);
+  container.innerHTML = person
+    ? `<tr><td><strong>Jefe de Aperturistas</strong></td><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.email || person.mail || "—"}</td><td>${person.club || "—"}</td><td><button id="chooseChiefRouteSetter" type="button">Cambiar</button></td></tr>`
+    : '<tr><td><strong>Jefe de Aperturistas</strong></td><td colspan="5">Sin seleccionar</td><td><button id="chooseChiefRouteSetter" type="button">Elegir</button></td></tr>';
+  $("#chooseChiefRouteSetter")?.addEventListener("click", chooseChiefRouteSetter);
+}
+
+async function chooseChiefRouteSetter() {
+  if (!state.routeSetterPeople.length) await loadRouteSetterPeople();
+  const eligibleIds = new Set(state.routeSetterPeople.filter((person) => person.active !== false).map((person) => person.fasa_id));
+  await openPersonPicker("Elegir Jefe de Aperturistas", (person) => eligibleIds.has(person.fasa_id), (person) => {
+    $("#chiefRouteSetterSelect").value = person.fasa_id;
+    renderChiefRouteSetterSummary();
+  });
 }
 
 function regionOptions(selected = "") {
@@ -1686,25 +1710,22 @@ function renderCompetitions() {
   $("#pendingCompetitionsCount").textContent = rejected.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"} · ${rejected.length} rechazado${rejected.length === 1 ? "" : "s"}` : `${pending.length} pendiente${pending.length === 1 ? "" : "s"}`;
   $("#pendingCompetitionsTable").innerHTML = reviewCompetitions.length ? reviewCompetitions.map((competition) => {
     const isPending = competition.status === "pending";
-    const adminActions = isPending ? `<button class="primary" data-review-competition="approved" data-record-id="${competition.record_id}">Aprobar</button><button class="delete" data-review-competition="rejected" data-record-id="${competition.record_id}">Rechazar</button>` : '<span class="hint">Evento rechazado</span>';
+    const adminActions = isPending ? `<button class="primary" data-review-competition="approved" data-internal-event-id="${competition.internal_event_id}">Aprobar</button><button class="delete" data-review-competition="rejected" data-internal-event-id="${competition.internal_event_id}">Rechazar</button>` : '<span class="hint">Evento rechazado</span>';
     const regionalActions = `<button data-edit-pending-competition="${competition.id}">${isPending ? "Ver / editar" : "Editar y reenviar"}</button>`;
     return `<tr class="${isPending ? "pending-event-row" : "rejected-event-row"}"><td>${competition.event_date}</td><td>${competition.name}</td><td>${competition.competition_type}</td><td>${competition.region || "—"}</td><td>${competition.modality}</td><td>${competition.category}</td><td>${competition.organizer_club}</td><td><span class="status-badge ${competition.status}">${isPending ? "Pendiente" : "Rechazado"}</span></td><td class="review-actions">${isAdministrator ? adminActions : regionalActions}</td></tr>`;
   }).join("") : '<tr><td colspan="9">No hay eventos pendientes de revisión.</td></tr>';
   $("#pendingCompetitionsTable").querySelectorAll("[data-review-competition]").forEach((button) => button.addEventListener("click", async () => {
     const decision = button.dataset.reviewCompetition;
     if (decision === "rejected" && !confirm("¿Rechazar este evento? El referente podrá editarlo y volver a enviarlo.")) return;
-    await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ record_id: Number(button.dataset.recordId), decision }) });
+    await api("/api/competition-approval", { method: "POST", body: JSON.stringify({ internal_event_id: Number(button.dataset.internalEventId), decision }) });
     await loadCompetitions();
   }));
   $("#pendingCompetitionsTable").querySelectorAll("[data-edit-pending-competition]").forEach((button) => button.addEventListener("click", () => editCompetition(Number(button.dataset.editPendingCompetition))));
   $("#competitionsTable").innerHTML = visibleCompetitions.map((competition) => {
     const president = competition.jury_president || {};
-    const adminUser = competition.admin_user?.username
-      ? `${competition.admin_user.username} / ${competition.admin_user.password}`
-      : "-";
-    const organizerUser = competition.organizer_user?.username
-      ? `${competition.organizer_user.username} / ${competition.organizer_user.password}`
-      : "-";
+    const organizer = competition.organizer_person || competition.organizer_user || {};
+    const chiefRouteSetter = competition.chief_route_setter || {};
+    const personName = (person) => person.first_name || person.last_name ? `${person.last_name || ""}, ${person.first_name || ""}`.replace(/^, |, $/, "") : "—";
     return `
       <tr>
         <td>${competition.event_date}</td>
@@ -1715,33 +1736,32 @@ function renderCompetitions() {
         <td>${competition.category}</td>
         <td>${competition.organizer_club}</td>
         <td><span class="status-badge approved">Aprobado</span></td>
-        <td>${president.id ? `${president.last_name}, ${president.first_name}` : "-"}</td>
-        <td>${adminUser}</td>
-        <td>${organizerUser}</td>
+        <td>${personName(organizer)}</td>
+        <td>${personName(president)}</td>
+        <td>${personName(chiefRouteSetter)}</td>
         <td class="row-actions">
-          ${state.role === "general_admin" ? `<button data-open-competition-view="registrations" data-competition-id="${competition.id}">Inscriptos</button>` : ""}
-          ${state.role === "general_admin" ? `<button data-open-competition-view="computos" data-competition-id="${competition.id}">Computos</button>` : ""}
-          ${state.role === "general_admin" ? `<button data-open-competition-view="results" data-competition-id="${competition.id}">Resultados</button>` : ""}
           <button data-edit-competition="${competition.id}">Editar</button>
-          ${state.role === "general_admin" ? `<button class="delete" data-delete-competition="${competition.id}">Eliminar</button>` : ""}
+          ${isAdministrator ? `<button class="delete" data-delete-competition="${competition.id}">Eliminar</button>` : ""}
         </td>
       </tr>
     `;
   }).join("");
-  $("#competitionsTable").querySelectorAll("[data-open-competition-view]").forEach((button) => {
-    button.addEventListener("click", () => {
-      openCompetitionView(button.dataset.competitionId, button.dataset.openCompetitionView);
-    });
-  });
   $("#competitionsTable").querySelectorAll("[data-edit-competition]").forEach((button) => {
     button.addEventListener("click", () => editCompetition(Number(button.dataset.editCompetition)));
   });
   $("#competitionsTable").querySelectorAll("[data-delete-competition]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm("Eliminar competencia?")) return;
-      await api(`/api/competitions/${button.dataset.deleteCompetition}`, { method: "DELETE" });
-      if (Number(button.dataset.deleteCompetition) === state.currentCompetitionId) state.currentCompetitionId = null;
-      await loadCompetitions();
+      const competition = state.competitions.find((item) => Number(item.id) === Number(button.dataset.deleteCompetition));
+      const description = competition ? `“${competition.name}” · ${competition.event_date} · ${competition.region || "Nacional"}` : "esta competencia";
+      if (!confirm(`¿Eliminar definitivamente ${description}?`)) return;
+      try {
+        await api(`/api/competitions/${button.dataset.deleteCompetition}`, { method: "DELETE" });
+        if (Number(button.dataset.deleteCompetition) === state.currentCompetitionId) state.currentCompetitionId = null;
+        $("#competitionStatus").textContent = "Competencia eliminada.";
+        await loadCompetitions();
+      } catch (error) {
+        $("#competitionStatus").textContent = error.message || "No se pudo eliminar la competencia.";
+      }
     });
   });
 }
@@ -1972,18 +1992,20 @@ function renderCompetitorPortal() {
 function resetCompetitionForm() {
   $("#competitionForm").reset();
   $("#competitionForm").elements.id.value = "";
-  $("#competitionForm").elements.jury_president_id.value = "";
+  $("#competitionForm").elements.organizer_fasa_id.value = "";
+  $("#competitionForm").elements.jury_president_fasa_id.value = "";
+  $("#competitionForm").elements.chief_route_setter_fasa_id.value = "";
   $("#competitionForm").elements.organizer_last_name.value = "";
   $("#competitionForm").elements.organizer_name.value = "";
   $("#competitionForm").elements.organizer_dni.value = "";
   $("#competitionForm").elements.organizer_username.value = "";
-  $("#competitionForm").elements.organizer_password.value = "";
   $("#competitionForm").elements.organizer_person_club.value = "";
   $("#saveCompetitionButton").textContent = "Crear competencia";
   $("#cancelCompetitionEdit").hidden = true;
   $("#competitionStatus").textContent = "";
   applyCompetitionFormRole();
   renderJuryPresidentOptions();
+  renderChiefRouteSetterSummary();
   $("#competitionType").dispatchEvent(new Event("change"));
 }
 
@@ -2009,15 +2031,18 @@ function editCompetition(id) {
   form.elements.modality.value = competition.modality;
   form.elements.category.value = competition.category;
   form.elements.organizer_club.value = competition.organizer_club;
-  form.elements.organizer_last_name.value = competition.organizer_user?.last_name || "";
-  form.elements.organizer_name.value = competition.organizer_user?.first_name || competition.organizer_user?.display_name || competition.organizer_club;
-  form.elements.organizer_dni.value = competition.organizer_user?.dni || "";
-  form.elements.organizer_username.value = competition.organizer_user?.username || "";
-  form.elements.organizer_password.value = competition.organizer_user?.password || "";
-  form.elements.organizer_person_club.value = competition.organizer_user?.club || "";
-  form.elements.jury_president_id.value = competition.jury_president_id || "";
+  const organizer = competition.organizer_person || competition.organizer_user || {};
+  form.elements.organizer_fasa_id.value = competition.organizer_fasa_id || organizer.fasa_id || "";
+  form.elements.organizer_last_name.value = organizer.last_name || "";
+  form.elements.organizer_name.value = organizer.first_name || organizer.display_name || "";
+  form.elements.organizer_dni.value = organizer.dni || "";
+  form.elements.organizer_username.value = organizer.email || organizer.username || "";
+  form.elements.organizer_person_club.value = organizer.club || "";
+  form.elements.jury_president_fasa_id.value = competition.jury_president_fasa_id || competition.jury_president?.fasa_id || competition.jury_president_id || "";
+  form.elements.chief_route_setter_fasa_id.value = competition.chief_route_setter_fasa_id || competition.chief_route_setter?.fasa_id || "";
   applyCompetitionFormRole();
   renderJuryPresidentOptions();
+  renderChiefRouteSetterSummary();
   $("#saveCompetitionButton").textContent = "Guardar cambios";
   $("#cancelCompetitionEdit").hidden = false;
   $("#competitionStatus").textContent = competition.status === "pending" ? "Estás viendo un evento pendiente. Podés modificarlo y volver a enviarlo para aprobación." : competition.status === "rejected" ? "Este evento fue rechazado. Editalo y volvé a enviarlo para una nueva revisión." : "Editando competencia aprobada.";
@@ -2149,6 +2174,7 @@ async function loadJudges() {
 async function loadJudgePeople() {
   state.judgePeople = await api("/api/judge-people");
   renderJudgePeople();
+  renderJuryPresidentOptions();
 }
 
 async function loadRegionalRepresentatives() {
@@ -2160,6 +2186,7 @@ async function loadRouteSetterPeople() {
   state.routeSetterPeople = await api("/api/route-setter-people");
   $("#routeSetterPeopleTable").innerHTML = state.routeSetterPeople.length ? state.routeSetterPeople.map((person, index) => `<tr data-route-setter-row="${index}"><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay aperturistas asignados.</td></tr>';
   $("#routeSetterPeopleTable").querySelectorAll("[data-route-setter-row]").forEach((row) => row.addEventListener("click", () => openRouteSetterDetail(Number(row.dataset.routeSetterRow))));
+  renderChiefRouteSetterSummary();
 }
 
 function openRouteSetterDetail(index) {
@@ -2896,19 +2923,11 @@ function bindEvents() {
   $("#openOrganizerEditor")?.addEventListener("click", openOrganizerEditor);
   $("#organizerFasaPicker").addEventListener("change", (event) => {
     const person = state.fasaProfiles.find((item) => item.fasa_id === event.target.value); if (!person) return;
+    const form = $("#competitionForm"); form.elements.organizer_fasa_id.value = person.fasa_id;
     $('[data-organizer-field="last_name"]').value = person.last_name || ""; $('[data-organizer-field="first_name"]').value = person.first_name || "";
     $('[data-organizer-field="dni"]').value = person.dni || ""; $('[data-organizer-field="username"]').value = person.email || "";
-    $('[data-organizer-field="password"]').value = "admin"; $('[data-organizer-field="club"]').value = person.club || "";
+    $('[data-organizer-field="club"]').value = person.club || "";
   });
-  const chooseChiefRouteSetter = async () => {
-    if (!state.routeSetterPeople.length) await loadRouteSetterPeople();
-    const eligibleIds = new Set(state.routeSetterPeople.filter((person) => person.active !== false).map((person) => person.fasa_id));
-    await openPersonPicker("Elegir Jefe de Aperturistas", (person) => eligibleIds.has(person.fasa_id), (person) => {
-      $("#chiefRouteSetterSelect").value = person.fasa_id;
-      $("#chiefRouteSetterSummary").innerHTML = `<tr><td><strong>Jefe de Aperturistas</strong></td><td>${person.last_name}</td><td>${person.first_name}</td><td>${person.dni}</td><td>${person.email || "—"}</td><td>${person.club || "—"}</td><td><button id="chooseChiefRouteSetter" type="button">Cambiar</button></td></tr>`;
-      $("#chiefRouteSetterSummary #chooseChiefRouteSetter").addEventListener("click", chooseChiefRouteSetter);
-    });
-  };
   $("#chooseChiefRouteSetter").addEventListener("click", chooseChiefRouteSetter);
   $("#closeOrganizerEditor").addEventListener("click", closeOrganizerEditor);
   $("#saveOrganizerEditor").addEventListener("click", saveOrganizerEditor);
@@ -2926,9 +2945,13 @@ function bindEvents() {
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
     const wasEditing = Boolean(payload.id);
     const organizer = organizerFormData();
-    const hasOrganizerData = organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.password || organizer.club;
-    if (hasOrganizerData && (!organizer.first_name || !organizer.last_name || !organizer.dni || !organizer.username || !organizer.password)) {
-      $("#competitionStatus").textContent = "Carga nombre, apellido, DNI, mail y contraseña del organizador.";
+    const hasOrganizerData = organizer.fasa_id || organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.club;
+    if (!organizer.fasa_id) {
+      $("#competitionStatus").textContent = "Seleccioná al organizador desde la base FASA ID.";
+      return;
+    }
+    if (hasOrganizerData && (!organizer.first_name || !organizer.last_name || !organizer.dni || !organizer.username)) {
+      $("#competitionStatus").textContent = "La FASA ID del organizador no tiene completos nombre, apellido, DNI o mail.";
       return;
     }
     if (hasOrganizerData && !/^\d{8}$/.test(organizer.dni)) {
@@ -2946,7 +2969,6 @@ function bindEvents() {
     if (payload.competition_type !== "CRED") payload.region = "";
     try {
       await api("/api/competitions", { method: "POST", body: JSON.stringify(payload) });
-      if (payload.chief_route_setter_id) await api("/api/competition-route-setters", { method: "POST", body: JSON.stringify({ competition_id: payload.id || state.currentCompetitionId || 1, chief_fasa_id: payload.chief_route_setter_id, team_fasa_ids: [] }) });
       resetCompetitionForm();
       $("#competitionStatus").textContent = state.role === "regional_representative" ? (wasEditing ? "Evento actualizado y enviado nuevamente para aprobación." : "Evento creado con estado pendiente. Podés verlo y editarlo mientras espera la aprobación.") : (wasEditing ? "Competencia actualizada." : "Competencia guardada y aprobada. El formulario quedó listo para crear una nueva.");
       await loadCompetitions();

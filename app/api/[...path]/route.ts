@@ -284,6 +284,36 @@ async function ensureCompetitionRecords() {
   )`).run();
 }
 
+async function competitionProfile(fasaId: string) {
+  if (!fasaId) return null;
+  await ensureFasaTables();
+  return env.DB.prepare("SELECT fasa_id,dni,first_name,last_name,email,club,region,photo_url FROM fasa_profiles WHERE fasa_id=? LIMIT 1").bind(fasaId).first<Record<string, unknown>>();
+}
+
+async function requireCompetitionProfile(fasaId: string, label: string, roleType = "", minimumLevel = 0) {
+  const profile = await competitionProfile(fasaId);
+  if (!profile) throw new Error(`${label}: la FASA ID seleccionada no existe.`);
+  if (!roleType) return profile;
+  const role = await env.DB.prepare("SELECT active FROM fasa_roles WHERE fasa_id=? AND role_type=? AND active=1 LIMIT 1").bind(fasaId, roleType).first<{ active: number }>();
+  if (!role) throw new Error(`${label}: la persona seleccionada no tiene el rol requerido.`);
+  if (minimumLevel) {
+    const details = await env.DB.prepare(`SELECT data FROM ${roleDetailTable(roleType)} WHERE fasa_id=? LIMIT 1`).bind(fasaId).first<{ data: string }>();
+    const level = details?.data ? Number(JSON.parse(details.data).level || 0) : 0;
+    if (level < minimumLevel) throw new Error(`${label}: se requiere un juez de nivel ${minimumLevel} o superior.`);
+  }
+  return profile;
+}
+
+async function syncCompetitionRoles(competitionId: number, assignments: { organizer: string; juryPresident: string; chiefRouteSetter: string }) {
+  await ensureFasaTables();
+  const now = new Date().toISOString();
+  const statements = [env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=? AND role_type IN ('organizer','jury_president','chief_route_setter')").bind(competitionId)];
+  if (assignments.organizer) statements.push(env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?)").bind(competitionId, assignments.organizer, "organizer", "Organizador", now));
+  if (assignments.juryPresident) statements.push(env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?)").bind(competitionId, assignments.juryPresident, "jury_president", "Presidente de Jurado", now));
+  if (assignments.chiefRouteSetter) statements.push(env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?)").bind(competitionId, assignments.chiefRouteSetter, "chief_route_setter", "Jefe de Aperturistas", now));
+  await env.DB.batch(statements);
+}
+
 async function seedTestFasaData() {
   await ensureFasaTables();
   const roleTables = ["athlete_profiles","judge_profiles","route_setter_profiles","chief_route_setter_profiles","jury_president_profiles","regional_representative_profiles","organizer_profiles","administrator_profiles"];
@@ -432,7 +462,36 @@ export async function GET(request: Request) {
   if (path === "competitions") {
     await ensureCompetitionRecords();
     const saved = await env.DB.prepare("SELECT id,data,status,creator_role,creator_fasa_id,created_at,updated_at FROM competition_records ORDER BY id").all<{ id: number; data: string; status: string; creator_role: string; creator_fasa_id: string; created_at: string; updated_at: string }>();
-    return json([...competitions.map((item) => ({ ...item, status: "approved", creator_role: "general_admin" })), ...saved.results.map((row) => ({ ...JSON.parse(row.data), id: row.id + 1000, record_id: row.id, status: row.status, creator_role: row.creator_role, creator_fasa_id: row.creator_fasa_id, created_at: row.created_at, updated_at: row.updated_at }))]);
+    const hiddenBuiltins = new Set<number>();
+    const storedEvents = [];
+    for (const row of saved.results) {
+      const data = JSON.parse(row.data) as Record<string, unknown>;
+      const builtinId = Number(data.deleted_builtin_id || data.replaces_builtin_id || 0);
+      if (builtinId) hiddenBuiltins.add(builtinId);
+      if (row.status === "deleted") continue;
+      const organizerFasaId = String(data.organizer_fasa_id || "");
+      const juryPresidentFasaId = String(data.jury_president_fasa_id || "");
+      const chiefRouteSetterFasaId = String(data.chief_route_setter_fasa_id || "");
+      const [organizer, juryPresident, chiefRouteSetter] = await Promise.all([competitionProfile(organizerFasaId), competitionProfile(juryPresidentFasaId), competitionProfile(chiefRouteSetterFasaId)]);
+      const legacyOrganizer = data.organizer_name || data.organizer_last_name ? { first_name: data.organizer_name, last_name: data.organizer_last_name, dni: data.organizer_dni, email: data.organizer_username, username: data.organizer_username, club: data.organizer_person_club } : null;
+      storedEvents.push({
+        ...data,
+        id: row.id + 1000,
+        internal_event_id: row.id,
+        record_id: row.id,
+        status: row.status,
+        creator_role: row.creator_role,
+        creator_fasa_id: row.creator_fasa_id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        organizer_person: organizer || legacyOrganizer,
+        organizer_user: organizer ? { ...organizer, username: organizer.email } : legacyOrganizer,
+        jury_president: juryPresident,
+        chief_route_setter: chiefRouteSetter,
+      });
+    }
+    const builtinEvents = competitions.filter((item) => !hiddenBuiltins.has(item.id)).map((item) => ({ ...item, internal_event_id: `builtin-${item.id}`, status: "approved", creator_role: "general_admin" }));
+    return json([...builtinEvents, ...storedEvents]);
   }
   if (path === "judge-people") return json(await loadRoleDirectory("judge", []));
   if (path === "route-setter-people") return json(await loadRoleDirectory("route_setter", []));
@@ -699,20 +758,39 @@ export async function POST(request: Request) {
     await ensureCompetitionRecords();
     const creatorRole = String(payload.creator_role || "general_admin"); const status = creatorRole === "regional_representative" ? "pending" : "approved"; const now = new Date().toISOString();
     const requestedId = Number(payload.id || 0); const recordId = Number(payload.record_id || (requestedId >= 1000 ? requestedId - 1000 : 0));
-    const data = { ...payload }; delete data.id; delete data.record_id; delete data.status; delete data.creator_role; delete data.creator_fasa_id;
+    const currentRecord = recordId ? await env.DB.prepare("SELECT data,status,creator_role,creator_fasa_id FROM competition_records WHERE id=?").bind(recordId).first<{ data: string; status: string; creator_role: string; creator_fasa_id: string }>() : null;
+    if (recordId && !currentRecord) return json({ error: "Competencia no encontrada." }, { status: 404 });
+    const currentData = currentRecord?.data ? JSON.parse(currentRecord.data) as Record<string, unknown> : {};
+    const organizerFasaId = String(payload.organizer_fasa_id || currentData.organizer_fasa_id || "");
+    const juryPresidentFasaId = String(payload.jury_president_fasa_id || payload.jury_president_id || currentData.jury_president_fasa_id || "");
+    const chiefRouteSetterFasaId = String(payload.chief_route_setter_fasa_id || payload.chief_route_setter_id || currentData.chief_route_setter_fasa_id || "");
+    try {
+      if (!organizerFasaId) throw new Error("Seleccioná al organizador desde la base FASA ID.");
+      await requireCompetitionProfile(organizerFasaId, "Organizador");
+      if (juryPresidentFasaId) await requireCompetitionProfile(juryPresidentFasaId, "Presidente de Jurado", "judge", 2);
+      if (chiefRouteSetterFasaId) await requireCompetitionProfile(chiefRouteSetterFasaId, "Jefe de Aperturistas", "route_setter");
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "No se pudieron validar los roles de la competencia." }, { status: 400 });
+    }
+    const data = { ...currentData, ...payload, organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
+    delete data.id; delete data.record_id; delete data.internal_event_id; delete data.status; delete data.creator_role; delete data.creator_fasa_id;
+    delete data.jury_president_id; delete data.chief_route_setter_id; delete data.organizer_password;
+    if (requestedId > 0 && requestedId < 1000) data.replaces_builtin_id = requestedId;
     if (recordId) {
-      const current = await env.DB.prepare("SELECT status,creator_role,creator_fasa_id FROM competition_records WHERE id=?").bind(recordId).first<{ status: string; creator_role: string; creator_fasa_id: string }>();
-      if (!current) return json({ error: "Competencia no encontrada." }, { status: 404 });
-      if (creatorRole === "regional_representative" && current.creator_fasa_id && payload.creator_fasa_id && current.creator_fasa_id !== String(payload.creator_fasa_id)) return json({ error: "No podés editar un evento creado por otro referente." }, { status: 403 });
-      const nextStatus = creatorRole === "regional_representative" ? "pending" : current.status;
+      if (creatorRole === "regional_representative" && currentRecord?.creator_fasa_id && payload.creator_fasa_id && currentRecord.creator_fasa_id !== String(payload.creator_fasa_id)) return json({ error: "No podés editar un evento creado por otro referente." }, { status: 403 });
+      const nextStatus = creatorRole === "regional_representative" ? "pending" : String(currentRecord?.status || status);
       await env.DB.prepare("UPDATE competition_records SET data=?,status=?,updated_at=? WHERE id=?").bind(JSON.stringify(data), nextStatus, now, recordId).run();
-      return json({ ok: true, id: recordId + 1000, status: nextStatus });
+      const competitionId = recordId + 1000;
+      await syncCompetitionRoles(competitionId, { organizer: organizerFasaId, juryPresident: juryPresidentFasaId, chiefRouteSetter: chiefRouteSetterFasaId });
+      return json({ ok: true, id: competitionId, internal_event_id: recordId, status: nextStatus });
     }
     const result = await env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,?,?,?,?,?)").bind(JSON.stringify(data), status, creatorRole, String(payload.creator_fasa_id || ""), now, now).run();
-    return json({ ok: true, id: Number(result.meta.last_row_id || 0) + 1000, status });
+    const internalEventId = Number(result.meta.last_row_id || 0); const competitionId = internalEventId + 1000;
+    await syncCompetitionRoles(competitionId, { organizer: organizerFasaId, juryPresident: juryPresidentFasaId, chiefRouteSetter: chiefRouteSetterFasaId });
+    return json({ ok: true, id: competitionId, internal_event_id: internalEventId, status });
   }
   if (path === "competition-approval") {
-    await ensureCompetitionRecords(); const recordId = Number(payload.record_id || 0); if (!recordId) return json({ error: "Competencia inválida." }, { status: 400 });
+    await ensureCompetitionRecords(); const recordId = Number(payload.internal_event_id || payload.record_id || 0); if (!recordId) return json({ error: "Competencia inválida." }, { status: 400 });
     const decision = String(payload.decision || "approved");
     if (!["approved", "rejected"].includes(decision)) return json({ error: "Decisión inválida." }, { status: 400 });
     await env.DB.prepare("UPDATE competition_records SET status=?,updated_at=? WHERE id=?").bind(decision, new Date().toISOString(), recordId).run(); return json({ ok: true, status: decision });
@@ -828,6 +906,30 @@ export async function POST(request: Request) {
   return json({ ok: true });
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const path = pathFrom(request);
+  const match = path.match(/^competitions\/(\d+)$/);
+  if (!match) return json({ error: "Ruta de eliminación inválida." }, { status: 404 });
+  await ensureCompetitionRecords();
+  const competitionId = Number(match[1]);
+  if (!competitionId) return json({ error: "Competencia inválida." }, { status: 400 });
+  if (competitionId < 1000) {
+    if (!competitions.some((item) => item.id === competitionId)) return json({ error: "Competencia no encontrada." }, { status: 404 });
+    const now = new Date().toISOString();
+    await env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,'deleted','general_admin','',?,?)").bind(JSON.stringify({ deleted_builtin_id: competitionId }), now, now).run();
+    await env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=?").bind(competitionId).run();
+    return json({ ok: true });
+  }
+  const recordId = competitionId - 1000;
+  const existing = await env.DB.prepare("SELECT data FROM competition_records WHERE id=? LIMIT 1").bind(recordId).first<{ data: string }>();
+  if (!existing) return json({ error: "Competencia no encontrada." }, { status: 404 });
+  const data = JSON.parse(existing.data) as Record<string, unknown>;
+  const replacedBuiltinId = Number(data.replaces_builtin_id || 0);
+  const statements = [env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=?").bind(competitionId), env.DB.prepare("DELETE FROM competition_records WHERE id=?").bind(recordId)];
+  if (replacedBuiltinId) {
+    const now = new Date().toISOString();
+    statements.push(env.DB.prepare("INSERT INTO competition_records (data,status,creator_role,creator_fasa_id,created_at,updated_at) VALUES (?,'deleted','general_admin','',?,?)").bind(JSON.stringify({ deleted_builtin_id: replacedBuiltinId }), now, now));
+  }
+  await env.DB.batch(statements);
   return json({ ok: true });
 }
