@@ -1765,8 +1765,11 @@ function defaultRegionalRepresentative(index) {
 
 function renderRegionalRepresentatives() {
   if (!$("#regionalRepresentativesTable")) return;
-  const assigned = state.regionalRepresentatives.filter((person) => person.active !== false);
-  $("#regionalRepresentativesTable").innerHTML = assigned.length ? assigned.map((person) => `<tr><td><strong>${person.region || "—"}</strong></td><td>${person.last_name || ""}, ${person.first_name || ""}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td><span class="status-badge approved">Activo</span></td><td class="row-actions"><button type="button" data-edit-regional="${person.fasa_id}">Editar</button><button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button></td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay referentes regionales asignados.</td></tr>';
+  $("#regionalRepresentativesTable").innerHTML = REGIONS.map((region) => {
+    const person = state.regionalRepresentatives.find((item) => item.region === region && item.active !== false);
+    return `<tr><td><strong>${region}</strong></td><td>${person ? `${person.last_name || ""}, ${person.first_name || ""}` : ""}</td><td>${person?.dni || ""}</td><td>${person?.mail || person?.email || ""}</td><td>${person?.club || ""}</td><td>${person ? '<span class="status-badge approved">Activo</span>' : ""}</td><td class="row-actions">${person ? `<button type="button" data-edit-regional="${person.fasa_id}">Modificar</button><button class="delete" type="button" data-remove-regional="${person.fasa_id}">Eliminar</button>` : `<button class="primary" type="button" data-assign-regional="${region}">Asignar</button>`}</td></tr>`;
+  }).join("");
+  $("#regionalRepresentativesTable").querySelectorAll("[data-assign-regional]").forEach((button) => button.addEventListener("click", () => openRegionalRepresentativeEditor("", button.dataset.assignRegional)));
   $("#regionalRepresentativesTable").querySelectorAll("[data-edit-regional]").forEach((button) => button.addEventListener("click", () => openRegionalRepresentativeEditor(button.dataset.editRegional)));
   $("#regionalRepresentativesTable").querySelectorAll("[data-remove-regional]").forEach((button) => button.addEventListener("click", async () => {
     if (!confirm("¿Eliminar este referente regional? La región quedará sin asignar.")) return;
@@ -1780,12 +1783,14 @@ function updateRegionalRepresentativeSummary(person) {
     : "Todavía no se seleccionó una persona.";
 }
 
-function openRegionalRepresentativeEditor(fasaId = "") {
+function openRegionalRepresentativeEditor(fasaId = "", region = "") {
   const person = state.regionalRepresentatives.find((item) => item.fasa_id === fasaId) || state.fasaProfiles.find((item) => item.fasa_id === fasaId);
   $("#regionalRepresentativeForm").reset();
   $("#regionalRepresentativeFasaId").value = person?.fasa_id || "";
-  $("#regionalRepresentativeRegion").value = person?.region || "";
-  $("#regionalRepresentativeDialogTitle").textContent = person ? "Editar referente regional" : "Crear referente regional";
+  $("#regionalRepresentativeDialog").dataset.originalFasaId = person?.fasa_id || "";
+  $("#regionalRepresentativeRegion").value = person?.region || region || "";
+  $("#regionalRepresentativeRegion").disabled = true;
+  $("#regionalRepresentativeDialogTitle").textContent = person ? `Modificar referente · ${person.region}` : `Asignar referente · ${region}`;
   $("#regionalRepresentativeDialogStatus").textContent = "";
   updateRegionalRepresentativeSummary(person);
   $("#regionalRepresentativeDialog").showModal();
@@ -3017,7 +3022,6 @@ function bindEvents() {
   };
   $("#reviewApproveCompetition")?.addEventListener("click", () => reviewCompetition("approved"));
   $("#reviewRejectCompetition")?.addEventListener("click", () => reviewCompetition("rejected"));
-  $("#openRegionalRepresentativeCreator")?.addEventListener("click", () => openRegionalRepresentativeEditor());
   $("#cancelRegionalRepresentative")?.addEventListener("click", () => $("#regionalRepresentativeDialog").close());
   $("#chooseRegionalRepresentativePerson")?.addEventListener("click", async () => {
     const region = $("#regionalRepresentativeRegion").value;
@@ -3040,7 +3044,7 @@ function bindEvents() {
       return;
     }
     try {
-      await api("/api/assign-person-role", { method: "POST", body: JSON.stringify({ fasa_id: fasaId, role: "regional_representative", region }) });
+      await api("/api/regional-representative-assignment", { method: "POST", body: JSON.stringify({ fasa_id: fasaId, region, previous_fasa_id: $("#regionalRepresentativeDialog").dataset.originalFasaId || "" }) });
       $("#regionalRepresentativeDialog").close();
       await loadRegionalRepresentatives();
     } catch (error) {

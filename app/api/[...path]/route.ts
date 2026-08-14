@@ -958,8 +958,10 @@ export async function POST(request: Request) {
   }
   if (path === "regional-representative-assignment") {
     const fasaId = String(payload.fasa_id || ""); const region = String(payload.region || "");
+    const previousFasaId = String(payload.previous_fasa_id || "");
     const profile = await env.DB.prepare("SELECT fasa_id FROM fasa_profiles WHERE fasa_id=? LIMIT 1").bind(fasaId).first();
     if (!profile) return json({ error: "La persona seleccionada no tiene FASA ID." }, { status: 404 });
+    if (previousFasaId && previousFasaId !== fasaId) await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type='regional_representative'").bind(previousFasaId).run();
     await assignRole(fasaId, "regional_representative", { region, active: true }); return json({ ok: true });
   }
   if (path === "judge-role-batch" || path === "route-setter-role-batch") {
