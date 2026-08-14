@@ -71,6 +71,15 @@ async function uploadInfosheet(file) {
   return result;
 }
 
+async function uploadOrganizerLogo(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch("/api/organizer-logo-upload", { method: "POST", body: formData });
+  const result = await response.json().catch(() => ({ error: "No se pudo subir el logo del club." }));
+  if (!response.ok) throw new Error(result.error || "No se pudo subir el logo del club.");
+  return result;
+}
+
 function activeRounds() {
   return Object.entries(state.rounds).filter(([, data]) => data.active);
 }
@@ -1812,7 +1821,8 @@ function renderPublicCalendar() {
     return;
   }
   $("#publicCompetitionCalendar").innerHTML = filtered.map((competition) => `
-    <article class="calendar-item" data-public-competition="${competition.id}">
+    <article class="calendar-item ${competition.organizer_logo_url ? "has-logo" : ""}" data-public-competition="${competition.id}">
+      ${competition.organizer_logo_url ? `<img class="calendar-club-logo" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" loading="lazy" />` : ""}
       <time>${formatEventDateRange(competition)}</time>
       <div>
         <strong>${competition.name}</strong>
@@ -1852,8 +1862,10 @@ async function selectPublicCompetition(id) {
   state.loginCompetitionId = null;
   switchPublicView("competitionDetailView");
   $("#competitionPublicHeader").innerHTML = `
-    <p class="eyebrow">${competition.competition_type} · ${competition.category}</p>
-    <h2>${competition.name}</h2>
+    <div class="competition-public-title">
+      ${competition.organizer_logo_url ? `<img class="competition-club-logo" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" />` : ""}
+      <div><p class="eyebrow">${competition.competition_type} · ${competition.category}</p><h2>${competition.name}</h2></div>
+    </div>
     <div class="competition-meta">
       <span><strong>Fechas</strong>${formatEventDateRange(competition)}</span>
       <span><strong>Disciplina</strong>${competition.modality}</span>
@@ -2029,6 +2041,9 @@ function resetCompetitionForm() {
   $("#competitionForm").elements.organizer_username.value = "";
   $("#competitionForm").elements.organizer_person_club.value = "";
   $("#saveCompetitionButton").textContent = "Crear evento";
+  $("#organizerLogoCurrent").textContent = "Podés adjuntar una imagen PNG, JPG o WebP de hasta 5 MB.";
+  $("#organizerLogoPreview").hidden = true;
+  $("#organizerLogoPreview").removeAttribute("src");
   $("#infosheetCurrent").textContent = "Podés adjuntar un PDF de hasta 15 MB. Será público desde el calendario.";
   $("#cancelCompetitionEdit").hidden = true;
   $("#competitionStatus").textContent = "";
@@ -2062,6 +2077,11 @@ function editCompetition(id) {
   form.elements.modality.value = competition.modality;
   form.elements.category.value = competition.category;
   form.elements.organizer_club.value = competition.organizer_club;
+  $("#organizerLogoCurrent").textContent = competition.organizer_logo_url
+    ? `Logo actual: ${competition.organizer_logo_filename || "imagen del club"}. Elegí otra imagen para reemplazarlo.`
+    : "Este evento todavía no tiene un logo del club. Podés adjuntar una imagen de hasta 5 MB.";
+  $("#organizerLogoPreview").hidden = !competition.organizer_logo_url;
+  if (competition.organizer_logo_url) $("#organizerLogoPreview").src = competition.organizer_logo_url;
   $("#infosheetCurrent").innerHTML = competition.infosheet_url
     ? `Infosheet actual: <a href="${competition.infosheet_url}" download>${competition.infosheet_filename || "Descargar PDF"}</a>. Elegí otro archivo para reemplazarlo.`
     : "Este evento todavía no tiene un Infosheet. Podés adjuntar un PDF de hasta 15 MB.";
@@ -2959,6 +2979,20 @@ function bindEvents() {
     endDate.min = event.target.value;
     if (!endDate.value || endDate.value < event.target.value) endDate.value = event.target.value;
   });
+  $("#competitionForm").elements.organizer_logo_file.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    const preview = $("#organizerLogoPreview");
+    if (!file) {
+      preview.hidden = true;
+      preview.removeAttribute("src");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    preview.onload = () => URL.revokeObjectURL(objectUrl);
+    preview.src = objectUrl;
+    preview.hidden = false;
+    $("#organizerLogoCurrent").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+  });
   $("#openOrganizerEditor")?.addEventListener("click", openOrganizerEditor);
   $("#organizerFasaPicker").addEventListener("change", (event) => {
     const person = state.fasaProfiles.find((item) => item.fasa_id === event.target.value); if (!person) return;
@@ -2983,7 +3017,9 @@ function bindEvents() {
     event.preventDefault();
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
     const infosheetFile = event.currentTarget.elements.infosheet_file.files[0];
+    const organizerLogoFile = event.currentTarget.elements.organizer_logo_file.files[0];
     delete payload.infosheet_file;
+    delete payload.organizer_logo_file;
     const wasEditing = Boolean(payload.id);
     const organizer = organizerFormData();
     const hasOrganizerData = organizer.fasa_id || organizer.first_name || organizer.last_name || organizer.dni || organizer.username || organizer.club;
@@ -3007,6 +3043,10 @@ function bindEvents() {
       $("#competitionStatus").textContent = "El Infosheet no puede superar los 15 MB.";
       return;
     }
+    if (organizerLogoFile && organizerLogoFile.size > 5 * 1024 * 1024) {
+      $("#competitionStatus").textContent = "El logo del club no puede superar los 5 MB.";
+      return;
+    }
     payload.sport_category = payload.category === "Mayores" ? "mayor" : "";
     if (state.role === "regional_representative") {
       payload.creator_role = "regional_representative";
@@ -3019,6 +3059,14 @@ function bindEvents() {
     const saveButton = $("#saveCompetitionButton");
     saveButton.disabled = true;
     try {
+      if (organizerLogoFile && organizerLogoFile.size) {
+        $("#competitionStatus").textContent = "Subiendo logo del club…";
+        const uploadedLogo = await uploadOrganizerLogo(organizerLogoFile);
+        payload.organizer_logo_key = uploadedLogo.key;
+        payload.organizer_logo_filename = uploadedLogo.filename;
+        payload.organizer_logo_content_type = uploadedLogo.content_type;
+        payload.organizer_logo_url = uploadedLogo.url;
+      }
       if (infosheetFile && infosheetFile.size) {
         $("#competitionStatus").textContent = "Subiendo Infosheet…";
         const uploaded = await uploadInfosheet(infosheetFile);

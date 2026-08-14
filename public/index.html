@@ -371,6 +371,11 @@
             <label>Club organizador
               <input name="organizer_club" required />
             </label>
+            <label class="event-upload-field">Logo del club organizador
+              <input name="organizer_logo_file" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" />
+              <span class="event-upload-preview"><img id="organizerLogoPreview" alt="Vista previa del logo del club" hidden /></span>
+              <small id="organizerLogoCurrent" class="hint">Podés adjuntar una imagen PNG, JPG o WebP de hasta 5 MB.</small>
+            </label>
             <label class="infosheet-field">Infosheet (PDF)
               <input name="infosheet_file" type="file" accept="application/pdf,.pdf" />
               <small id="infosheetCurrent" class="hint">Podés adjuntar un PDF de hasta 15 MB. Será público desde el calendario.</small>

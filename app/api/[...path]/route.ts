@@ -393,6 +393,20 @@ function safeDownloadName(value: unknown) {
   return clean.toLowerCase().endsWith(".pdf") ? clean : `${clean || "infosheet"}.pdf`;
 }
 
+function safeImageName(value: unknown, extension: string) {
+  const normalized = String(value || `logo-club.${extension}`).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const clean = normalized.replace(/[^a-zA-Z0-9._ -]/g, "").trim().slice(0, 120);
+  const withoutExtension = clean.replace(/\.(png|jpe?g|webp)$/i, "") || "logo-club";
+  return `${withoutExtension}.${extension}`;
+}
+
+function detectImageType(bytes: Uint8Array) {
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return { contentType: "image/png", extension: "png" };
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return { contentType: "image/jpeg", extension: "jpg" };
+  if (bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP") return { contentType: "image/webp", extension: "webp" };
+  return null;
+}
+
 function getJudges() {
   return judgePeople.slice(0, 5).map((person, index) => ({
     id: index + 1,
@@ -467,6 +481,19 @@ function leaderboard(url: URL) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const path = pathFrom(request);
+  if (path.startsWith("event-assets/")) {
+    const key = decodeURIComponent(path.slice("event-assets/".length));
+    if (!key.startsWith("organizer-logo-")) return json({ error: "Imagen no encontrada." }, { status: 404 });
+    const object = await env.BUCKET.get(key);
+    if (!object) return json({ error: "Imagen no encontrada." }, { status: 404 });
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("content-type", object.customMetadata?.contentType || "image/png");
+    headers.set("content-disposition", `inline; filename="${safeImageName(object.customMetadata?.filename, object.customMetadata?.extension || "png")}"`);
+    headers.set("cache-control", "public, max-age=86400");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(object.body, { headers });
+  }
   if (path.startsWith("infosheets/")) {
     const key = decodeURIComponent(path.slice("infosheets/".length));
     const object = await env.BUCKET.get(key);
@@ -639,6 +666,23 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const path = pathFrom(request);
+  if (path === "organizer-logo-upload") {
+    const formData = await request.formData().catch(() => null);
+    const file = formData?.get("file");
+    if (!(file instanceof File)) return json({ error: "Seleccioná una imagen para el logo del club." }, { status: 400 });
+    if (!file.size) return json({ error: "La imagen seleccionada está vacía." }, { status: 400 });
+    if (file.size > 5 * 1024 * 1024) return json({ error: "El logo del club no puede superar los 5 MB." }, { status: 400 });
+    const buffer = await file.arrayBuffer();
+    const detected = detectImageType(new Uint8Array(buffer));
+    if (!detected) return json({ error: "El logo debe ser una imagen PNG, JPG o WebP válida." }, { status: 400 });
+    const key = `organizer-logo-${crypto.randomUUID()}.${detected.extension}`;
+    const filename = safeImageName(file.name, detected.extension);
+    await env.BUCKET.put(key, buffer, {
+      httpMetadata: { contentType: detected.contentType },
+      customMetadata: { filename, contentType: detected.contentType, extension: detected.extension },
+    });
+    return json({ key, filename, content_type: detected.contentType, url: `/api/event-assets/${encodeURIComponent(key)}` });
+  }
   if (path === "infosheet-upload") {
     const formData = await request.formData().catch(() => null);
     const file = formData?.get("file");
@@ -822,6 +866,9 @@ export async function POST(request: Request) {
       const previousInfosheetKey = String(currentData.infosheet_key || "");
       const nextInfosheetKey = String(data.infosheet_key || "");
       if (previousInfosheetKey && nextInfosheetKey && previousInfosheetKey !== nextInfosheetKey) await env.BUCKET.delete(previousInfosheetKey);
+      const previousOrganizerLogoKey = String(currentData.organizer_logo_key || "");
+      const nextOrganizerLogoKey = String(data.organizer_logo_key || "");
+      if (previousOrganizerLogoKey && nextOrganizerLogoKey && previousOrganizerLogoKey !== nextOrganizerLogoKey) await env.BUCKET.delete(previousOrganizerLogoKey);
       const competitionId = recordId + 1000;
       await syncCompetitionRoles(competitionId, { organizer: organizerFasaId, juryPresident: juryPresidentFasaId, chiefRouteSetter: chiefRouteSetterFasaId });
       return json({ ok: true, id: competitionId, internal_event_id: recordId, status: nextStatus });
@@ -967,6 +1014,7 @@ export async function DELETE(request: Request) {
   if (!existing) return json({ error: "Evento no encontrado." }, { status: 404 });
   const data = JSON.parse(existing.data) as Record<string, unknown>;
   const infosheetKey = String(data.infosheet_key || "");
+  const organizerLogoKey = String(data.organizer_logo_key || "");
   const replacedBuiltinId = Number(data.replaces_builtin_id || 0);
   const statements = [env.DB.prepare("DELETE FROM competition_participations WHERE competition_id=?").bind(competitionId), env.DB.prepare("DELETE FROM competition_records WHERE id=?").bind(recordId)];
   if (replacedBuiltinId) {
@@ -975,5 +1023,6 @@ export async function DELETE(request: Request) {
   }
   await env.DB.batch(statements);
   if (infosheetKey) await env.BUCKET.delete(infosheetKey);
+  if (organizerLogoKey) await env.BUCKET.delete(organizerLogoKey);
   return json({ ok: true });
 }

@@ -629,6 +629,39 @@ button:hover,
   border-left: 8px solid var(--silver);
 }
 
+.calendar-item.has-logo {
+  grid-template-columns: 72px 120px minmax(0, 1fr);
+}
+
+.calendar-club-logo,
+.competition-club-logo,
+.event-upload-preview img {
+  display: block;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.calendar-club-logo {
+  width: 72px;
+  height: 72px;
+  padding: 7px;
+}
+
+.competition-public-title {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.competition-club-logo {
+  width: 96px;
+  height: 96px;
+  padding: 9px;
+  flex: 0 0 auto;
+}
+
 .calendar-item:hover {
   border-left-color: var(--accent);
   box-shadow: 0 10px 24px rgba(57, 57, 57, 0.08);
@@ -670,6 +703,17 @@ button:hover,
 
 .infosheet-field {
   grid-column: 1 / -1;
+}
+
+.event-upload-field {
+  grid-column: 1 / -1;
+}
+
+.event-upload-preview img {
+  width: 92px;
+  height: 92px;
+  margin-top: 8px;
+  padding: 7px;
 }
 
 .infosheet-field small {
@@ -1790,6 +1834,18 @@ tbody tr:hover {
 
   .calendar-item {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-item.has-logo {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .calendar-item.has-logo time {
+    grid-column: 2;
+  }
+
+  .calendar-item.has-logo > div {
+    grid-column: 1 / -1;
   }
 
   .calendar-layout {
