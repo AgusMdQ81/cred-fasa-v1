@@ -2130,7 +2130,22 @@ async function loadRegionalRepresentatives() {
 async function loadRouteSetterPeople() {
   state.routeSetterPeople = await api("/api/route-setter-people");
   $("#routeSetterPeopleTable").innerHTML = state.routeSetterPeople.length ? state.routeSetterPeople.map((person, index) => `<tr data-route-setter-row="${index}"><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay aperturistas asignados.</td></tr>';
-  $("#routeSetterPeopleTable").querySelectorAll("[data-route-setter-row]").forEach((row) => row.addEventListener("click", () => openOfficialPersonDetail("route_setter", Number(row.dataset.routeSetterRow))));
+  $("#routeSetterPeopleTable").querySelectorAll("[data-route-setter-row]").forEach((row) => row.addEventListener("click", () => openRouteSetterDetail(Number(row.dataset.routeSetterRow))));
+}
+
+function openRouteSetterDetail(index) {
+  const person = state.routeSetterPeople[index]; if (!person) return;
+  const dialog = $("#routeSetterDetailDialog"); dialog.dataset.index = String(index); $("#routeSetterDetailTitle").textContent = `${person.last_name}, ${person.first_name}`;
+  dialog.querySelectorAll("[data-route-setter-detail]").forEach((field) => { const key = field.dataset.routeSetterDetail; if (field.type === "checkbox") field.checked = person[key] !== false; else field.value = person[key] || ""; });
+  $("#routeSetterDetailStatus").textContent = ""; dialog.showModal();
+}
+
+async function saveRouteSetterDetail() {
+  const dialog = $("#routeSetterDetailDialog"); const index = Number(dialog.dataset.index); const person = state.routeSetterPeople[index]; if (!person) return;
+  const level = Number(dialog.querySelector('[data-route-setter-detail="level"]').value); const active = dialog.querySelector('[data-route-setter-detail="active"]').checked;
+  state.routeSetterPeople[index] = { ...person, level, active };
+  try { await api("/api/update-role-detail", { method: "POST", body: JSON.stringify({ fasa_id: person.fasa_id, role: "route_setter", level, active }) }); $("#routeSetterDetailStatus").textContent = "Cambios guardados."; await loadRouteSetterPeople(); setTimeout(() => dialog.close(), 350); }
+  catch (error) { $("#routeSetterDetailStatus").textContent = error.message; }
 }
 
 async function populateCompetitionRolePickers() {
@@ -2702,6 +2717,7 @@ function bindEvents() {
   $("#juryPresidentSearch").addEventListener("input", renderJuryPresidentPicker);
   $("#saveManagedProfile").addEventListener("click", saveManagedProfile);
   $("#saveOfficialPersonDetail").addEventListener("click", saveOfficialPersonDetail);
+  $("#saveRouteSetterDetail").addEventListener("click", saveRouteSetterDetail);
   $("#saveUnifiedProfile").addEventListener("click", async () => {
     const profile = {};
     document.querySelectorAll("[data-unified-field]").forEach((field) => {

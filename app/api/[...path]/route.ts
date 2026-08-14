@@ -713,6 +713,14 @@ export async function POST(request: Request) {
     }
     await assignRole(fasaId, role, details); return json({ ok: true });
   }
+  if (path === "update-role-detail") {
+    const fasaId = String(payload.fasa_id || ""); const role = String(payload.role || "");
+    if (!fasaId || !["judge", "route_setter"].includes(role)) return json({ error: "Actualización inválida." }, { status: 400 });
+    const level = Math.max(1, Math.min(5, Number(payload.level || 1))); const active = payload.active !== false;
+    await assignRole(fasaId, role, { level, active });
+    if (!active) await env.DB.prepare("UPDATE fasa_roles SET active=0 WHERE fasa_id=? AND role_type=?").bind(fasaId, role).run();
+    return json({ ok: true, level, active });
+  }
   if (path === "administrator-status") {
     const fasaId = String(payload.fasa_id || ""); const active = payload.active === true;
     const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM fasa_roles WHERE role_type='general_admin' AND active=1").first<{ total: number }>();
