@@ -1380,9 +1380,21 @@ function renderJudgePeople() {
   if (!$("#judgePeopleTable")) return;
   if (state.judgePeople.length === 0) {
     $("#judgePeopleTable").innerHTML = '<tr><td colspan="7">Todavía no hay jueces asignados desde FASA ID.</td></tr>';
+    $("#judgePeopleResultCount").textContent = "0 registros";
     return;
   }
-  $("#judgePeopleTable").innerHTML = state.judgePeople.map((person, index) => `
+  const query = ($("#judgePeopleSearch")?.value || "").trim().toLowerCase();
+  const level = $("#judgePeopleLevelFilter")?.value || "";
+  const status = $("#judgePeopleStatusFilter")?.value || "";
+  const rows = state.judgePeople.map((person, index) => ({ person, index })).filter(({ person }) => {
+    if (query && !personSearchText(person).includes(query)) return false;
+    if (level && String(person.level || "") !== level) return false;
+    if (status === "active" && person.active === false) return false;
+    if (status === "inactive" && person.active !== false) return false;
+    return true;
+  });
+  $("#judgePeopleResultCount").textContent = `${rows.length} de ${state.judgePeople.length} registros`;
+  $("#judgePeopleTable").innerHTML = rows.length ? rows.map(({ person, index }) => `
     <tr data-judge-person-row="${index}">
       <td>${person.last_name || "-"}</td>
       <td>${person.first_name || "-"}</td>
@@ -1392,7 +1404,7 @@ function renderJudgePeople() {
       <td>${person.level || "-"}</td>
       <td>${person.active !== false ? "Activo" : "Inactivo"}</td>
     </tr>
-  `).join("");
+  `).join("") : '<tr><td colspan="7">No hay jueces que coincidan con los filtros.</td></tr>';
   $("#judgePeopleTable").querySelectorAll("[data-judge-person-row]").forEach((row) => {
     row.addEventListener("click", () => openJudgePersonDetail(Number(row.dataset.judgePersonRow)));
   });
@@ -2238,9 +2250,25 @@ async function loadRegionalRepresentatives() {
 
 async function loadRouteSetterPeople() {
   state.routeSetterPeople = await api("/api/route-setter-people");
-  $("#routeSetterPeopleTable").innerHTML = state.routeSetterPeople.length ? state.routeSetterPeople.map((person, index) => `<tr data-route-setter-row="${index}"><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay aperturistas asignados.</td></tr>';
-  $("#routeSetterPeopleTable").querySelectorAll("[data-route-setter-row]").forEach((row) => row.addEventListener("click", () => openRouteSetterDetail(Number(row.dataset.routeSetterRow))));
+  renderRouteSetterPeople();
   renderChiefRouteSetterSummary();
+}
+
+function renderRouteSetterPeople() {
+  if (!$("#routeSetterPeopleTable")) return;
+  const query = ($("#routeSetterPeopleSearch")?.value || "").trim().toLowerCase();
+  const level = $("#routeSetterPeopleLevelFilter")?.value || "";
+  const status = $("#routeSetterPeopleStatusFilter")?.value || "";
+  const rows = state.routeSetterPeople.map((person, index) => ({ person, index })).filter(({ person }) => {
+    if (query && !personSearchText(person).includes(query)) return false;
+    if (level && String(person.level || "") !== level) return false;
+    if (status === "active" && person.active === false) return false;
+    if (status === "inactive" && person.active !== false) return false;
+    return true;
+  });
+  $("#routeSetterPeopleResultCount").textContent = `${rows.length} de ${state.routeSetterPeople.length} registros`;
+  $("#routeSetterPeopleTable").innerHTML = rows.length ? rows.map(({ person, index }) => `<tr data-route-setter-row="${index}"><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : `<tr><td colspan="7">${state.routeSetterPeople.length ? "No hay aperturistas que coincidan con los filtros." : "Todavía no hay aperturistas asignados."}</td></tr>`;
+  $("#routeSetterPeopleTable").querySelectorAll("[data-route-setter-row]").forEach((row) => row.addEventListener("click", () => openRouteSetterDetail(Number(row.dataset.routeSetterRow))));
 }
 
 function openRouteSetterDetail(index) {
@@ -2285,9 +2313,19 @@ async function loadFasaManagement() {
 
 function personSearchText(person) { return [person.first_name, person.last_name, person.dni, person.email, person.mail, person.club, person.region].filter(Boolean).join(" ").toLowerCase(); }
 function renderFasaManagementTable() {
-  const query = ($("#fasaManagementSearch")?.value || "").toLowerCase();
-  const rows = state.fasaProfiles.filter((person) => personSearchText(person).includes(query));
-  $("#fasaManagementTable").innerHTML = rows.map((person) => `<tr data-managed-fasa-id="${person.fasa_id}"><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email}</td><td>${person.club || "—"}</td><td>${person.region || "—"}</td><td>${String(person.roles || "").split(",").filter(Boolean).map((role) => ROLE_LABELS[role] || role).join(" · ") || "Sin roles"}</td></tr>`).join("");
+  const query = ($("#fasaManagementSearch")?.value || "").trim().toLowerCase();
+  const region = $("#fasaManagementRegionFilter")?.value || "";
+  const role = $("#fasaManagementRoleFilter")?.value || "";
+  const rows = state.fasaProfiles.filter((person) => {
+    const roles = String(person.roles || "").split(",").filter(Boolean);
+    if (query && !personSearchText(person).includes(query)) return false;
+    if (region && person.region !== region) return false;
+    if (role === "none" && roles.length) return false;
+    if (role && role !== "none" && !roles.includes(role)) return false;
+    return true;
+  });
+  $("#fasaManagementResultCount").textContent = `${rows.length} de ${state.fasaProfiles.length} registros`;
+  $("#fasaManagementTable").innerHTML = rows.length ? rows.map((person) => `<tr data-managed-fasa-id="${person.fasa_id}"><td>${person.last_name}, ${person.first_name}</td><td>${person.dni}</td><td>${person.email}</td><td>${person.club || "—"}</td><td>${person.region || "—"}</td><td>${String(person.roles || "").split(",").filter(Boolean).map((role) => ROLE_LABELS[role] || role).join(" · ") || "Sin roles"}</td></tr>`).join("") : '<tr><td colspan="6">No hay FASA ID que coincidan con los filtros.</td></tr>';
   $("#fasaManagementTable").querySelectorAll("[data-managed-fasa-id]").forEach((row) => row.addEventListener("click", () => openManagedProfile(row.dataset.managedFasaId)));
 }
 
@@ -2838,6 +2876,14 @@ function bindEvents() {
   });
   $("#refreshFasaManagement").addEventListener("click", loadFasaManagement);
   $("#fasaManagementSearch").addEventListener("input", renderFasaManagementTable);
+  $("#fasaManagementRegionFilter").addEventListener("change", renderFasaManagementTable);
+  $("#fasaManagementRoleFilter").addEventListener("change", renderFasaManagementTable);
+  $("#judgePeopleSearch").addEventListener("input", renderJudgePeople);
+  $("#judgePeopleLevelFilter").addEventListener("change", renderJudgePeople);
+  $("#judgePeopleStatusFilter").addEventListener("change", renderJudgePeople);
+  $("#routeSetterPeopleSearch").addEventListener("input", renderRouteSetterPeople);
+  $("#routeSetterPeopleLevelFilter").addEventListener("change", renderRouteSetterPeople);
+  $("#routeSetterPeopleStatusFilter").addEventListener("change", renderRouteSetterPeople);
   $("#roleAssignmentSearch").addEventListener("input", renderRoleAssignmentTable);
   $("#personPickerSearch").addEventListener("input", renderPersonPicker);
   $("#juryPresidentSearch").addEventListener("input", renderJuryPresidentPicker);

@@ -1752,6 +1752,10 @@ tbody tr:hover {
 }
 
 @media (max-width: 900px) {
+  .directory-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .topbar {
     align-items: start;
     flex-direction: column;
@@ -1807,6 +1811,10 @@ tbody tr:hover {
 }
 
 @media (max-width: 560px) {
+  .directory-filters {
+    grid-template-columns: 1fr;
+  }
+
   main {
     padding: 12px;
   }
@@ -1924,6 +1932,10 @@ tbody tr:hover {
 }
 .table-search { display: grid; gap: .45rem; margin: 1rem 0; max-width: 34rem; }
 .table-search input, #personPickerSearch, #roleAssignmentSearch { width: 100%; }
+.directory-filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(140px, 1fr)) auto; gap: .75rem; align-items: end; margin: 1rem 0; }
+.directory-filters label { display: grid; gap: .35rem; font-size: .82rem; font-weight: 800; }
+.directory-filters input, .directory-filters select { width: 100%; min-height: 42px; }
+.filter-result-count { align-self: center; white-space: nowrap; color: var(--muted); font-weight: 800; }
 .picker-table-wrap { max-height: 52vh; overflow: auto; margin: .75rem 0 1rem; }
 .picker-table-wrap thead { position: sticky; top: 0; z-index: 1; }
 .selected-row { outline: 2px solid var(--cyan, #34b6cf); outline-offset: -2px; }

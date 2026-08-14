@@ -508,6 +508,18 @@
           <div class="save-row">
             <p id="judgePeopleStatus" aria-live="polite"></p>
           </div>
+          <div class="directory-filters" aria-label="Filtros de jueces">
+            <label>Buscar
+              <input id="judgePeopleSearch" type="search" placeholder="Nombre, DNI, mail, club o región" />
+            </label>
+            <label>Nivel
+              <select id="judgePeopleLevelFilter"><option value="">Todos</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+            </label>
+            <label>Estado
+              <select id="judgePeopleStatusFilter"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select>
+            </label>
+            <span id="judgePeopleResultCount" class="filter-result-count" aria-live="polite"></span>
+          </div>
           <table>
             <thead>
               <tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr>
@@ -573,11 +585,23 @@
         <section class="panel">
           <div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Aperturistas</h2></div><div class="save-row"><button type="button" data-open-role-assignment="route_setter">Asignar rol</button></div></div>
           <p id="routeSetterPeopleStatus" aria-live="polite"></p>
+          <div class="directory-filters" aria-label="Filtros de aperturistas">
+            <label>Buscar
+              <input id="routeSetterPeopleSearch" type="search" placeholder="Nombre, DNI, mail, club o región" />
+            </label>
+            <label>Nivel
+              <select id="routeSetterPeopleLevelFilter"><option value="">Todos</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+            </label>
+            <label>Estado
+              <select id="routeSetterPeopleStatusFilter"><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select>
+            </label>
+            <span id="routeSetterPeopleResultCount" class="filter-result-count" aria-live="polite"></span>
+          </div>
           <table><thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr></thead><tbody id="routeSetterPeopleTable"></tbody></table>
         </section>
         <dialog id="routeSetterDetailDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">Ficha de aperturista</p><h2 id="routeSetterDetailTitle">Aperturista</h2></div><button class="dialog-close" value="cancel" aria-label="Cerrar">×</button></div><div class="judge-detail-layout"><div class="photo-box"><button id="routeSetterPhotoPreview" class="photo-preview" type="button">Foto</button><input id="routeSetterPhotoFile" class="file-input" type="file" accept="image/*" /><input data-route-setter-detail="photo_url" type="hidden" /><p class="hint">Presioná la foto para cargar o reemplazar la imagen.</p></div><div class="detail-form"><label>Nombre<input data-route-setter-detail="first_name" readonly /></label><label>Apellido<input data-route-setter-detail="last_name" readonly /></label><label>DNI<input data-route-setter-detail="dni" readonly /></label><label>Mail<input data-route-setter-detail="mail" readonly /></label><label>Club<input data-route-setter-detail="club" readonly /></label><label>Nivel<select data-route-setter-detail="level"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label><label class="inline-check"><input data-route-setter-detail="active" type="checkbox" /> Activo</label></div></div><div class="dialog-actions"><button value="cancel">Cancelar</button><button id="saveRouteSetterDetail" class="primary" type="button">Guardar cambios</button></div><p id="routeSetterDetailStatus"></p></form></dialog>
       </section>
-      <section id="fasaIdManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Base de FASA ID</h2></div><button id="refreshFasaManagement" type="button">Actualizar</button></div><label class="table-search">Buscar persona <input id="fasaManagementSearch" type="search" placeholder="Nombre, apellido, DNI, mail, club o región" /></label><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Club</th><th>Región</th><th>Roles</th></tr></thead><tbody id="fasaManagementTable"></tbody></table></section></section>
+      <section id="fasaIdManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Base de FASA ID</h2></div><button id="refreshFasaManagement" type="button">Actualizar</button></div><div class="directory-filters" aria-label="Filtros de FASA ID"><label>Buscar persona<input id="fasaManagementSearch" type="search" placeholder="Nombre, apellido, DNI, mail, club o región" /></label><label>Región<select id="fasaManagementRegionFilter"><option value="">Todas</option><option>Buenos Aires</option><option>Centro</option><option>Cuyo</option><option>Noa</option><option>Litoral</option><option>Patagonia Norte</option><option>Patagonia Sur</option></select></label><label>Rol<select id="fasaManagementRoleFilter"><option value="">Todos</option><option value="competitor">Atleta</option><option value="judge">Juez</option><option value="route_setter">Aperturista</option><option value="chief_route_setter">Jefe de Aperturistas</option><option value="competition_admin">Presidente de jurado</option><option value="organizer">Organizador</option><option value="regional_representative">Referente regional</option><option value="general_admin">Administrador general</option><option value="none">Sin roles</option></select></label><span id="fasaManagementResultCount" class="filter-result-count" aria-live="polite"></span></div><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Club</th><th>Región</th><th>Roles</th></tr></thead><tbody id="fasaManagementTable"></tbody></table></section></section>
       <section id="administratorManagement" class="view"><section class="panel"><div class="section-head"><div><p class="eyebrow">Seguridad</p><h2>Administradores</h2></div><button type="button" data-open-role-assignment="general_admin">Asignar administrador</button></div><p class="hint">El sistema impide que queden menos de dos administradores activos.</p><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Email</th><th>Estado</th><th></th></tr></thead><tbody id="administratorManagementTable"></tbody></table><p id="administratorManagementStatus"></p></section></section>
       <dialog id="roleAssignmentDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">FASA ID</p><h2 id="roleAssignmentTitle">Asignar rol</h2></div><button class="dialog-close" value="cancel">×</button></div><label>Buscar persona<input id="roleAssignmentSearch" type="search" placeholder="Nombre, apellido, DNI, mail o club" /></label><input id="roleAssignmentPerson" type="hidden" /><div class="picker-table-wrap"><table><thead><tr><th>Persona</th><th>DNI</th><th>Mail</th><th>Club</th><th></th></tr></thead><tbody id="roleAssignmentTable"></tbody></table></div><label id="roleAssignmentLevelField">Nivel<select id="roleAssignmentLevel"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label><input id="roleAssignmentRegion" type="hidden" /><div class="dialog-actions"><button value="cancel">Cancelar</button><button id="confirmRoleAssignment" class="primary" type="button">Asignar rol</button></div><p id="roleAssignmentStatus"></p></form></dialog>
       <dialog id="personPickerDialog" class="profile-edit-dialog"><form method="dialog" class="profile-edit-shell"><div class="section-head"><div><p class="eyebrow">Base FASA ID</p><h2 id="personPickerTitle">Elegir persona</h2></div><button class="dialog-close" value="cancel">×</button></div><label>Buscar persona<input id="personPickerSearch" type="search" placeholder="Nombre, apellido, DNI, mail o club" /></label><div class="picker-table-wrap"><table><thead><tr><th>Persona</th><th>DNI</th><th>Mail</th><th>Club</th><th></th></tr></thead><tbody id="personPickerTable"></tbody></table></div></form></dialog>
