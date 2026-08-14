@@ -394,7 +394,8 @@
                     <td><button id="openJuryPresidentPicker" type="button">Elegir</button></td>
                   </tr>
                 </tbody>
-                <tbody id="chiefRouteSetterSummary"><tr><td><strong>Jefe de Aperturistas</strong></td><td colspan="5"><select id="chiefRouteSetterPicker"><option value="">Sin seleccionar</option></select></td><td></td></tr></tbody>
+                <tbody id="chiefRouteSetterSummary"><tr><td><strong>Jefe de Aperturistas</strong></td><td colspan="5"><select id="chiefRouteSetterPicker"><option value="">Sin seleccionar</option></select></td><td><button id="chooseChiefRouteSetter" type="button">Elegir</button></td></tr></tbody>
+                <tbody id="regionalRepresentativeEventSummary"><tr><td><strong>Referente Regional</strong></td><td colspan="5"><select id="eventRegionalRepresentative"><option value="">Sin seleccionar</option></select></td><td><button id="chooseEventRegionalRepresentative" type="button">Elegir</button></td></tr></tbody>
               </table>
             </div>
             <button id="saveCompetitionButton" class="primary" type="submit">Crear competencia</button>
@@ -411,6 +412,7 @@
               </div>
               <button id="closeOrganizerEditor" type="button">Cerrar</button>
             </div>
+            <label>Elegir desde la base FASA ID<select id="organizerFasaPicker"><option value="">Seleccionar una persona</option></select></label>
             <div class="detail-form">
               <label>Apellido <input data-organizer-field="last_name" /></label>
               <label>Nombre <input data-organizer-field="first_name" /></label>
