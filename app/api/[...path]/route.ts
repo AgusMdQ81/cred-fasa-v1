@@ -177,9 +177,10 @@ async function ensureFasaTables() {
       id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL, role_type TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
       UNIQUE(fasa_id, role_type)
     )`),
-    ...["athlete_profiles", "judge_profiles", "jury_president_profiles", "regional_representative_profiles", "organizer_profiles", "administrator_profiles"].map((table) =>
+    ...["athlete_profiles", "judge_profiles", "route_setter_profiles", "chief_route_setter_profiles", "jury_president_profiles", "regional_representative_profiles", "organizer_profiles", "administrator_profiles"].map((table) =>
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, fasa_id TEXT NOT NULL UNIQUE, data TEXT NOT NULL DEFAULT '{}')`)
     ),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS competition_participations (id INTEGER PRIMARY KEY AUTOINCREMENT, competition_id INTEGER NOT NULL, fasa_id TEXT NOT NULL, role_type TEXT NOT NULL, role_label TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(competition_id,fasa_id,role_type))`),
   ]);
 }
 
@@ -235,6 +236,7 @@ function roleDetailTable(roleType: string) {
   const tables: Record<string, string> = {
     competitor: "athlete_profiles", athlete: "athlete_profiles",
     judge: "judge_profiles", judge_portal: "judge_profiles",
+    route_setter: "route_setter_profiles", chief_route_setter: "chief_route_setter_profiles",
     competition_admin: "jury_president_profiles", jury_president: "jury_president_profiles",
     regional_representative: "regional_representative_profiles",
     organizer: "organizer_profiles",
@@ -370,12 +372,32 @@ export async function GET(request: Request) {
   if (path === "config") return json({ rounds });
   if (path === "competitions") return json(competitions);
   if (path === "judge-people") return json(await loadRoleDirectory("judge", []));
+  if (path === "route-setter-people") return json(await loadRoleDirectory("route_setter", []));
   if (path === "regional-representatives") return json(await loadRoleDirectory("regional_representative", []));
   if (path === "fasa-profiles") {
     await ensureFasaTables();
     const result = await env.DB.prepare(`SELECT fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,phone,address,province,region,photo_url
       FROM fasa_profiles ORDER BY last_name,first_name`).all();
     return json(result.results);
+  }
+  if (path === "fasa-cv") {
+    await ensureFasaTables();
+    const fasaId = String(url.searchParams.get("fasa_id") || "");
+    const roles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(fasaId).all<{ role_type: string }>();
+    const details: Record<string, unknown> = {};
+    for (const row of roles.results) {
+      const item = await env.DB.prepare(`SELECT data FROM ${roleDetailTable(row.role_type)} WHERE fasa_id=? LIMIT 1`).bind(fasaId).first<{ data: string }>();
+      details[row.role_type] = item?.data ? JSON.parse(item.data) : {};
+    }
+    const history = await env.DB.prepare("SELECT competition_id,role_type,role_label,created_at FROM competition_participations WHERE fasa_id=? ORDER BY competition_id DESC").bind(fasaId).all<Record<string, unknown>>();
+    return json({ roles: roles.results.map((row) => row.role_type), role_details: details, history: history.results.map((item) => ({ ...item, competition: competitionById(Number(item.competition_id)) })) });
+  }
+  if (path === "competition-route-setters") {
+    await ensureFasaTables();
+    const competitionId = Number(url.searchParams.get("competition_id") || 1);
+    const people = await loadRoleDirectory("route_setter", []);
+    const assigned = await env.DB.prepare("SELECT fasa_id,role_type FROM competition_participations WHERE competition_id=? AND role_type IN ('route_setter','chief_route_setter')").bind(competitionId).all();
+    return json({ people, assigned: assigned.results });
   }
   if (path === "fasa-profile") {
     await ensureFasaTables();
@@ -473,10 +495,15 @@ export async function POST(request: Request) {
       if (stored.password && String(stored.password) !== password) return json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
       const storedRoles = await env.DB.prepare("SELECT role_type FROM fasa_roles WHERE fasa_id=? AND active=1 ORDER BY id").bind(stored.fasa_id).all<{ role_type: string }>();
       const roles = storedRoles.results.map((row) => row.role_type);
+      const roleDetails: Record<string, unknown> = {};
+      for (const role of roles) {
+        const item = await env.DB.prepare(`SELECT data FROM ${roleDetailTable(role)} WHERE fasa_id=? LIMIT 1`).bind(stored.fasa_id).first<{ data: string }>();
+        roleDetails[role] = item?.data ? JSON.parse(item.data) : {};
+      }
       const safeProfile = { ...stored, password: undefined, created_at: undefined, updated_at: undefined };
       return json({
         role: roles[0] || "competitor", roles: roles.length ? roles : ["competitor"],
-        user: { ...safeProfile, display_name: `${stored.first_name} ${stored.last_name}`.trim(), username: stored.email, roles },
+        user: { ...safeProfile, display_name: `${stored.first_name} ${stored.last_name}`.trim(), username: stored.email, roles, role_details: roleDetails },
         judgePortal: { person: { ...safeProfile, mail: stored.email }, assignments: competitions },
         competitorPortal: { competitor: safeProfile, competitions, registrations: [] },
       });
@@ -588,6 +615,7 @@ export async function POST(request: Request) {
       first_name: competitor.first_name,
       last_name: competitor.last_name,
     });
+    if (payload.judge_fasa_id) await env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?) ON CONFLICT(competition_id,fasa_id,role_type) DO UPDATE SET role_label=excluded.role_label").bind(Number(payload.competition_id || 1), String(payload.judge_fasa_id), "judge", "Juez", new Date().toISOString()).run();
     return json({ ok: true });
   }
   if (path === "config") return json({ rounds });
@@ -604,6 +632,34 @@ export async function POST(request: Request) {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "No se pudo guardar el Perfil FASA." }, { status: 400 });
     }
+  }
+  if (path === "regional-representative-assignment") {
+    const fasaId = String(payload.fasa_id || ""); const region = String(payload.region || "");
+    const profile = await env.DB.prepare("SELECT fasa_id FROM fasa_profiles WHERE fasa_id=? LIMIT 1").bind(fasaId).first();
+    if (!profile) return json({ error: "La persona seleccionada no tiene FASA ID." }, { status: 404 });
+    await assignRole(fasaId, "regional_representative", { region, active: true }); return json({ ok: true });
+  }
+  if (path === "judge-role-batch" || path === "route-setter-role-batch") {
+    const role = path === "judge-role-batch" ? "judge" : "route_setter";
+    const roleLabel = role === "judge" ? "juez" : "aperturista";
+    const rows = Array.isArray(payload.rows) ? payload.rows : []; const apply = payload.apply === true; const results = [];
+    for (const item of rows) {
+      const dni = cleanDni(item.dni); const level = Number(item.level);
+      if (!dni) { results.push({ dni, level, valid: false, message: "Ingresá un DNI." }); continue; }
+      if (!Number.isInteger(level) || level < 1 || level > 5) { results.push({ dni, level, valid: false, message: "El nivel debe ser un número entre 1 y 5." }); continue; }
+      const profile = await env.DB.prepare("SELECT fasa_id,dni,first_name,last_name,email,club FROM fasa_profiles WHERE dni=? LIMIT 1").bind(dni).first<Record<string, unknown>>();
+      if (!profile) { results.push({ dni, level, valid: false, message: "Este DNI no tiene una FASA ID creada." }); continue; }
+      if (apply) await assignRole(String(profile.fasa_id), role, { level, active: true });
+      results.push({ ...profile, mail: profile.email, level, active: true, valid: true, message: apply ? `Rol de ${roleLabel} asignado.` : "FASA ID encontrada." });
+    }
+    return json({ rows: results, valid_count: results.filter((row) => row.valid).length, invalid_count: results.filter((row) => !row.valid).length });
+  }
+  if (path === "competition-route-setters") {
+    const competitionId = Number(payload.competition_id || 1); const chiefId = String(payload.chief_fasa_id || "");
+    const team = Array.isArray(payload.team_fasa_ids) ? payload.team_fasa_ids.map(String) : [];
+    if (chiefId) { await assignRole(chiefId, "chief_route_setter", {}); await env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?) ON CONFLICT(competition_id,fasa_id,role_type) DO UPDATE SET role_label=excluded.role_label").bind(competitionId, chiefId, "chief_route_setter", "Jefe de Aperturistas", new Date().toISOString()).run(); }
+    for (const fasaId of team) await env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?) ON CONFLICT(competition_id,fasa_id,role_type) DO UPDATE SET role_label=excluded.role_label").bind(competitionId, fasaId, "route_setter", "Aperturista", new Date().toISOString()).run();
+    return json({ ok: true });
   }
   if (path === "judge-people") return json(await saveRoleDirectory("judge", Array.isArray(payload.people) ? payload.people : []));
   if (path === "judges") return json(getJudges());

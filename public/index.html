@@ -207,7 +207,8 @@
       </div>
       <nav class="tabs" aria-label="Vistas">
         <div class="private-primary-nav">
-          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest" title="FASA ID" aria-label="FASA ID"><span aria-hidden="true">●</span></button>
+          <button class="tab profile-tab" data-view="unifiedProfile" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" title="FASA ID" aria-label="FASA ID"><span aria-hidden="true">●</span></button>
+          <button class="tab cv-tab" data-view="fasaCv" data-roles="general_admin regional_representative competition_admin organizer judge judge_portal competitor guest route_setter chief_route_setter" type="button">Mi CV FASA</button>
           <strong id="currentRoleLabel" class="current-role-label hidden"></strong>
         </div>
         <div class="private-secondary-nav">
@@ -216,6 +217,8 @@
           <button class="tab role-hidden" data-view="competitions" data-roles="general_admin regional_representative" hidden>Gestionar eventos</button>
           <button class="tab role-hidden" data-view="regionalRepresentatives" data-roles="general_admin" hidden>Gestionar referentes regionales</button>
           <button class="tab role-hidden" data-view="judgePeople" data-roles="general_admin" hidden>Gestionar jueces</button>
+          <button class="tab role-hidden" data-view="routeSetterPeople" data-roles="general_admin" hidden>Gestionar aperturistas</button>
+          <button class="tab role-hidden" data-view="routeSetterTeam" data-roles="chief_route_setter" hidden>Equipo de aperturistas</button>
           <button class="tab role-hidden" data-view="judgePortal" data-roles="judge_portal" hidden>Datos de juez</button>
           <button class="tab role-hidden" data-view="competitorPortal" data-roles="competitor" hidden>Perfil deportivo</button>
           <button class="tab role-hidden" data-view="computos" data-roles="competition_admin" hidden>Cómputos</button>
@@ -243,7 +246,6 @@
                   <div id="fasaIdCardPhoto" class="id-card-photo"><span>FOTO</span></div>
                   <div class="id-card-data">
                     <p id="fasaIdCardName">Nombre y apellido</p>
-                    <strong id="fasaIdCardNumber">FASA ID pendiente</strong>
                     <span id="fasaIdCardDni">DNI —</span>
                     <span id="fasaIdCardClub">Club —</span>
                     <div class="id-card-roles"><small>ROLES ASIGNADOS</small><span id="fasaIdCardRoles">Sin roles asignados</span></div>
@@ -275,7 +277,6 @@
                   <label>URL de la foto <input data-unified-field="photo_url" placeholder="https://..." /></label>
                 </div>
                 <div class="detail-form unified-fields">
-                  <label>FASA ID <input data-unified-field="fasa_id" readonly placeholder="Se asigna al guardar" /></label>
                   <label>Nombre <input data-unified-field="first_name" /></label>
                   <label>Apellido <input data-unified-field="last_name" /></label>
                   <label>Nacionalidad <input data-unified-field="nationality" /></label>
@@ -294,6 +295,13 @@
               <p id="unifiedProfileStatus" aria-live="polite"></p>
             </form>
           </dialog>
+        </section>
+      </section>
+      <section id="fasaCv" class="view">
+        <section class="panel fasa-profile-panel">
+          <div class="section-head"><div><p class="eyebrow">Trayectoria oficial</p><h2>Mi CV FASA</h2></div></div>
+          <div id="fasaCvRoles" class="cv-role-summary"></div>
+          <div id="fasaCvHistory" class="cv-history"></div>
         </section>
       </section>
       <section id="competitions" class="view">
@@ -350,6 +358,7 @@
                 <h3>Roles de competencia</h3>
               </div>
               <input name="jury_president_id" id="juryPresidentSelect" type="hidden" />
+              <input name="chief_route_setter_id" id="chiefRouteSetterSelect" type="hidden" />
               <input name="organizer_last_name" type="hidden" />
               <input name="organizer_name" type="hidden" />
               <input name="organizer_dni" type="hidden" />
@@ -374,6 +383,7 @@
                     <td><button id="openJuryPresidentPicker" type="button">Elegir</button></td>
                   </tr>
                 </tbody>
+                <tbody id="chiefRouteSetterSummary"><tr><td><strong>Jefe de Aperturistas</strong></td><td colspan="5"><select id="chiefRouteSetterPicker"><option value="">Sin seleccionar</option></select></td><td></td></tr></tbody>
               </table>
             </div>
             <button id="saveCompetitionButton" class="primary" type="submit">Crear competencia</button>
@@ -544,6 +554,17 @@
             </div>
           </section>
         </div>
+      </section>
+      <section id="routeSetterPeople" class="view">
+        <section class="panel">
+          <div class="section-head"><div><p class="eyebrow">Administrador general</p><h2>Aperturistas</h2></div><button id="applyRouteSetterBatch" class="primary" type="button" disabled>Asignar roles validados</button></div>
+          <div class="judge-batch-panel"><div><label for="routeSetterBatchInput">Carga masiva: DNI y nivel</label><p>Se comprueba únicamente la existencia de FASA ID mediante DNI. El nivel debe ser de 1 a 5.</p><textarea id="routeSetterBatchInput" rows="7" placeholder="30111222, 3&#10;28444555, 2"></textarea><button id="validateRouteSetterBatch" type="button">Comprobar DNI en FASA ID</button></div><div><p class="eyebrow">Resultado de validación</p><div id="routeSetterBatchResults" class="batch-results"><p>Cargá la lista para verificar los DNI.</p></div></div></div>
+          <p id="routeSetterPeopleStatus" aria-live="polite"></p>
+          <table><thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Mail</th><th>Club</th><th>Nivel</th><th>Estado</th></tr></thead><tbody id="routeSetterPeopleTable"></tbody></table>
+        </section>
+      </section>
+      <section id="routeSetterTeam" class="view">
+        <section class="panel"><div class="section-head"><div><p class="eyebrow">Competencia</p><h2>Equipo de aperturistas</h2></div><button id="saveRouteSetterTeam" class="primary" type="button">Guardar equipo</button></div><p>Como Jefe de Aperturistas podés seleccionar el equipo entre los aperturistas habilitados.</p><div id="routeSetterTeamList" class="team-picker"></div><p id="routeSetterTeamStatus" aria-live="polite"></p></section>
       </section>
 
       <section id="judgePortal" class="view">

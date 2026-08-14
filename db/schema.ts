@@ -47,7 +47,18 @@ function roleTable(name: string) {
 
 export const athleteProfiles = roleTable("athlete_profiles");
 export const judgeProfiles = roleTable("judge_profiles");
+export const routeSetterProfiles = roleTable("route_setter_profiles");
+export const chiefRouteSetterProfiles = roleTable("chief_route_setter_profiles");
 export const juryPresidentProfiles = roleTable("jury_president_profiles");
 export const regionalRepresentativeProfiles = roleTable("regional_representative_profiles");
 export const organizerProfiles = roleTable("organizer_profiles");
 export const administratorProfiles = roleTable("administrator_profiles");
+
+export const competitionParticipations = sqliteTable("competition_participations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  competitionId: integer("competition_id").notNull(),
+  fasaId: text("fasa_id").notNull(),
+  roleType: text("role_type").notNull(),
+  roleLabel: text("role_label").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => ({ uniqueParticipation: uniqueIndex("competition_participations_unique").on(table.competitionId, table.fasaId, table.roleType) }));

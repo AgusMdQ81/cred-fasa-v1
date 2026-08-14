@@ -15,6 +15,8 @@ const state = {
   regionalRepresentatives: [],
   fasaProfiles: [],
   validatedJudgeBatch: [],
+  routeSetterPeople: [],
+  validatedRouteSetterBatch: [],
   competitions: [],
   registrations: [],
   currentCompetitionId: null,
@@ -494,13 +496,15 @@ function judgeRole(roundKey) {
 }
 
 function allowedViews(role) {
-  if (role === "general_admin") return ["unifiedProfile", "competitions", "regionalRepresentatives", "judgePeople"];
-  if (role === "regional_representative") return ["unifiedProfile", "competitions"];
-  if (role === "competition_admin") return ["unifiedProfile", "computos", "registrations", "config", "results"];
-  if (role === "organizer") return ["unifiedProfile", "registrations"];
-  if (role === "judge") return ["unifiedProfile", "judge", "results"];
-  if (role === "judge_portal") return ["unifiedProfile", "judgePortal"];
-  if (role === "competitor") return ["unifiedProfile", "competitorPortal"];
+  if (role === "general_admin") return ["unifiedProfile", "fasaCv", "competitions", "regionalRepresentatives", "judgePeople", "routeSetterPeople"];
+  if (role === "regional_representative") return ["unifiedProfile", "fasaCv", "competitions"];
+  if (role === "competition_admin") return ["unifiedProfile", "fasaCv", "computos", "registrations", "config", "results"];
+  if (role === "organizer") return ["unifiedProfile", "fasaCv", "registrations"];
+  if (role === "judge") return ["unifiedProfile", "fasaCv", "judge", "results"];
+  if (role === "route_setter") return ["unifiedProfile", "fasaCv"];
+  if (role === "chief_route_setter") return ["unifiedProfile", "fasaCv", "routeSetterTeam"];
+  if (role === "judge_portal") return ["unifiedProfile", "fasaCv", "judgePortal"];
+  if (role === "competitor") return ["unifiedProfile", "fasaCv", "competitorPortal"];
   return ["unifiedProfile", "results"];
 }
 
@@ -514,6 +518,7 @@ function roleHome(role) {
   if (role === "competition_admin") return "computos";
   if (role === "organizer") return "registrations";
   if (role === "judge") return "judge";
+  if (role === "chief_route_setter") return "routeSetterTeam";
   if (role === "judge_portal") return "judgePortal";
   if (role === "competitor") return "competitorPortal";
   return "results";
@@ -527,7 +532,11 @@ function activateView(view, options = {}) {
   $(`#${safeView}`).classList.add("active");
   if (safeView === "judge") loadCompetitors();
   if (safeView === "judgePeople") loadJudgePeople();
+  if (safeView === "competitions" && state.role === "general_admin") loadRouteSetterPeople();
   if (safeView === "regionalRepresentatives") loadRegionalRepresentatives();
+  if (safeView === "routeSetterPeople") loadRouteSetterPeople();
+  if (safeView === "routeSetterTeam") loadRouteSetterTeam();
+  if (safeView === "fasaCv") loadFasaCv();
   if (safeView === "results") loadLeaderboard();
   if (safeView === "registrations") loadRegistrations();
   if (safeView === "computos") refreshComputed();
@@ -581,6 +590,8 @@ const ROLE_LABELS = {
   competitor: "Atleta",
   judge_portal: "Juez",
   judge: "Juez de competencia",
+  route_setter: "Aperturista",
+  chief_route_setter: "Jefe de Aperturistas",
   organizer: "Organizador",
   competition_admin: "Presidente de jurado",
   regional_representative: "Referente regional",
@@ -641,11 +652,10 @@ function renderUnifiedProfile() {
   renderPhotoPreview($("#unifiedProfilePhoto"), profile.photo_url, "Foto del perfil FASA");
   renderPhotoPreview($("#fasaIdCardPhoto"), profile.photo_url, "Foto de FASA ID");
   $("#fasaIdCardName").textContent = `${profile.first_name || "Nombre"} ${profile.last_name || "Apellido"}`.trim();
-  $("#fasaIdCardNumber").textContent = profile.fasa_id || "FASA ID pendiente";
   $("#fasaIdCardDni").textContent = `DNI ${profile.dni || "—"}`;
   $("#fasaIdCardClub").textContent = `Club ${profile.club || "—"}`;
   const roles = state.roles.length ? state.roles : [state.role];
-  $("#fasaIdCardRoles").textContent = roles.map((role) => ROLE_LABELS[role] || role).join(" · ");
+  $("#fasaIdCardRoles").textContent = roles.map((role) => `${ROLE_LABELS[role] || role}${state.user?.role_details?.[role]?.level ? ` · Nivel ${state.user.role_details[role].level}` : ""}`).join(" · ");
   $("#fasaIdCardEmail").textContent = profile.email || "—";
   $("#fasaIdCardPhone").textContent = profile.phone || "—";
   $("#fasaIdCardAddress").textContent = profile.address || "—";
@@ -2081,6 +2091,26 @@ async function loadRegionalRepresentatives() {
   renderRegionalRepresentatives();
 }
 
+async function loadRouteSetterPeople() {
+  state.routeSetterPeople = await api("/api/route-setter-people");
+  $("#routeSetterPeopleTable").innerHTML = state.routeSetterPeople.length ? state.routeSetterPeople.map((person) => `<tr><td>${person.last_name || "—"}</td><td>${person.first_name || "—"}</td><td>${person.dni || "—"}</td><td>${person.mail || person.email || "—"}</td><td>${person.club || "—"}</td><td>${person.level || "—"}</td><td>${person.active !== false ? "Activo" : "Inactivo"}</td></tr>`).join("") : '<tr><td colspan="7">Todavía no hay aperturistas asignados.</td></tr>';
+  const chiefPicker = $("#chiefRouteSetterPicker");
+  if (chiefPicker) chiefPicker.innerHTML = '<option value="">Sin seleccionar</option>' + state.routeSetterPeople.map((person) => `<option value="${person.fasa_id}">${person.last_name}, ${person.first_name} · Nivel ${person.level}</option>`).join("");
+}
+
+async function loadRouteSetterTeam() {
+  const data = await api(`/api/competition-route-setters?competition_id=${state.currentCompetitionId || 1}`);
+  const assigned = new Set(data.assigned.filter((item) => item.role_type === "route_setter").map((item) => item.fasa_id));
+  $("#routeSetterTeamList").innerHTML = data.people.map((person) => `<label><input type="checkbox" value="${person.fasa_id}" ${assigned.has(person.fasa_id) ? "checked" : ""} /> <strong>${person.last_name}, ${person.first_name}</strong><span>DNI ${person.dni} · Nivel ${person.level}</span></label>`).join("") || "<p>No hay aperturistas habilitados.</p>";
+}
+
+async function loadFasaCv() {
+  if (!state.user?.fasa_id) { $("#fasaCvHistory").innerHTML = "<p>El perfil de demostración todavía no tiene un historial asociado.</p>"; return; }
+  const cv = await api(`/api/fasa-cv?fasa_id=${encodeURIComponent(state.user.fasa_id)}`);
+  $("#fasaCvRoles").innerHTML = cv.roles.map((role) => { const level = cv.role_details?.[role]?.level; return `<span>${ROLE_LABELS[role] || role}${level ? ` · Nivel ${level}` : ""}</span>`; }).join("");
+  $("#fasaCvHistory").innerHTML = cv.history.length ? cv.history.map((item) => `<article><time>${item.competition?.event_date || ""}</time><div><strong>${item.competition?.name || "Competencia FASA"}</strong><span>${item.role_label}</span></div></article>`).join("") : "<p>Todavía no hay participaciones registradas.</p>";
+}
+
 async function loadCompetitions() {
   state.competitions = await api("/api/competitions");
   renderCompetitions();
@@ -2711,6 +2741,7 @@ function bindEvents() {
     if (payload.competition_type !== "CRED") payload.region = "";
     try {
       await api("/api/competitions", { method: "POST", body: JSON.stringify(payload) });
+      if (payload.chief_route_setter_id) await api("/api/competition-route-setters", { method: "POST", body: JSON.stringify({ competition_id: payload.id || state.currentCompetitionId || 1, chief_fasa_id: payload.chief_route_setter_id, team_fasa_ids: [] }) });
       resetCompetitionForm();
       $("#competitionStatus").textContent = "Competencia guardada. El formulario quedo listo para crear una nueva.";
       await loadCompetitions();
@@ -2839,6 +2870,7 @@ function bindEvents() {
       top_attempt: state.topAttempt,
       judge_name: $("#judgeName").value,
       judge_username: state.user?.username || $("#judgeName").value,
+      judge_fasa_id: state.user?.fasa_id || "",
       judge_role: judgeRole(selectedRound()),
       official: judgeRole(selectedRound()) === "principal",
       notes: $("#scoreNotes").value,
@@ -2975,6 +3007,28 @@ function bindEvents() {
       $("#applyJudgeBatch").disabled = true;
       await loadJudgePeople();
     } catch (error) { $("#judgePeopleStatus").textContent = error.message; }
+  });
+  $("#validateRouteSetterBatch").addEventListener("click", async () => {
+    try {
+      const rows = $("#routeSetterBatchInput").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => { const [dni, level] = line.split(/[;,\t ]+/); return { dni, level: Number(level) }; });
+      const result = await api("/api/route-setter-role-batch", { method: "POST", body: JSON.stringify({ rows, apply: false }) });
+      state.validatedRouteSetterBatch = result.rows;
+      $("#routeSetterBatchResults").innerHTML = result.rows.map((row) => `<div class="batch-result ${row.valid ? "valid" : "invalid"}"><strong>${row.dni} · Nivel ${row.level || "—"}</strong><span>${row.valid ? `${row.last_name}, ${row.first_name}` : row.message}</span></div>`).join("");
+      $("#applyRouteSetterBatch").disabled = !result.valid_count || result.invalid_count > 0;
+      $("#routeSetterPeopleStatus").textContent = result.invalid_count ? `${result.invalid_count} DNI no pudo validarse.` : `${result.valid_count} DNI listos para asignar.`;
+    } catch (error) { $("#routeSetterPeopleStatus").textContent = error.message; }
+  });
+  $("#routeSetterBatchInput").addEventListener("input", () => { $("#applyRouteSetterBatch").disabled = true; });
+  $("#applyRouteSetterBatch").addEventListener("click", async () => {
+    const rows = $("#routeSetterBatchInput").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => { const [dni, level] = line.split(/[;,\t ]+/); return { dni, level: Number(level) }; });
+    const result = await api("/api/route-setter-role-batch", { method: "POST", body: JSON.stringify({ rows, apply: true }) });
+    $("#routeSetterPeopleStatus").textContent = `${result.valid_count} rol(es) de aperturista asignados.`; $("#applyRouteSetterBatch").disabled = true; await loadRouteSetterPeople();
+  });
+  $("#chiefRouteSetterPicker").addEventListener("change", (event) => { $("#chiefRouteSetterSelect").value = event.target.value; });
+  $("#saveRouteSetterTeam").addEventListener("click", async () => {
+    const team = Array.from($("#routeSetterTeamList").querySelectorAll('input:checked')).map((input) => input.value);
+    await api("/api/competition-route-setters", { method: "POST", body: JSON.stringify({ competition_id: state.currentCompetitionId || 1, chief_fasa_id: state.user?.fasa_id, team_fasa_ids: team }) });
+    $("#routeSetterTeamStatus").textContent = "Equipo de aperturistas guardado y participaciones registradas.";
   });
 
   $("#applyJudgeCount").addEventListener("click", () => {
