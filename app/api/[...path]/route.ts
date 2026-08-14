@@ -286,20 +286,23 @@ async function seedTestFasaData() {
     { count: 20, roles: [{ type: "judge", data: {} }, { type: "route_setter", data: {} }] },
     { count: 3, roles: [{ type: "general_admin", data: {} }] }, { count: 20, roles: [] },
   ];
-  let index = 0; let maleNameIndex = 0; let femaleNameIndex = 0; const usedFullNames = new Set<string>(); const statements = [];
+  const allFirstNames = [...maleNames, ...femaleNames];
+  const firstNameCounts = new Map<string, number>(); const lastNameCounts = new Map<string, number>();
+  const usedFullNames = new Set<string>(); const statements = [];
+  const pickLeastUsed = (pool: string[], counts: Map<string, number>, start: number, pairedFirst?: string) => {
+    const available = pool
+      .map((value, offset) => ({ value, offset, count: counts.get(value) || 0 }))
+      .filter(({ value, count }) => count < 2 && (!pairedFirst || !usedFullNames.has(`${pairedFirst}|${value}`)))
+      .sort((a, b) => a.count - b.count || ((a.offset - start + pool.length) % pool.length) - ((b.offset - start + pool.length) % pool.length));
+    if (!available.length) throw new Error("No hay suficientes nombres únicos para generar los perfiles FASA ID");
+    const selected = available[0].value; counts.set(selected, (counts.get(selected) || 0) + 1); return selected;
+  };
+  let index = 0;
   for (const spec of specs) for (let local = 0; local < spec.count; local++) {
     index++; const dni = String(30000000 + index); const fasaId = makeFasaId(dni); const now = new Date().toISOString();
-    const useFemaleName = spec.gender === "Mujer" || (!spec.gender && index % 2 === 1);
-    const namePool = useFemaleName ? femaleNames : maleNames;
-    let sequence = useFemaleName ? femaleNameIndex++ : maleNameIndex++;
-    let first = namePool[sequence % namePool.length];
-    const isAthlete = spec.roles.some((role) => role.type === "competitor");
-    let last = isAthlete ? lastNames[index - 1] : lastNames[Math.floor(sequence / namePool.length) % lastNames.length];
-    while (usedFullNames.has(`${first}|${last}`)) {
-      sequence++;
-      first = namePool[sequence % namePool.length];
-      last = lastNames[Math.floor(sequence / namePool.length) % lastNames.length];
-    }
+    const namePool = spec.gender === "Mujer" ? femaleNames : spec.gender === "Hombre" ? maleNames : allFirstNames;
+    const first = pickLeastUsed(namePool, firstNameCounts, index - 1);
+    const last = pickLeastUsed(lastNames, lastNameCounts, index - 1, first);
     usedFullNames.add(`${first}|${last}`);
     const photo = spec.gender === "Mujer" ? "/assets/female-athlete-demo.png" : spec.gender === "Hombre" ? "/assets/admin-demo-portrait.png" : "";
     statements.push(env.DB.prepare(`INSERT INTO fasa_profiles (fasa_id,dni,first_name,last_name,nationality,club,birth_date,email,password,phone,address,province,region,photo_url,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(fasaId,dni,first,last,"Argentina",["AEBA","CABA","Club Andino","Centro","Cuyo","Litoral"][index%6],"1998-05-12",`persona${index}@fasa.test`,"admin",`11${String(40000000+index)}`,"Direccion de prueba",["Buenos Aires","Cordoba","Mendoza","Neuquen"][index%4],["Buenos Aires","Centro","Cuyo","Noa","Litoral","Patagonia Norte","Patagonia Sur"][index%7],photo,now,now));
