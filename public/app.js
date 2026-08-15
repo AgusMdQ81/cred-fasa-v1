@@ -1894,6 +1894,26 @@ function eventTouchesMonth(competition, month) {
   return Boolean(start && start <= monthEnd && end >= monthStart);
 }
 
+const EVENT_IDENTITY_LOGOS = {
+  caed: { src: "/assets/event-identities/caed.svg", label: "CAED" },
+  "cred:litoral": { src: "/assets/event-identities/cred-litoral.svg", label: "CRED Litoral" },
+};
+
+function normalizeEventIdentityValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function getEventIdentityLogo(competition) {
+  const type = normalizeEventIdentityValue(competition?.competition_type);
+  if (type === "caed") return EVENT_IDENTITY_LOGOS.caed;
+  if (type !== "cred") return null;
+  return EVENT_IDENTITY_LOGOS[`cred:${normalizeEventIdentityValue(competition?.region)}`] || null;
+}
+
 function renderPublicCalendar() {
   if (!$("#publicCompetitionCalendar")) return;
   renderMonthRail();
@@ -1914,18 +1934,25 @@ function renderPublicCalendar() {
     $("#publicCompetitionCalendar").innerHTML = '<p class="hint">No hay eventos para los filtros seleccionados.</p>';
     return;
   }
-  $("#publicCompetitionCalendar").innerHTML = filtered.map((competition) => `
-    <article class="calendar-item ${competition.organizer_logo_url ? "has-logo" : ""}" data-public-competition="${competition.id}">
-      ${competition.organizer_logo_url ? `<img class="calendar-club-logo" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" loading="lazy" />` : ""}
-      <time>${formatEventDateRange(competition)}</time>
-      <div>
-        <strong>${competition.name}</strong>
-        <span>${competition.competition_type} - ${competition.modality} - ${competition.category}</span>
-        <span>${competition.organizer_club}${competition.region ? ` - ${competition.region}` : ""}</span>
-        ${competition.infosheet_url ? `<a class="infosheet-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
-      </div>
-    </article>
-  `).join("");
+  $("#publicCompetitionCalendar").innerHTML = filtered.map((competition) => {
+    const identityLogo = getEventIdentityLogo(competition);
+    const hasBrand = Boolean(identityLogo || competition.organizer_logo_url);
+    return `
+      <article class="calendar-item ${hasBrand ? "has-brand" : ""}" data-public-competition="${competition.id}">
+        ${hasBrand ? `<div class="calendar-event-brand">
+          ${identityLogo ? `<img class="calendar-identity-logo" src="${identityLogo.src}" alt="${identityLogo.label}" loading="lazy" />` : ""}
+          ${competition.organizer_logo_url ? `<img class="calendar-club-logo ${identityLogo ? "is-secondary" : ""}" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" loading="lazy" />` : ""}
+        </div>` : ""}
+        <time>${formatEventDateRange(competition)}</time>
+        <div>
+          <strong>${competition.name}</strong>
+          <span>${competition.competition_type} - ${competition.modality} - ${competition.category}</span>
+          <span>${competition.organizer_club}${competition.region ? ` - ${competition.region}` : ""}</span>
+          ${competition.infosheet_url ? `<a class="infosheet-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
+        </div>
+      </article>
+    `;
+  }).join("");
   $("#publicCompetitionCalendar").querySelectorAll("[data-public-competition]").forEach((item) => {
     item.addEventListener("click", () => selectPublicCompetition(Number(item.dataset.publicCompetition)));
   });

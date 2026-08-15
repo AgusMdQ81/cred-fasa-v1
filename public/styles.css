@@ -655,8 +655,24 @@ button:hover,
   border-left: 8px solid var(--silver);
 }
 
-.calendar-item.has-logo {
-  grid-template-columns: 72px 120px minmax(0, 1fr);
+.calendar-item.has-brand {
+  grid-template-columns: 112px 120px minmax(0, 1fr);
+}
+
+.calendar-event-brand {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  min-height: 82px;
+}
+
+.calendar-identity-logo {
+  display: block;
+  width: 112px;
+  height: 82px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(16, 32, 47, .12));
 }
 
 .calendar-club-logo,
@@ -673,6 +689,17 @@ button:hover,
   width: 72px;
   height: 72px;
   padding: 7px;
+}
+
+.calendar-event-brand .calendar-club-logo.is-secondary {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 36px;
+  height: 36px;
+  padding: 3px;
+  border-radius: 7px;
+  box-shadow: 0 3px 10px rgba(16, 32, 47, .2);
 }
 
 .competition-public-title {
@@ -2206,16 +2233,21 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
-  .calendar-item.has-logo {
-    grid-template-columns: 72px minmax(0, 1fr);
+  .calendar-item.has-brand {
+    grid-template-columns: 92px minmax(0, 1fr);
   }
 
-  .calendar-item.has-logo time {
+  .calendar-item.has-brand time {
     grid-column: 2;
   }
 
-  .calendar-item.has-logo > div {
+  .calendar-item.has-brand > div:not(.calendar-event-brand) {
     grid-column: 1 / -1;
+  }
+
+  .calendar-event-brand,
+  .calendar-identity-logo {
+    width: 92px;
   }
 
   .calendar-layout {
