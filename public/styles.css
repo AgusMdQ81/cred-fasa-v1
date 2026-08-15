@@ -644,38 +644,36 @@ button:hover,
 
 .calendar-item {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: stretch;
+  border: 1px solid rgba(217, 224, 229, .86);
+  border-radius: 12px;
+  padding: 20px 22px;
   background: #ffffff;
   cursor: pointer;
-  border-left: 8px solid var(--silver);
+  box-shadow: 0 12px 28px rgba(8, 27, 43, .14);
 }
 
-.calendar-item.has-brand {
-  grid-template-columns: 112px 120px minmax(0, 1fr);
+.calendar-item.has-identity {
+  grid-template-columns: 112px minmax(0, 1fr) auto;
 }
 
-.calendar-event-brand {
-  position: relative;
+.calendar-event-identity {
   display: grid;
   place-items: center;
   width: 112px;
-  min-height: 82px;
+  min-height: 112px;
 }
 
 .calendar-identity-logo {
   display: block;
   width: 112px;
-  height: 82px;
+  height: 104px;
   object-fit: contain;
   filter: drop-shadow(0 3px 6px rgba(16, 32, 47, .12));
 }
 
-.calendar-club-logo,
 .competition-club-logo,
 .event-upload-preview img {
   display: block;
@@ -685,21 +683,104 @@ button:hover,
   border-radius: 10px;
 }
 
-.calendar-club-logo {
-  width: 72px;
-  height: 72px;
+.calendar-club-logo-right {
+  display: block;
+  align-self: center;
+  width: 82px;
+  height: 82px;
   padding: 7px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 
-.calendar-event-brand .calendar-club-logo.is-secondary {
-  position: absolute;
-  right: -3px;
-  bottom: -3px;
-  width: 36px;
-  height: 36px;
-  padding: 3px;
-  border-radius: 7px;
-  box-shadow: 0 3px 10px rgba(16, 32, 47, .2);
+.calendar-event-content {
+  display: grid;
+  min-width: 0;
+}
+
+.calendar-event-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--charcoal);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.calendar-heading-divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(16, 32, 47, .35);
+}
+
+.calendar-discipline {
+  color: var(--accent-dark) !important;
+  margin: 0 !important;
+}
+
+.calendar-event-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 38%);
+  gap: 28px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.calendar-event-summary h3 {
+  margin: 0;
+  color: var(--charcoal);
+  font-size: clamp(20px, 2vw, 27px);
+  line-height: 1.12;
+}
+
+.calendar-event-type {
+  margin-top: 5px !important;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.calendar-event-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--charcoal);
+  font-weight: 800;
+}
+
+.calendar-event-location span {
+  margin: 0;
+  color: inherit;
+}
+
+.calendar-location-icon {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.calendar-event-footer {
+  display: flex;
+  gap: 28px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.calendar-event-link {
+  color: #087e58;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .competition-public-title {
@@ -716,13 +797,13 @@ button:hover,
 }
 
 .calendar-item:hover {
-  border-left-color: var(--accent);
-  box-shadow: 0 10px 24px rgba(57, 57, 57, 0.08);
+  border-color: rgba(223, 170, 0, .72);
+  box-shadow: 0 16px 34px rgba(8, 27, 43, .2);
 }
 
 .calendar-item time {
   font-weight: 900;
-  color: var(--accent);
+  color: var(--charcoal);
   font-variant-numeric: tabular-nums;
 }
 
@@ -731,23 +812,9 @@ button:hover,
   display: block;
 }
 
-.calendar-item strong {
-  font-size: 18px;
-}
-
 .calendar-item span {
   color: var(--muted);
   margin-top: 4px;
-}
-
-.calendar-item .infosheet-link {
-  display: inline-flex;
-  width: fit-content;
-  margin-top: 10px;
-  color: var(--charcoal);
-  font-weight: 900;
-  text-decoration-color: var(--accent);
-  text-underline-offset: 3px;
 }
 
 .infosheet-detail-link {
@@ -1747,9 +1814,47 @@ dd {
 
 .row-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   white-space: nowrap;
+}
+
+.row-actions button {
+  width: 100%;
+}
+
+#competitions .management-table-wrap table {
+  table-layout: fixed;
+  font-size: 11px;
+}
+
+#competitions .management-table-wrap th,
+#competitions .management-table-wrap td {
+  padding: 8px 5px;
+  overflow-wrap: anywhere;
+}
+
+#competitions .management-table-wrap th:last-child {
+  width: 76px;
+}
+
+#competitions .management-table-wrap th:nth-last-child(2) {
+  width: 68px;
+}
+
+#competitions .row-actions button {
+  min-height: 32px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.table-event-location {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .table-infosheet-link {
@@ -2229,25 +2334,49 @@ tbody tr:hover {
     grid-template-columns: 1fr 1fr;
   }
 
-  .calendar-item {
-    grid-template-columns: 1fr;
+  .calendar-item,
+  .calendar-item.has-identity {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
   }
 
-  .calendar-item.has-brand {
-    grid-template-columns: 92px minmax(0, 1fr);
+  .calendar-item:not(.has-identity) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .calendar-item.has-brand time {
-    grid-column: 2;
-  }
-
-  .calendar-item.has-brand > div:not(.calendar-event-brand) {
-    grid-column: 1 / -1;
-  }
-
-  .calendar-event-brand,
+  .calendar-event-identity,
   .calendar-identity-logo {
-    width: 92px;
+    width: 82px;
+    height: 78px;
+    min-height: 78px;
+  }
+
+  .calendar-event-body {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .calendar-event-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .calendar-heading-divider {
+    height: 20px;
+  }
+
+  .calendar-event-footer {
+    gap: 20px;
+  }
+
+  .calendar-club-logo-right {
+    grid-column: 1 / -1;
+    width: 58px;
+    height: 58px;
+    justify-self: end;
+    margin-top: -66px;
   }
 
   .calendar-layout {

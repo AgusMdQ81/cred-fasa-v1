@@ -31,6 +31,8 @@ const competitions = [
     modality: "Boulder",
     category: "Mayores",
     organizer_club: "AEBA",
+    city: "Mar del Plata",
+    province: "Buenos Aires",
     jury_president_id: 2,
     region: "Buenos Aires",
     jury_president: { ...judgePeople[1], password: judgePeople[1].mail },
@@ -54,6 +56,8 @@ const competitions = [
     modality: "Boulder",
     category: "Juveniles",
     organizer_club: "Club Andino",
+    city: "San Martín de los Andes",
+    province: "Neuquén",
     jury_president_id: 5,
     region: "Patagonia Norte",
     jury_president: { ...judgePeople[4], password: judgePeople[4].mail },
@@ -69,6 +73,8 @@ const competitions = [
     modality: "Dificultad",
     category: "Mayores",
     organizer_club: "FASA",
+    city: "Córdoba",
+    province: "Córdoba",
     jury_president_id: 8,
     region: "",
     jury_president: { ...judgePeople[7], password: judgePeople[7].mail },
@@ -854,10 +860,15 @@ export async function POST(request: Request) {
     const modality = String(payload.modality || currentData.modality || "");
     const category = String(payload.category || currentData.category || "");
     const region = String(payload.region || currentData.region || "");
+    const province = String(payload.province || currentData.province || "").trim();
+    const city = String(payload.city || currentData.city || "").trim();
     if (!['CRED', 'CAED'].includes(competitionType)) return json({ error: "Elegí si el evento es CRED o CAED." }, { status: 400 });
     if (!['Boulder', 'Dificultad', 'Velocidad'].includes(modality)) return json({ error: "Elegí la modalidad del evento." }, { status: 400 });
     if (!['Juveniles', 'Mayores'].includes(category)) return json({ error: "Elegí la categoría del evento." }, { status: 400 });
     if (competitionType === 'CRED' && !region) return json({ error: "Elegí la región del evento CRED." }, { status: 400 });
+    if (!province) return json({ error: "Elegí la provincia donde se realizará el evento." }, { status: 400 });
+    if (!city) return json({ error: "Ingresá la ciudad donde se realizará el evento." }, { status: 400 });
+    const generatedName = `${competitionType}${competitionType === 'CRED' ? ` ${region}` : ''}${category ? ` - ${category}` : ''}`;
     const organizerFasaId = String(payload.organizer_fasa_id || currentData.organizer_fasa_id || "");
     const juryPresidentFasaId = String(payload.jury_president_fasa_id || payload.jury_president_id || currentData.jury_president_fasa_id || "");
     const chiefRouteSetterFasaId = String(payload.chief_route_setter_fasa_id || payload.chief_route_setter_id || currentData.chief_route_setter_fasa_id || "");
@@ -869,7 +880,7 @@ export async function POST(request: Request) {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "No se pudieron validar los roles del evento." }, { status: 400 });
     }
-    const data = { ...currentData, ...payload, event_date: startDate, end_date: endDate, competition_type: competitionType, modality, category, region: competitionType === 'CRED' ? region : '', organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
+    const data = { ...currentData, ...payload, name: generatedName, event_date: startDate, end_date: endDate, competition_type: competitionType, modality, category, region: competitionType === 'CRED' ? region : '', province, city, organizer_fasa_id: organizerFasaId, jury_president_fasa_id: juryPresidentFasaId, chief_route_setter_fasa_id: chiefRouteSetterFasaId };
     delete data.id; delete data.record_id; delete data.internal_event_id; delete data.status; delete data.creator_role; delete data.creator_fasa_id;
     delete data.jury_president_id; delete data.chief_route_setter_id; delete data.organizer_password;
     if (requestedId > 0 && requestedId < 1000) data.replaces_builtin_id = requestedId;

@@ -700,7 +700,7 @@ async function renderOfficialArea() {
   const unique = applicable.filter((item, index, list) => item.competition && list.findIndex((candidate) => Number(candidate.competition_id) === Number(item.competition_id)) === index);
   $("#officialAssignmentsList").innerHTML = unique.length ? unique.map((item) => {
     const competition = item.competition;
-    return `<article class="assigned-event-card"><time>${formatEventDateRange(competition)}</time><div><strong>${competition.name || "Evento FASA"}</strong><span>${item.role_label || label} · ${competition.competition_type || "Evento"}${competition.region ? ` · ${competition.region}` : ""}</span></div><button type="button" data-enter-assigned-event="${item.competition_id}">Entrar</button></article>`;
+    return `<article class="assigned-event-card"><time>${formatEventDateRange(competition)}</time><div><strong>${competitionDisplayName(competition)}</strong><span>${item.role_label || label} · ${competition.modality || "Disciplina a confirmar"}</span></div><button type="button" data-enter-assigned-event="${item.competition_id}">Entrar</button></article>`;
   }).join("") : "<p>No hay eventos asignados para este rol.</p>";
   $("#officialAssignmentsList").querySelectorAll("[data-enter-assigned-event]").forEach((button) => button.addEventListener("click", () => enterAssignedCompetition(Number(button.dataset.enterAssignedEvent))));
 }
@@ -721,7 +721,7 @@ function renderActiveEventContext() {
   context.hidden = !visible;
   if (!visible) return;
   $("#activeEventRole").textContent = ROLE_LABELS[state.role] || state.role;
-  $("#activeEventName").textContent = competition.name;
+  $("#activeEventName").textContent = competitionDisplayName(competition);
   $("#activeEventMeta").textContent = `${formatEventDateRange(competition)} · ${competition.competition_type}${competition.region ? ` · ${competition.region}` : ""} · ${competition.modality}`;
 }
 
@@ -748,7 +748,7 @@ function renderActiveEventActions(activeView = "") {
 function renderRouteSetterEvent() {
   const competition = currentCompetition();
   if (!competition) return;
-  $("#routeSetterEventTitle").textContent = competition.name;
+  $("#routeSetterEventTitle").textContent = competitionDisplayName(competition);
   $("#routeSetterEventDetails").innerHTML = `<div><span>Fechas</span><strong>${formatEventDateRange(competition)}</strong></div><div><span>Club organizador</span><strong>${competition.organizer_club || "—"}</strong></div><div><span>Modalidad</span><strong>${competition.modality || "—"}</strong></div><div><span>Categoría</span><strong>${competition.category || "—"}</strong></div>${competition.infosheet_url ? `<a class="button-link" href="${competition.infosheet_url}" download>Descargar Infosheet</a>` : ""}`;
 }
 
@@ -1837,9 +1837,8 @@ function renderCompetitions() {
     return `
       <tr class="${status === "pending" ? "pending-event-row" : status === "rejected" ? "rejected-event-row" : ""}">
         <td>${formatEventDateRange(competition)}</td>
-        <td>${competition.name}</td>
         <td>${competition.competition_type}</td>
-        <td>${competition.region || "-"}</td>
+        <td>${competition.region || "Nacional"}<small class="table-event-location">${competition.city && competition.province ? `${competition.city}, ${competition.province}` : "Ubicación pendiente"}</small></td>
         <td>${competition.modality}</td>
         <td>${competition.category}</td>
         <td>${competition.organizer_club}</td>
@@ -1854,7 +1853,7 @@ function renderCompetitions() {
         </td>
       </tr>
     `;
-  }).join("") : '<tr><td colspan="13">Todavía no hay eventos creados.</td></tr>';
+  }).join("") : '<tr><td colspan="12">Todavía no hay eventos creados.</td></tr>';
   $("#competitionsTable").querySelectorAll("[data-review-competition]").forEach((button) => {
     button.addEventListener("click", () => editCompetition(Number(button.dataset.reviewCompetition), { review: true }));
   });
@@ -1864,7 +1863,7 @@ function renderCompetitions() {
   $("#competitionsTable").querySelectorAll("[data-delete-competition]").forEach((button) => {
     button.addEventListener("click", async () => {
       const competition = state.competitions.find((item) => Number(item.id) === Number(button.dataset.deleteCompetition));
-      const description = competition ? `“${competition.name}” · ${formatEventDateRange(competition)} · ${competition.region || "Nacional"}` : "este evento";
+      const description = competition ? `“${competitionDisplayName(competition)}” · ${formatEventDateRange(competition)}` : "este evento";
       if (!confirm(`¿Eliminar definitivamente ${description}?`)) return;
       try {
         await api(`/api/competitions/${button.dataset.deleteCompetition}`, { method: "DELETE" });
@@ -1882,6 +1881,25 @@ function formatEventDateRange(competition) {
   const start = String(competition?.event_date || "");
   const end = String(competition?.end_date || start);
   return end && end !== start ? `${start} al ${end}` : start;
+}
+
+function competitionDisplayName(competition) {
+  const type = competition?.competition_type || "Evento";
+  const region = type === "CRED" && competition?.region ? ` ${competition.region}` : "";
+  const category = competition?.category ? ` · ${competition.category}` : "";
+  return `${type}${region}${category}`;
+}
+
+function formatPublicEventDate(value) {
+  const date = new Date(`${String(value || "")}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return String(value || "");
+  const parts = new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.day} ${String(parts.month || "").toUpperCase()} ${parts.year}`;
 }
 
 function eventTouchesMonth(competition, month) {
@@ -1943,27 +1961,52 @@ function renderPublicCalendar() {
   }
   $("#publicCompetitionCalendar").innerHTML = filtered.map((competition) => {
     const identityLogo = getEventIdentityLogo(competition);
-    const hasBrand = Boolean(identityLogo || competition.organizer_logo_url);
+    const location = competition.city && competition.province
+      ? `${competition.city}, ${competition.province}`
+      : "Lugar a confirmar";
     return `
-      <article class="calendar-item ${hasBrand ? "has-brand" : ""}" data-public-competition="${competition.id}">
-        ${hasBrand ? `<div class="calendar-event-brand">
-          ${identityLogo ? `<img class="calendar-identity-logo" src="${identityLogo.src}" alt="${identityLogo.label}" loading="lazy" />` : ""}
-          ${competition.organizer_logo_url ? `<img class="calendar-club-logo ${identityLogo ? "is-secondary" : ""}" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" loading="lazy" />` : ""}
-        </div>` : ""}
-        <time>${formatEventDateRange(competition)}</time>
-        <div>
-          <strong>${competition.name}</strong>
-          <span>${competition.competition_type} - ${competition.modality} - ${competition.category}</span>
-          <span>${competition.organizer_club}${competition.region ? ` - ${competition.region}` : ""}</span>
-          ${competition.infosheet_url ? `<a class="infosheet-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
+      <article class="calendar-item ${identityLogo ? "has-identity" : ""} ${competition.organizer_logo_url ? "has-club-logo" : ""}" data-public-competition="${competition.id}">
+        ${identityLogo ? `<div class="calendar-event-identity"><img class="calendar-identity-logo" src="${identityLogo.src}" alt="${identityLogo.label}" loading="lazy" /></div>` : ""}
+        <div class="calendar-event-content">
+          <div class="calendar-event-heading">
+            <time datetime="${competition.event_date}">${formatPublicEventDate(competition.event_date)}</time>
+            <span class="calendar-heading-divider" aria-hidden="true"></span>
+            <span class="calendar-discipline">${competition.modality}</span>
+          </div>
+          <div class="calendar-event-body">
+            <div class="calendar-event-summary">
+              <h3>${competitionDisplayName(competition)}</h3>
+              <span class="calendar-event-type">${competition.organizer_club}</span>
+            </div>
+            <div class="calendar-event-location">
+              <svg class="calendar-location-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.1 7-12A7 7 0 1 0 5 9c0 5.9 7 12 7 12Z"></path><circle cx="12" cy="9" r="2.5"></circle></svg>
+              <span>${location}</span>
+            </div>
+          </div>
+          <div class="calendar-event-footer">
+            ${competition.infosheet_url ? `<a class="calendar-event-link infosheet-link" href="${competition.infosheet_url}" download>Info Sheet</a>` : ""}
+            <a class="calendar-event-link registration-link" href="#fasa-id" data-public-registration="${competition.id}">Registro</a>
+          </div>
         </div>
+        ${competition.organizer_logo_url ? `<img class="calendar-club-logo-right" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" loading="lazy" />` : ""}
       </article>
     `;
   }).join("");
   $("#publicCompetitionCalendar").querySelectorAll("[data-public-competition]").forEach((item) => {
     item.addEventListener("click", () => selectPublicCompetition(Number(item.dataset.publicCompetition)));
   });
-  $("#publicCompetitionCalendar").querySelectorAll(".infosheet-link").forEach((link) => link.addEventListener("click", (event) => event.stopPropagation()));
+  $("#publicCompetitionCalendar").querySelectorAll(".calendar-event-link").forEach((link) => link.addEventListener("click", (event) => event.stopPropagation()));
+  $("#publicCompetitionCalendar").querySelectorAll("[data-public-registration]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const competitionId = Number(link.dataset.publicRegistration);
+      const competition = state.competitions.find((item) => Number(item.id) === competitionId);
+      state.currentCompetitionId = competitionId;
+      state.loginCompetitionId = competitionId;
+      switchPublicView("accessView");
+      $("#loginStatus").textContent = competition ? `Ingresá con tu FASA ID para registrarte en ${competitionDisplayName(competition)}.` : "Ingresá con tu FASA ID para registrarte.";
+    });
+  });
 }
 
 function renderMonthRail() {
@@ -1992,12 +2035,13 @@ async function selectPublicCompetition(id) {
   $("#competitionPublicHeader").innerHTML = `
     <div class="competition-public-title">
       ${competition.organizer_logo_url ? `<img class="competition-club-logo" src="${competition.organizer_logo_url}" alt="Logo de ${competition.organizer_club}" />` : ""}
-      <div><p class="eyebrow">${competition.competition_type} · ${competition.category}</p><h2>${competition.name}</h2></div>
+      <div><p class="eyebrow">${competition.modality}</p><h2>${competitionDisplayName(competition)}</h2></div>
     </div>
     <div class="competition-meta">
       <span><strong>Fechas</strong>${formatEventDateRange(competition)}</span>
       <span><strong>Disciplina</strong>${competition.modality}</span>
       <span><strong>Región</strong>${competition.region || "Nacional"}</span>
+      <span><strong>Ubicación</strong>${competition.city && competition.province ? `${competition.city}, ${competition.province}` : "A confirmar"}</span>
       <span><strong>Organiza</strong>${competition.organizer_club}</span>
     </div>
     ${competition.infosheet_url ? `<a class="button-link infosheet-detail-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
@@ -2073,7 +2117,7 @@ function renderJudgePortal() {
   const administered = (data.administered || []).map((competition) => `
     <tr>
       <td>${competition.event_date}</td>
-      <td>${competition.name}</td>
+      <td>${competitionDisplayName(competition)}</td>
       <td>Presidente de Jurado</td>
       <td>-</td><td>-</td><td>-</td>
       <td><button data-enter-official="${competition.competition_id}" data-official-role="competition_admin">Entrar</button></td>
@@ -2082,7 +2126,7 @@ function renderJudgePortal() {
   const assigned = (data.assignments || []).map((competition) => `
     <tr>
       <td>${competition.event_date}</td>
-      <td>${competition.name}</td>
+      <td>${competitionDisplayName(competition)}</td>
       <td>Juez</td>
       <td>B${competition.clasificatoria_boulder} ${competition.clasificatoria_role}</td>
       <td>B${competition.semifinal_boulder} ${competition.semifinal_role}</td>
@@ -2133,7 +2177,7 @@ function renderCompetitorPortal() {
     return `
       <tr>
         <td>${competition.event_date}</td>
-        <td>${competition.name}</td>
+        <td>${competitionDisplayName(competition)}</td>
         <td>${competition.category}</td>
         <td>${status}</td>
         <td>${!isRegistered && genderOk && ageOk ? `<button data-register-competition="${competition.id}">Inscribirme</button>` : ""}</td>
@@ -2213,12 +2257,13 @@ function editCompetition(id, { review = false } = {}) {
   if (!competition) return;
   const form = $("#competitionForm");
   form.elements.id.value = competition.id;
-  form.elements.name.value = competition.name;
   form.elements.event_date.value = competition.event_date;
   form.elements.end_date.value = competition.end_date || competition.event_date;
   form.elements.end_date.min = competition.event_date;
   form.elements.competition_type.value = competition.competition_type;
   form.elements.region.value = competition.region || "Buenos Aires";
+  form.elements.province.value = competition.province || "";
+  form.elements.city.value = competition.city || "";
   form.elements.modality.value = competition.modality;
   form.elements.category.value = competition.category;
   form.elements.organizer_club.value = competition.organizer_club;
@@ -2568,7 +2613,7 @@ async function loadRegistrations() {
   state.currentCompetitionId = Number(competitionId);
   const competition = currentCompetition();
   applyRegistrationCategoryRules(competition);
-  $("#registrationsTitle").textContent = competition ? `Inscriptos - ${competition.name}` : "Inscriptos";
+  $("#registrationsTitle").textContent = competition ? `Inscriptos - ${competitionDisplayName(competition)}` : "Inscriptos";
   const params = new URLSearchParams({ competition_id: state.currentCompetitionId, ...state.registrationFilters });
   state.registrations = mergeStoredRegistrations(await api(`/api/competition-registrants?${params}`));
   const closed = registrationsClosed();

@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260815-event-identities" />
+    <link rel="stylesheet" href="/styles.css?v=20260815-calendar-cards-location" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -318,7 +318,7 @@
           <div class="management-table-wrap">
             <table>
               <thead>
-                <tr><th>Fechas</th><th>Nombre</th><th>Tipo</th><th>Región</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Infosheet</th><th>Acciones</th></tr>
+                <tr><th>Fechas</th><th>Tipo</th><th>Región / ubicación</th><th>Modalidad</th><th>Categoría</th><th>Club organizador</th><th>Estado</th><th>Organizador</th><th>Presidente de Jurado</th><th>Jefe de Aperturistas</th><th>Infosheet</th><th>Acciones</th></tr>
               </thead>
               <tbody id="competitionsTable"></tbody>
             </table>
@@ -336,9 +336,6 @@
           </div>
           <form id="competitionForm" class="competition-form">
             <input type="hidden" name="id" />
-            <label><span class="field-label">Nombre <b aria-hidden="true">*</b></span>
-              <input name="name" required />
-            </label>
             <label><span class="field-label">Fecha de inicio <b aria-hidden="true">*</b></span>
               <input name="event_date" type="date" required />
             </label>
@@ -363,6 +360,38 @@
                 <option>Patagonia Norte</option>
                 <option>Patagonia Sur</option>
               </select>
+            </label>
+            <label><span class="field-label">Provincia <b aria-hidden="true">*</b></span>
+              <select name="province" required>
+                <option value="" selected disabled>Elegir provincia</option>
+                <option>Buenos Aires</option>
+                <option>Catamarca</option>
+                <option>Chaco</option>
+                <option>Chubut</option>
+                <option>Ciudad Autónoma de Buenos Aires</option>
+                <option>Córdoba</option>
+                <option>Corrientes</option>
+                <option>Entre Ríos</option>
+                <option>Formosa</option>
+                <option>Jujuy</option>
+                <option>La Pampa</option>
+                <option>La Rioja</option>
+                <option>Mendoza</option>
+                <option>Misiones</option>
+                <option>Neuquén</option>
+                <option>Río Negro</option>
+                <option>Salta</option>
+                <option>San Juan</option>
+                <option>San Luis</option>
+                <option>Santa Cruz</option>
+                <option>Santa Fe</option>
+                <option>Santiago del Estero</option>
+                <option>Tierra del Fuego</option>
+                <option>Tucumán</option>
+              </select>
+            </label>
+            <label><span class="field-label">Ciudad <b aria-hidden="true">*</b></span>
+              <input name="city" required placeholder="Ciudad del evento" />
             </label>
             <label><span class="field-label">Modalidad <b aria-hidden="true">*</b></span>
               <select name="modality" required>
@@ -1068,6 +1097,6 @@
       <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><dl class="public-athlete-meta"><div><dt>Club</dt><dd id="publicAthleteClub">—</dd></div><div><dt>Región</dt><dd id="publicAthleteRegion">—</dd></div></dl><p id="publicAthleteInstagram" class="instagram-line"><img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> @usuario</p></div></article>
     </dialog>
 
-    <script src="/app.js?v=20260815-all-cred-identities"></script>
+    <script src="/app.js?v=20260815-calendar-cards-location"></script>
   </body>
 </html>
