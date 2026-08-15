@@ -1896,7 +1896,14 @@ function eventTouchesMonth(competition, month) {
 
 const EVENT_IDENTITY_LOGOS = {
   caed: { src: "/assets/event-identities/caed.svg", label: "CAED" },
+  "cred:buenos aires": { src: "/assets/event-identities/cred-buenos-aires.svg", label: "CRED Buenos Aires" },
+  "cred:centro": { src: "/assets/event-identities/cred-centro.svg", label: "CRED Centro" },
+  "cred:cuyo": { src: "/assets/event-identities/cred-cuyo.svg", label: "CRED Cuyo" },
   "cred:litoral": { src: "/assets/event-identities/cred-litoral.svg", label: "CRED Litoral" },
+  "cred:noa": { src: "/assets/event-identities/cred-noa.svg", label: "CRED NOA" },
+  "cred:noroeste": { src: "/assets/event-identities/cred-noa.svg", label: "CRED NOA" },
+  "cred:patagonia norte": { src: "/assets/event-identities/cred-patagonia-norte.svg", label: "CRED Patagonia Norte" },
+  "cred:patagonia sur": { src: "/assets/event-identities/cred-patagonia-sur.svg", label: "CRED Patagonia Sur" },
 };
 
 function normalizeEventIdentityValue(value) {
