@@ -460,12 +460,17 @@ function leaderboard(url: URL) {
   return registeredCompetitors(competitionId, gender, category)
     .map((competitor) => {
       const rows = savedScores.filter((score) => score.competitor_id === competitor.id && score.round === round);
+      const newestRows = rows.slice().reverse();
       const boulderDetails = Array.from({ length: rounds[round].boulders }, (_, index) => {
-        const row = rows.find((score) => score.boulder === index + 1);
+        const row = newestRows.find((score) => score.boulder === index + 1 && score.official !== false) || newestRows.find((score) => score.boulder === index + 1);
         return {
           score: row?.score || 0,
           zone_attempt: row?.zone_attempt || null,
           top_attempt: row?.top_attempt || null,
+          attempts: row?.attempts || 0,
+          judge_name: row?.judge_name || "",
+          judge_role: row?.judge_role || "",
+          notes: row?.notes || "",
         };
       });
       const boulders = boulderDetails.map((detail) => detail.score);
@@ -476,9 +481,9 @@ function leaderboard(url: URL) {
         last_name: competitor.last_name,
         club: competitor.club,
         total_score: boulders.reduce((sum, value) => sum + value, 0),
-        tops: rows.filter((row) => row.top_attempt).length,
-        zones: rows.filter((row) => row.zone_attempt).length,
-        attempts: rows.reduce((sum, row) => sum + row.attempts, 0),
+        tops: boulderDetails.filter((row) => row.top_attempt).length,
+        zones: boulderDetails.filter((row) => row.zone_attempt).length,
+        attempts: boulderDetails.reduce((sum, row) => sum + row.attempts, 0),
         boulders,
         boulder_details: boulderDetails,
       };
@@ -823,7 +828,13 @@ export async function POST(request: Request) {
     return json(timerState);
   }
   if (path === "scores") {
-    savedScores = savedScores.filter((score) => !(score.competitor_id === Number(payload.competitor_id) && score.round === payload.round && score.boulder === Number(payload.boulder) && score.judge_username === payload.judge_username));
+    const isOfficial = payload.official !== false;
+    savedScores = savedScores.filter((score) => {
+      const sameSlot = score.competitor_id === Number(payload.competitor_id) && score.round === payload.round && score.boulder === Number(payload.boulder);
+      if (!sameSlot) return true;
+      if (isOfficial && score.official !== false) return false;
+      return score.judge_username !== payload.judge_username;
+    });
     const competitor = competitors.find((item) => item.id === Number(payload.competitor_id)) || competitors[0];
     savedScores.push({
       competitor_id: competitor.id,
@@ -835,8 +846,10 @@ export async function POST(request: Request) {
       score: calculateScore(payload.zone_attempt ? Number(payload.zone_attempt) : null, payload.top_attempt ? Number(payload.top_attempt) : null),
       judge_name: payload.judge_name || "Juez demo",
       judge_username: payload.judge_username || "juez01@fasa.test",
-      judge_role: "principal",
-      official: payload.official !== false,
+      judge_role: payload.judge_role || "principal",
+      official: isOfficial,
+      notes: payload.notes || "",
+      updated_at: new Date().toISOString(),
       bib_number: competitor.bib_number,
       first_name: competitor.first_name,
       last_name: competitor.last_name,

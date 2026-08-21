@@ -33,6 +33,9 @@ const state = {
   competitorCredentials: null,
   pendingTimerAction: null,
   lastTimerAlarmSnapshot: null,
+  lastJudgeTimerSnapshot: null,
+  manualScoreContext: null,
+  judgeAwaitingConfirmation: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -301,6 +304,9 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerCycle") && document.activeElement !== $("#timerCycle")) $("#timerCycle").value = Math.max(1, Number(timer.cycle || 1));
   if ($("#timerGenderWomen")) $("#timerGenderWomen").checked = (timer.genders || []).includes("Mujer");
   if ($("#timerGenderMen")) $("#timerGenderMen").checked = (timer.genders || []).includes("Hombre");
+  updateJudgeConfirmation(timer);
+  if (timer.phase === "climb") syncJudgeActiveCompetitor(timer);
+  state.lastJudgeTimerSnapshot = { ...timer };
 }
 
 function timerBeep(frequency = 880, duration = 0.18, repeats = 1, gap = 0.22) {
@@ -514,6 +520,82 @@ function judgeAssignment(roundKey) {
 function judgeRole(roundKey) {
   if (state.role !== "judge" || !state.user?.roles) return "principal";
   return state.user.roles[roundKey] || "principal";
+}
+
+function judgeAssignedRounds() {
+  if (state.role !== "judge" || !state.user?.assignments) return activeRounds().map(([key]) => key);
+  return activeRounds().map(([key]) => key).filter((key) => Number(state.user.assignments[key] || 0) > 0);
+}
+
+function buildJudgeAssignmentsFromCompetition(competition) {
+  return {
+    assignments: {
+      clasificatoria: Number(competition?.clasificatoria_boulder || 1),
+      semifinal: Number(competition?.semifinal_boulder || 1),
+      final: Number(competition?.final_boulder || 1),
+    },
+    roles: {
+      clasificatoria: competition?.clasificatoria_role || "principal",
+      semifinal: competition?.semifinal_role || "principal",
+      final: competition?.final_role || "principal",
+    },
+  };
+}
+
+function renderJudgeAssignments() {
+  const container = $("#judgeAssignmentCards");
+  if (!container) return;
+  if (state.role !== "judge") {
+    container.innerHTML = "";
+    return;
+  }
+  const category = state.competitorFilters.category || "mayor";
+  const gender = state.competitorFilters.gender || "Mujer";
+  const assignedRounds = judgeAssignedRounds();
+  const current = selectedRound();
+  container.innerHTML = assignedRounds.length ? assignedRounds.map((roundKey) => {
+    const round = state.rounds[roundKey];
+    const open = canOpenRound(roundKey, category, gender);
+    const boulder = judgeAssignment(roundKey);
+    return `
+      <button class="judge-assignment-card ${roundKey === current ? "active" : ""}" type="button" data-judge-round="${roundKey}" ${open ? "" : "disabled"}>
+        <strong>${round?.label || roundKey}</strong>
+        <span>Boulder ${boulder} · ${judgeRole(roundKey)}</span>
+        <small>${open ? "Disponible para juecear" : "Esperando ronda previa"}</small>
+      </button>
+    `;
+  }).join("") : '<p class="hint">No tenés rondas asignadas en este evento.</p>';
+  container.querySelectorAll("[data-judge-round]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      $("#roundSelect").value = button.dataset.judgeRound;
+      renderBoulders();
+      resetScoreForm();
+      await loadCompetitors();
+    });
+  });
+}
+
+function syncJudgeActiveCompetitor(timer = computedLocalTimer()) {
+  if (state.role !== "judge" || !timer || timer.round !== selectedRound() || !state.competitors.length) return;
+  const assignedBoulder = selectedBoulder();
+  const order = Number(timer.cycle || 1) - 2 * (assignedBoulder - 1);
+  if (order < 1) return;
+  const competitor = state.competitors[order - 1];
+  if (competitor && competitor.id !== state.selectedCompetitorId) {
+    state.selectedCompetitorId = competitor.id;
+    resetScoreForm();
+    renderCompetitors();
+    updateActiveCompetitorName();
+  }
+}
+
+function updateJudgeConfirmation(timer = computedLocalTimer()) {
+  const panel = $("#judgeConfirmPanel");
+  if (!panel || state.role !== "judge") return;
+  const previous = state.lastJudgeTimerSnapshot;
+  const enteredPrepAfterClimb = previous?.phase === "climb" && timer?.phase === "prep" && previous.cycle === timer.cycle;
+  if (enteredPrepAfterClimb && state.selectedCompetitorId) state.judgeAwaitingConfirmation = true;
+  panel.classList.toggle("hidden", !state.judgeAwaitingConfirmation);
 }
 
 function allowedViews(role) {
@@ -863,10 +945,28 @@ function renderRounds() {
   ["roundSelect", "resultsRound", "computosRound", "timerRound"].forEach((id) => {
     $(`#${id}`).innerHTML = optionsForRounds(current);
   });
+  if (state.role === "judge") {
+    const category = state.competitorFilters.category || "mayor";
+    const gender = state.competitorFilters.gender || "Mujer";
+    const assignedRounds = judgeAssignedRounds();
+    const options = assignedRounds.map((key) => {
+      const round = state.rounds[key];
+      const open = canOpenRound(key, category, gender);
+      return `<option value="${key}" ${key === current ? "selected" : ""} ${open ? "" : "disabled"}>${round?.label || key}${open ? "" : " (no habilitada)"}</option>`;
+    }).join("");
+    if (options) {
+      $("#roundSelect").innerHTML = options;
+      if ($("#roundSelect").selectedOptions[0]?.disabled) {
+        const firstOpen = Array.from($("#roundSelect").options).find((option) => !option.disabled);
+        if (firstOpen) $("#roundSelect").value = firstOpen.value;
+      }
+    }
+  }
   syncRequiredTableFilters();
   renderBoulders();
   renderConfig();
   renderJudges();
+  renderJudgeAssignments();
 }
 
 function syncRequiredTableFilters() {
@@ -2153,9 +2253,12 @@ function renderJudgePortal() {
       state.currentCompetitionId = Number(button.dataset.enterOfficial);
       state.loginCompetitionId = state.currentCompetitionId;
       const session = await loginWithCredentials(state.judgePortalCredentials.username, state.judgePortalCredentials.password);
-      state.user = session.user;
-      applyRole(session.role);
+      const requestedRole = button.dataset.officialRole || session.role;
+      const competition = [...(data.administered || []), ...(data.assignments || [])].find((item) => Number(item.competition_id || item.id) === state.currentCompetitionId);
+      state.user = { ...session.user, ...(requestedRole === "judge" ? buildJudgeAssignmentsFromCompetition(competition) : {}) };
+      applyRole(requestedRole, { openRole: true, eventSelected: true, view: requestedRole === "judge" ? "judge" : "computos" });
       await loadJudges();
+      await loadCompetitors();
     });
   });
 }
@@ -2589,6 +2692,8 @@ async function loadCompetitors() {
   });
   state.competitors = await api(`/api/competitors?${params}`);
   renderCompetitors();
+  syncJudgeActiveCompetitor();
+  renderJudgeAssignments();
 }
 
 function applyCompetitorCategoryRules(competition) {
@@ -2893,6 +2998,7 @@ async function loadScores() {
     ...competitor,
     ...(leaderboardByBib.get(Number(competitor.bib_number)) || {}),
     boulders: leaderboardByBib.get(Number(competitor.bib_number))?.boulders || Array.from({ length: state.rounds[round]?.boulders || 1 }, () => 0),
+    boulder_details: leaderboardByBib.get(Number(competitor.bib_number))?.boulder_details || [],
     total_score: leaderboardByBib.get(Number(competitor.bib_number))?.total_score || 0,
     tops: leaderboardByBib.get(Number(competitor.bib_number))?.tops || 0,
     zones: leaderboardByBib.get(Number(competitor.bib_number))?.zones || 0,
@@ -2917,10 +3023,11 @@ async function loadScores() {
       <td>${row.club || "-"}</td>
       ${row.boulders.map((value, index) => `
         <td>
-          <span class="score-cell">
+          <button class="score-cell manual-score-trigger" type="button" data-manual-score data-competitor-id="${row.id}" data-boulder="${index + 1}" data-bib="${row.bib_number}" data-name="${row.last_name}, ${row.first_name}" data-score="${Number(value).toFixed(1)}">
             <span class="active-light ${activeBoulderForOrder(orderMap.get(Number(row.bib_number)) + 1, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
-            ${Number(value).toFixed(1)}
-          </span>
+            <strong>${Number(value).toFixed(1)}</strong>
+            <small>Editar</small>
+          </button>
         </td>
       `).join("")}
       <td><strong>${Number(row.total_score).toFixed(1)}</strong></td>
@@ -2933,6 +3040,72 @@ async function loadScores() {
     ? "Ronda cerrada para esta categoria y genero."
     : "Ronda abierta. Al cerrarla se habilita la ronda siguiente.";
   $("#closeComputosRound").disabled = readonly || roundClosed(round, category, gender);
+  $("#scoresTable").querySelectorAll("[data-manual-score]").forEach((button) => {
+    button.addEventListener("click", () => openManualScoreEditor(button, rows));
+  });
+}
+
+function manualScoreValuesFromDialog() {
+  const attempts = Number($("#manualAttempts").value || 0);
+  let zoneAttempt = Number($("#manualZoneAttempt").value || 0) || null;
+  let topAttempt = Number($("#manualTopAttempt").value || 0) || null;
+  if (topAttempt && (!zoneAttempt || zoneAttempt > topAttempt)) zoneAttempt = topAttempt;
+  return { attempts, zoneAttempt, topAttempt };
+}
+
+function updateManualScorePreview() {
+  const { zoneAttempt, topAttempt } = manualScoreValuesFromDialog();
+  $("#manualScorePreview").textContent = score(zoneAttempt, topAttempt).toFixed(1);
+}
+
+function openManualScoreEditor(button, rows) {
+  const row = rows.find((item) => Number(item.id) === Number(button.dataset.competitorId));
+  const boulder = Number(button.dataset.boulder);
+  const detail = row?.boulder_details?.[boulder - 1] || {};
+  state.manualScoreContext = {
+    competitor_id: Number(button.dataset.competitorId),
+    boulder,
+    round: $("#computosRound").value || "clasificatoria",
+    category: $("#computosCategory").value || "mayor",
+    gender: $("#computosGender").value || "Mujer",
+  };
+  $("#manualScoreTitle").textContent = `${button.dataset.name} · Boulder ${boulder}`;
+  $("#manualScoreMeta").textContent = `Bib ${button.dataset.bib} · ${timerRoundLabel(state.manualScoreContext.round)}`;
+  $("#manualAttempts").value = detail.attempts || "";
+  $("#manualZoneAttempt").value = detail.zone_attempt || "";
+  $("#manualTopAttempt").value = detail.top_attempt || "";
+  $("#manualScoreNotes").value = detail.notes || "";
+  $("#manualScoreStatus").textContent = "";
+  updateManualScorePreview();
+  $("#manualScoreDialog").showModal();
+}
+
+async function saveManualScore() {
+  if (!state.manualScoreContext) return;
+  const { attempts, zoneAttempt, topAttempt } = manualScoreValuesFromDialog();
+  const payload = {
+    competition_id: state.currentCompetitionId || state.user?.competition_id || 1,
+    competitor_id: state.manualScoreContext.competitor_id,
+    round: state.manualScoreContext.round,
+    boulder: state.manualScoreContext.boulder,
+    attempts,
+    zone_attempt: zoneAttempt,
+    top_attempt: topAttempt,
+    judge_name: state.user?.display_name || "Presidente de Jurado",
+    judge_username: state.user?.username || "presidente-jurado",
+    judge_role: "correccion_manual",
+    official: true,
+    notes: $("#manualScoreNotes").value,
+  };
+  $("#manualScoreStatus").textContent = "Guardando correccion...";
+  try {
+    await api("/api/scores", { method: "POST", body: JSON.stringify(payload) });
+    $("#manualScoreDialog").close();
+    state.manualScoreContext = null;
+    await refreshComputed();
+  } catch (error) {
+    $("#manualScoreStatus").textContent = error.message;
+  }
 }
 
 function refreshComputosActiveLights() {
@@ -3000,6 +3173,46 @@ async function refreshComputed() {
 
 async function refreshAll() {
   await Promise.all([loadCompetitors(), loadLeaderboard(), loadScores(), loadTimer(), loadCompetitions()]);
+}
+
+async function saveCurrentJudgeScore({ advance = true } = {}) {
+  if (!state.selectedCompetitorId) {
+    $("#saveStatus").textContent = "Primero seleccioná un atleta.";
+    return false;
+  }
+  const payload = {
+    competition_id: state.currentCompetitionId || state.user?.competition_id || 1,
+    competitor_id: state.selectedCompetitorId,
+    round: selectedRound(),
+    boulder: selectedBoulder(),
+    attempts: state.attempts,
+    zone_attempt: state.zoneAttempt,
+    top_attempt: state.topAttempt,
+    judge_name: $("#judgeName").value,
+    judge_username: state.user?.username || $("#judgeName").value,
+    judge_fasa_id: state.user?.fasa_id || "",
+    judge_role: judgeRole(selectedRound()),
+    official: judgeRole(selectedRound()) === "principal",
+    notes: $("#scoreNotes").value,
+  };
+  try {
+    await api("/api/scores", { method: "POST", body: JSON.stringify(payload) });
+    $("#saveStatus").textContent = judgeRole(selectedRound()) === "principal"
+      ? "Puntaje oficial guardado."
+      : "Puntaje backup guardado para control.";
+    state.judgeAwaitingConfirmation = false;
+    updateJudgeConfirmation();
+    await refreshComputed();
+    if (advance) {
+      const index = state.competitors.findIndex((item) => item.id === state.selectedCompetitorId);
+      const next = state.competitors[index + 1];
+      if (next) selectCompetitor(next.id);
+    }
+    return true;
+  } catch (error) {
+    $("#saveStatus").textContent = error.message;
+    return false;
+  }
 }
 
 function bindEvents() {
@@ -3395,8 +3608,13 @@ function bindEvents() {
   $("#roundSelect").addEventListener("change", () => {
     renderBoulders();
     resetScoreForm();
+    renderJudgeAssignments();
+    loadCompetitors();
   });
-  $("#boulderSelect").addEventListener("change", resetScoreForm);
+  $("#boulderSelect").addEventListener("change", () => {
+    resetScoreForm();
+    syncJudgeActiveCompetitor();
+  });
   [
     ["#competitorFilterCategory", "category"],
     ["#judgeCompetitorFilterCategory", "category"],
@@ -3469,38 +3687,12 @@ function bindEvents() {
     renderScore();
   });
 
-  $("#saveScore").addEventListener("click", async () => {
-    if (!state.selectedCompetitorId) {
-      $("#saveStatus").textContent = "Primero seleccioná un atleta.";
-      return;
-    }
-    const payload = {
-      competitor_id: state.selectedCompetitorId,
-      round: selectedRound(),
-      boulder: selectedBoulder(),
-      attempts: state.attempts,
-      zone_attempt: state.zoneAttempt,
-      top_attempt: state.topAttempt,
-      judge_name: $("#judgeName").value,
-      judge_username: state.user?.username || $("#judgeName").value,
-      judge_fasa_id: state.user?.fasa_id || "",
-      judge_role: judgeRole(selectedRound()),
-      official: judgeRole(selectedRound()) === "principal",
-      notes: $("#scoreNotes").value,
-    };
-    try {
-      await api("/api/scores", { method: "POST", body: JSON.stringify(payload) });
-      $("#saveStatus").textContent = judgeRole(selectedRound()) === "principal"
-        ? "Puntaje oficial guardado."
-        : "Puntaje backup guardado para control.";
-      await refreshComputed();
-      const index = state.competitors.findIndex((item) => item.id === state.selectedCompetitorId);
-      const next = state.competitors[index + 1];
-      if (next) selectCompetitor(next.id);
-    } catch (error) {
-      $("#saveStatus").textContent = error.message;
-    }
+  $("#saveScore").addEventListener("click", () => saveCurrentJudgeScore({ advance: true }));
+  $("#confirmJudgeScore").addEventListener("click", () => saveCurrentJudgeScore({ advance: true }));
+  ["#manualAttempts", "#manualZoneAttempt", "#manualTopAttempt"].forEach((selector) => {
+    $(selector).addEventListener("input", updateManualScorePreview);
   });
+  $("#saveManualScore").addEventListener("click", saveManualScore);
 
   $("#competitorForm").addEventListener("submit", async (event) => {
     event.preventDefault();

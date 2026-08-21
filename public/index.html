@@ -765,6 +765,7 @@
       <section id="judge" class="view active">
         <aside class="panel setup-panel">
           <h2>Mesa de juez</h2>
+          <div id="judgeAssignmentCards" class="judge-assignment-cards"></div>
           <label>Juez
             <input id="judgeName" autocomplete="name" placeholder="Nombre del juez" />
           </label>
@@ -782,6 +783,11 @@
         </aside>
 
         <section class="panel scoring-panel">
+          <div id="judgeConfirmPanel" class="judge-confirm-panel hidden">
+            <strong>Confirmar resultado</strong>
+            <span>El turno terminó. Revisá la carga antes de pasar al siguiente atleta.</span>
+            <button id="confirmJudgeScore" class="primary" type="button">Confirmar y guardar</button>
+          </div>
           <div class="section-head">
             <div>
               <p class="eyebrow">Atleta actual</p>
@@ -909,6 +915,42 @@
           </table>
         </section>
       </section>
+
+      <dialog id="manualScoreDialog" class="manual-score-dialog">
+        <form method="dialog" class="manual-score-shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Corrección oficial</p>
+              <h2 id="manualScoreTitle">Editar resultado</h2>
+              <p id="manualScoreMeta" class="hint"></p>
+            </div>
+            <button class="dialog-close" value="cancel" aria-label="Cerrar">×</button>
+          </div>
+          <div class="manual-score-grid">
+            <label>Intentos
+              <input id="manualAttempts" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <label>Intento zona
+              <input id="manualZoneAttempt" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <label>Intento top
+              <input id="manualTopAttempt" type="number" min="0" step="1" inputmode="numeric" />
+            </label>
+            <div class="manual-score-preview">
+              <span>Puntaje</span>
+              <strong id="manualScorePreview">0.0</strong>
+            </div>
+          </div>
+          <label>Motivo o nota
+            <textarea id="manualScoreNotes" rows="3" placeholder="Ej: corrección por error de carga del juez"></textarea>
+          </label>
+          <div class="dialog-actions">
+            <button value="cancel">Cancelar</button>
+            <button id="saveManualScore" class="primary" type="button">Guardar corrección</button>
+          </div>
+          <p id="manualScoreStatus" class="hint" aria-live="polite"></p>
+        </form>
+      </dialog>
 
       <section id="admin" class="view">
         <section class="panel">
