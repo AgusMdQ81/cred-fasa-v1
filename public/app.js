@@ -550,8 +550,9 @@ function competitorJudgeLabel(competitor) {
   return `#${competitor.bib || competitor.bib_number || "-"} ${competitor.last_name}, ${competitor.first_name}`;
 }
 
-function scoreCompetitorPayload(competitor) {
+function scoreCompetitorPayload(competitor, boulderIndex = null) {
   if (!competitor) return null;
+  const detail = Number.isInteger(boulderIndex) ? (competitor.boulder_details?.[boulderIndex] || {}) : {};
   return {
     id: Number(competitor.competitor_id || competitor.id || 0),
     competitor_id: Number(competitor.competitor_id || competitor.id || 0),
@@ -564,6 +565,11 @@ function scoreCompetitorPayload(competitor) {
     category: competitor.category || "",
     gender: competitor.gender || "",
     start_order: competitor.start_order || null,
+    score: Number(detail.score || 0),
+    attempts: Number(detail.attempts || 0),
+    zone_attempt: detail.zone_attempt ? Number(detail.zone_attempt) : null,
+    top_attempt: detail.top_attempt ? Number(detail.top_attempt) : null,
+    notes: detail.notes || "",
   };
 }
 
@@ -608,7 +614,7 @@ function switchJudgeToSlot(slot, { reset = true } = {}) {
   state.judgePendingSlot = null;
   state.judgeAwaitingConfirmation = false;
   state.selectedCompetitorId = Number(slot.current.id || slot.current.competitor_id);
-  if (reset) resetScoreForm();
+  if (reset) resetScoreForm(slot.current);
   updateActiveCompetitorName();
   renderJudgeConfirmation();
 }
@@ -1069,11 +1075,11 @@ async function loginWithCredentials(user, password) {
   });
 }
 
-function resetScoreForm() {
-  state.attempts = 0;
-  state.zoneAttempt = null;
-  state.topAttempt = null;
-  $("#scoreNotes").value = "";
+function resetScoreForm(source = null) {
+  state.attempts = Number(source?.attempts || 0);
+  state.zoneAttempt = source?.zone_attempt ? Number(source.zone_attempt) : null;
+  state.topAttempt = source?.top_attempt ? Number(source.top_attempt) : null;
+  $("#scoreNotes").value = source?.notes || "";
   setJudgeScoreLocked(false);
   renderScore();
 }
@@ -3172,9 +3178,9 @@ async function publishActiveSlots(round, category, gender, rows, timer) {
     const current = currentIndex >= 0 ? rows[currentIndex] : null;
     return {
       boulder: index + 1,
-      current: scoreCompetitorPayload(current),
-      previous: scoreCompetitorPayload(currentIndex > 0 ? rows[currentIndex - 1] : null),
-      next: scoreCompetitorPayload(currentIndex >= 0 ? rows[currentIndex + 1] : null),
+      current: scoreCompetitorPayload(current, index),
+      previous: scoreCompetitorPayload(currentIndex > 0 ? rows[currentIndex - 1] : null, index),
+      next: scoreCompetitorPayload(currentIndex >= 0 ? rows[currentIndex + 1] : null, index),
       cycle: Number(timer.cycle || 1),
       phase: timer.phase || "prep",
     };
@@ -3226,8 +3232,10 @@ async function fetchJudgeActiveSlot(timer = computedLocalTimer(), force = false)
     const currentId = judgeActiveSlotId();
     const nextId = judgeActiveSlotId(nextSlot);
     if (!currentId || currentId === nextId) {
+      const shouldHydrateScore = !currentId || (!state.judgeScoreLocked && !judgeHasDraft());
       state.judgeActiveSlot = nextSlot;
       state.selectedCompetitorId = nextId;
+      if (shouldHydrateScore) resetScoreForm(nextSlot.current);
       updateActiveCompetitorName();
       return;
     }
