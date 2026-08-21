@@ -2650,7 +2650,7 @@ tbody tr:hover {
 
   #judge.active .section-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 58px;
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
     flex-direction: row;
     gap: 8px;
@@ -2672,17 +2672,6 @@ tbody tr:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  #judge.active .score {
-    display: grid;
-    width: 66px;
-    height: 66px;
-    place-items: center;
-    border: 1px solid rgba(255,255,255,.16);
-    border-radius: 50%;
-    background: #202020;
-    font-size: 24px;
   }
 
   #judge.active .filters,
@@ -2722,7 +2711,6 @@ tbody tr:hover {
   }
 
   #judge.active #clearMilestones {
-    grid-column: 1 / -1;
     min-height: 48px;
     color: #f5f5f7;
     border-color: rgba(255,255,255,.2);

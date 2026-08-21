@@ -1029,7 +1029,7 @@ function renderScore() {
   $("#zoneAttempt").textContent = state.zoneAttempt ? `Intento ${state.zoneAttempt}` : "-";
   $("#topAttempt").textContent = state.topAttempt ? `Intento ${state.topAttempt}` : "-";
   const currentScore = score(state.zoneAttempt, state.topAttempt).toFixed(1);
-  $("#scorePreview").textContent = currentScore;
+  if ($("#scorePreview")) $("#scorePreview").textContent = currentScore;
   $("#roundInfo").textContent = currentScore;
   $("#zoneButton")?.classList.toggle("active", Boolean(state.zoneAttempt));
   $("#topButton")?.classList.toggle("active", Boolean(state.topAttempt));
