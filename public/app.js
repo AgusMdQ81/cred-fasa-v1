@@ -36,6 +36,8 @@ const state = {
   lastJudgeTimerSnapshot: null,
   manualScoreContext: null,
   judgeAwaitingConfirmation: false,
+  judgeActiveSlot: null,
+  computosActiveContext: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -55,6 +57,8 @@ const timerAlarmMarks = new Set();
 let lastTimerPublishAt = 0;
 let lastRemoteTimerFetchAt = 0;
 let remoteTimerFetchInFlight = false;
+let lastActiveSlotsSignature = "";
+let lastJudgeActiveSlotFetchAt = 0;
 
 const api = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -544,6 +548,27 @@ function competitorJudgeLabel(competitor) {
   return `#${competitor.bib || competitor.bib_number || "-"} ${competitor.last_name}, ${competitor.first_name}`;
 }
 
+function scoreCompetitorPayload(competitor) {
+  if (!competitor) return null;
+  return {
+    id: Number(competitor.competitor_id || competitor.id || 0),
+    competitor_id: Number(competitor.competitor_id || competitor.id || 0),
+    registration_id: competitor.registration_id || null,
+    bib: competitor.bib || competitor.bib_number || "",
+    bib_number: competitor.bib_number || competitor.bib || "",
+    first_name: competitor.first_name || "",
+    last_name: competitor.last_name || "",
+    club: competitor.club || "",
+    category: competitor.category || "",
+    gender: competitor.gender || "",
+    start_order: competitor.start_order || null,
+  };
+}
+
+function activeSlotCurrent() {
+  return state.judgeActiveSlot?.current || null;
+}
+
 function judgeActiveOrder(timer = computedLocalTimer()) {
   const assignedBoulder = selectedBoulder();
   const cycle = Number(timer?.cycle || 1);
@@ -561,6 +586,7 @@ function syncJudgeRoundWithTimer(timer) {
   if (state.role !== "judge" || !timer?.round || timer.round === selectedRound()) return false;
   if (!judgeAssignedRounds().includes(timer.round)) return false;
   $("#roundSelect").value = timer.round;
+  state.judgeActiveSlot = null;
   renderBoulders();
   resetScoreForm();
   loadCompetitors();
@@ -631,6 +657,19 @@ function renderJudgeAssignments() {
 }
 
 function syncJudgeActiveCompetitor(timer = computedLocalTimer()) {
+  const slot = activeSlotCurrent();
+  if (state.role === "judge" && state.judgeActiveSlot && !slot) {
+    updateActiveCompetitorName();
+    return;
+  }
+  if (state.role === "judge" && slot?.id) {
+    if (Number(slot.id) !== Number(state.selectedCompetitorId)) {
+      state.selectedCompetitorId = Number(slot.id);
+      resetScoreForm();
+      updateActiveCompetitorName();
+    }
+    return;
+  }
   if (state.role !== "judge" || !timer || timer.round !== selectedRound() || !state.competitors.length) return;
   const order = judgeActiveOrder(timer);
   if (order < 1) return;
@@ -2586,6 +2625,19 @@ function selectCompetitor(id) {
 }
 
 function updateActiveCompetitorName() {
+  const slot = state.role === "judge" ? state.judgeActiveSlot : null;
+  if (slot && !slot.current) {
+    $("#activeCompetitorName").textContent = "Sin atleta activo";
+    if ($("#previousCompetitorName")) $("#previousCompetitorName").textContent = "Anterior —";
+    if ($("#nextCompetitorName")) $("#nextCompetitorName").textContent = "Siguiente —";
+    return;
+  }
+  if (slot?.current) {
+    $("#activeCompetitorName").textContent = competitorJudgeLabel(slot.current);
+    if ($("#previousCompetitorName")) $("#previousCompetitorName").textContent = `Anterior ${competitorJudgeLabel(slot.previous)}`;
+    if ($("#nextCompetitorName")) $("#nextCompetitorName").textContent = `Siguiente ${competitorJudgeLabel(slot.next)}`;
+    return;
+  }
   const competitor = state.competitors.find((item) => item.id === state.selectedCompetitorId);
   $("#activeCompetitorName").textContent = competitor ? competitorJudgeLabel(competitor) : "Sin atleta activo";
   const index = competitor ? state.competitors.findIndex((item) => item.id === competitor.id) : judgeActiveOrder() - 1;
@@ -3056,6 +3108,66 @@ function activeBoulderForOrder(orderIndex, boulderIndex, timer, gender, round) {
   return Number(timer.cycle || 1) === orderIndex + 2 * boulderIndex;
 }
 
+async function publishActiveSlots(round, category, gender, rows, timer) {
+  if (state.role !== "competition_admin" || !timer || !rows.length) return;
+  const boulderCount = state.rounds[round]?.boulders || 1;
+  const competitionId = state.currentCompetitionId || state.user?.competition_id || 1;
+  const slots = Array.from({ length: boulderCount }, (_, index) => {
+    const currentIndex = rows.findIndex((row) => activeBoulderForOrder(row.start_order, index, timer, gender, round));
+    const current = currentIndex >= 0 ? rows[currentIndex] : null;
+    return {
+      boulder: index + 1,
+      current: scoreCompetitorPayload(current),
+      previous: scoreCompetitorPayload(currentIndex > 0 ? rows[currentIndex - 1] : null),
+      next: scoreCompetitorPayload(currentIndex >= 0 ? rows[currentIndex + 1] : null),
+      cycle: Number(timer.cycle || 1),
+      phase: timer.phase || "prep",
+    };
+  });
+  const payload = {
+    competition_id: competitionId,
+    round,
+    category,
+    gender,
+    timer: {
+      round: timer.round,
+      cycle: Number(timer.cycle || 1),
+      phase: timer.phase || "prep",
+    },
+    slots,
+  };
+  const signature = JSON.stringify(payload);
+  if (signature === lastActiveSlotsSignature) return;
+  lastActiveSlotsSignature = signature;
+  try {
+    await api("/api/active-slots", { method: "POST", body: JSON.stringify(payload) });
+  } catch {
+    lastActiveSlotsSignature = "";
+  }
+}
+
+async function fetchJudgeActiveSlot(timer = computedLocalTimer(), force = false) {
+  if (state.role !== "judge") return;
+  const now = Date.now();
+  if (!force && now - lastJudgeActiveSlotFetchAt < 700) return;
+  lastJudgeActiveSlotFetchAt = now;
+  const round = timer?.round && judgeAssignedRounds().includes(timer.round) ? timer.round : selectedRound();
+  const params = new URLSearchParams({
+    competition_id: state.currentCompetitionId || state.user?.competition_id || 1,
+    round,
+  });
+  try {
+    const snapshot = await api(`/api/active-slots?${params}`);
+    const slot = (snapshot.slots || []).find((item) => Number(item.boulder) === selectedBoulder());
+    if (!slot) return;
+    state.judgeActiveSlot = { ...slot, round: snapshot.round || round, category: snapshot.category, gender: snapshot.gender };
+    if (slot.current?.id) state.selectedCompetitorId = Number(slot.current.id);
+    updateActiveCompetitorName();
+  } catch {
+    state.judgeActiveSlot = null;
+  }
+}
+
 async function loadScores() {
   applyComputosCategoryRules(currentCompetition());
   updateComputosRoundOptions();
@@ -3083,7 +3195,12 @@ async function loadScores() {
     zones: leaderboardByCompetitor.get(competitorKey(competitor))?.zones || 0,
     attempts: leaderboardByCompetitor.get(competitorKey(competitor))?.attempts || 0,
   }));
+  rows.forEach((row, index) => {
+    row.start_order = orderMap.has(competitorKey(row)) ? orderMap.get(competitorKey(row)) + 1 : index + 1;
+  });
   const timer = computedLocalTimer();
+  state.computosActiveContext = { round, category, gender, rows };
+  publishActiveSlots(round, category, gender, rows, timer);
   const readonly = state.role === "general_admin";
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#scoresHead").innerHTML = `
@@ -3189,6 +3306,10 @@ async function saveManualScore() {
 function refreshComputosActiveLights() {
   refreshActiveLights("#scoresTable", "[data-computos-row]", "#computosRound", "#computosGender");
   refreshActiveLights("#leaderboardBody", "[data-results-row]", "#resultsRound", "#resultsGender");
+  if (state.computosActiveContext) {
+    const { round, category, gender, rows } = state.computosActiveContext;
+    publishActiveSlots(round, category, gender, rows, computedLocalTimer());
+  }
 }
 
 function refreshActiveLights(tableSelector, rowSelector, roundSelector, genderSelector) {
@@ -3244,6 +3365,7 @@ async function loadTimer(forceRemote = false) {
   } else {
     renderTimer(timer);
   }
+  await fetchJudgeActiveSlot(timer);
   refreshComputosActiveLights();
 }
 
@@ -3256,13 +3378,15 @@ async function refreshAll() {
 }
 
 async function saveCurrentJudgeScore({ advance = true } = {}) {
-  if (!state.selectedCompetitorId) {
+  const slotCompetitor = activeSlotCurrent();
+  const competitorId = Number(slotCompetitor?.id || state.selectedCompetitorId || 0);
+  if (!competitorId) {
     $("#saveStatus").textContent = "Primero seleccioná un atleta.";
     return false;
   }
   const payload = {
     competition_id: state.currentCompetitionId || state.user?.competition_id || 1,
-    competitor_id: state.selectedCompetitorId,
+    competitor_id: competitorId,
     round: selectedRound(),
     boulder: selectedBoulder(),
     attempts: state.attempts,
@@ -3274,6 +3398,9 @@ async function saveCurrentJudgeScore({ advance = true } = {}) {
     judge_role: judgeRole(selectedRound()),
     official: judgeRole(selectedRound()) === "principal",
     notes: $("#scoreNotes").value,
+    bib_number: slotCompetitor?.bib_number || slotCompetitor?.bib || "",
+    first_name: slotCompetitor?.first_name || "",
+    last_name: slotCompetitor?.last_name || "",
   };
   try {
     await api("/api/scores", { method: "POST", body: JSON.stringify(payload) });
@@ -3283,7 +3410,7 @@ async function saveCurrentJudgeScore({ advance = true } = {}) {
     state.judgeAwaitingConfirmation = false;
     updateJudgeConfirmation();
     await refreshComputed();
-    if (advance) {
+    if (advance && !slotCompetitor) {
       const index = state.competitors.findIndex((item) => item.id === state.selectedCompetitorId);
       const next = state.competitors[index + 1];
       if (next) selectCompetitor(next.id);

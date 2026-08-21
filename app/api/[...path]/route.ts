@@ -417,6 +417,54 @@ async function saveSharedTimerState(nextTimer: Record<string, unknown>) {
   return timerState;
 }
 
+function activeSlotsKey(payload: Record<string, unknown>) {
+  return [
+    payload.competition_id || 1,
+    payload.round || "clasificatoria",
+    payload.category || "mayor",
+    payload.gender || "Mujer",
+  ].map(String).join(":");
+}
+
+async function loadActiveSlots(url: URL) {
+  await ensureDirectoryTable();
+  const competitionId = url.searchParams.get("competition_id") || "1";
+  const round = url.searchParams.get("round") || "clasificatoria";
+  const category = url.searchParams.get("category");
+  const gender = url.searchParams.get("gender");
+  const exactKey = [competitionId, round, category, gender].filter(Boolean).join(":");
+  let row = category && gender
+    ? await env.DB.prepare("SELECT data FROM directory_records WHERE record_type = ? AND record_key = ?")
+      .bind("active_slots", exactKey)
+      .first<{ data: string }>()
+    : null;
+  if (!row?.data) {
+    row = await env.DB.prepare(`
+      SELECT data FROM directory_records
+      WHERE record_type = ? AND record_key LIKE ?
+      ORDER BY json_extract(data, '$.updated_at') DESC
+      LIMIT 1
+    `).bind("active_slots", `${competitionId}:${round}:%`).first<{ data: string }>();
+  }
+  if (!row?.data) return { slots: [], updated_at: 0 };
+  try {
+    return JSON.parse(row.data);
+  } catch {
+    return { slots: [], updated_at: 0 };
+  }
+}
+
+async function saveActiveSlots(payload: Record<string, unknown>) {
+  await ensureDirectoryTable();
+  const record = { ...payload, updated_at: Date.now() };
+  await env.DB.prepare(`
+    INSERT INTO directory_records (record_type, record_key, data)
+    VALUES (?, ?, ?)
+    ON CONFLICT(record_type, record_key) DO UPDATE SET data = excluded.data
+  `).bind("active_slots", activeSlotsKey(record), JSON.stringify(record)).run();
+  return record;
+}
+
 function pathFrom(request: Request) {
   return new URL(request.url).pathname.replace(/^\/api\/?/, "");
 }
@@ -670,6 +718,7 @@ export async function GET(request: Request) {
   }
   if (path === "judges") return json(getJudges());
   if (path === "timer") return json(await loadSharedTimerState());
+  if (path === "active-slots") return json(await loadActiveSlots(url));
   if (path === "competitors") {
     const category = url.searchParams.get("category") || "mayor";
     const gender = url.searchParams.get("gender") || "Mujer";
@@ -855,6 +904,9 @@ export async function POST(request: Request) {
     };
     return json(await saveSharedTimerState(nextTimer));
   }
+  if (path === "active-slots") {
+    return json(await saveActiveSlots(payload));
+  }
   if (path === "scores") {
     const isOfficial = payload.official !== false;
     savedScores = savedScores.filter((score) => {
@@ -863,9 +915,10 @@ export async function POST(request: Request) {
       if (isOfficial && score.official !== false) return false;
       return score.judge_username !== payload.judge_username;
     });
-    const competitor = competitors.find((item) => item.id === Number(payload.competitor_id)) || competitors[0];
+    const competitor = competitors.find((item) => item.id === Number(payload.competitor_id));
+    const competitorId = Number(payload.competitor_id);
     savedScores.push({
-      competitor_id: competitor.id,
+      competitor_id: competitorId,
       round: payload.round,
       boulder: Number(payload.boulder),
       attempts: Number(payload.attempts || 0),
@@ -878,9 +931,9 @@ export async function POST(request: Request) {
       official: isOfficial,
       notes: payload.notes || "",
       updated_at: new Date().toISOString(),
-      bib_number: competitor.bib_number,
-      first_name: competitor.first_name,
-      last_name: competitor.last_name,
+      bib_number: Number(payload.bib_number || competitor?.bib_number || 0),
+      first_name: String(payload.first_name || competitor?.first_name || ""),
+      last_name: String(payload.last_name || competitor?.last_name || ""),
     });
     if (payload.judge_fasa_id) await env.DB.prepare("INSERT INTO competition_participations (competition_id,fasa_id,role_type,role_label,created_at) VALUES (?,?,?,?,?) ON CONFLICT(competition_id,fasa_id,role_type) DO UPDATE SET role_label=excluded.role_label").bind(Number(payload.competition_id || 1), String(payload.judge_fasa_id), "judge", "Juez", new Date().toISOString()).run();
     return json({ ok: true });
