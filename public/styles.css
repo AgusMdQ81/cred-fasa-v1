@@ -301,6 +301,10 @@ textarea:disabled {
   top: 78px;
 }
 
+.calendar-controls .month-rail {
+  display: none;
+}
+
 .month-year {
   min-height: 78px;
   padding: 2px 6px 10px;
@@ -585,6 +589,55 @@ textarea:disabled {
 .public-rankings {
   display: grid;
   gap: 7px;
+  overflow-x: auto;
+}
+
+.public-results-table {
+  display: grid;
+  gap: 7px;
+  min-width: max(760px, calc(370px + var(--boulder-count) * 92px));
+}
+
+.public-results-head,
+.public-results-row {
+  display: grid;
+  grid-template-columns: 74px minmax(170px, 1.2fr) minmax(110px, .8fr) repeat(var(--boulder-count), minmax(74px, .45fr)) 84px;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+}
+
+.public-results-head {
+  padding: 7px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.public-results-row {
+  min-height: 66px;
+  padding: 12px 14px;
+  border-left: 6px solid var(--silver);
+  border-radius: 0;
+  background: white;
+  box-shadow: 0 1px 0 rgba(18,21,37,.06);
+}
+
+.public-results-row small,
+.public-boulder-score small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.public-boulder-score {
+  min-height: 34px;
+}
+
+.public-boulder-score.empty .active-light:not(.on) {
+  visibility: hidden;
 }
 
 .ranking-head,
@@ -3070,6 +3123,14 @@ tbody tr:hover {
     gap: 4px;
     padding: 12px 0 0;
     border-top: 1px solid var(--line);
+  }
+
+  .calendar-controls .month-rail {
+    display: grid;
+  }
+
+  .calendar-layout > .month-rail {
+    display: none;
   }
 
   .month-list {

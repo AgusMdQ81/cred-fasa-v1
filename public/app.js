@@ -26,6 +26,7 @@ const state = {
   competitorFilters: { category: "mayor", gender: "Mujer" },
   registrationFilters: { category: "mayor", gender: "Mujer" },
   publicCalendarFilters: { category: "", type: "", modality: "", region: "", month: "" },
+  publicCompetitionDetailId: null,
   publicRankingFilters: { type: "argentine", region: "Buenos Aires", category: "mayor", gender: "Mujer", discipline: "Boulder" },
   judgePortal: null,
   judgePortalCredentials: null,
@@ -2277,21 +2278,24 @@ function renderPublicCalendar() {
 }
 
 function renderMonthRail() {
-  const rail = $("#calendarMonthRail");
-  if (!rail) return;
+  const rails = ["#calendarMonthRail", "#calendarMonthRailMobile"].map((selector) => $(selector)).filter(Boolean);
+  if (!rails.length) return;
   const formatter = new Intl.DateTimeFormat("es-AR", { month: "long" });
   const months = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
-  rail.innerHTML = months.map((month) => {
+  const markup = months.map((month) => {
     const date = new Date(`${month}-02T12:00:00`);
     const enabled = state.competitions.some((competition) => competition.status === "approved" && eventTouchesMonth(competition, month));
     return `<button class="month-button ${state.publicCalendarFilters.month === month ? "active" : ""}" type="button" data-month="${month}" ${enabled ? "" : "disabled"}><strong>${formatter.format(date)}</strong></button>`;
   }).join("");
-  $("#calendarYear").classList.toggle("active", !state.publicCalendarFilters.month);
-  rail.querySelectorAll("[data-month]").forEach((button) => button.addEventListener("click", () => {
-    state.publicCalendarFilters.month = button.dataset.month;
-    renderPublicCalendar();
-    setCalendarFiltersOpen(false);
-  }));
+  rails.forEach((rail) => {
+    rail.innerHTML = markup;
+    rail.querySelectorAll("[data-month]").forEach((button) => button.addEventListener("click", () => {
+      state.publicCalendarFilters.month = button.dataset.month;
+      renderPublicCalendar();
+      setCalendarFiltersOpen(false);
+    }));
+  });
+  ["#calendarYear", "#calendarYearMobile"].forEach((selector) => $(selector)?.classList.toggle("active", !state.publicCalendarFilters.month));
 }
 
 function setCalendarFiltersOpen(open) {
@@ -2310,6 +2314,7 @@ async function selectPublicCompetition(id) {
   const competition = state.competitions.find((item) => Number(item.id) === Number(id));
   if (!competition) return;
   state.currentCompetitionId = id;
+  state.publicCompetitionDetailId = id;
   state.loginCompetitionId = null;
   switchPublicView("competitionDetailView");
   $("#competitionPublicHeader").innerHTML = `
@@ -2326,14 +2331,53 @@ async function selectPublicCompetition(id) {
     </div>
     ${competition.infosheet_url ? `<a class="button-link infosheet-detail-link" href="${competition.infosheet_url}" download>Descargar Infosheet (PDF)</a>` : ""}
   `;
+  await renderPublicCompetitionResults(competition);
+}
+
+function publicResultCell(row, index, activeSlots) {
+  const detail = row.boulder_details?.[index] || {};
+  const hasResult = Number(detail.attempts || 0) > 0 || detail.zone_attempt || detail.top_attempt;
+  const activeSlot = (activeSlots || []).find((slot) => Number(slot.boulder) === index + 1);
+  const isActive = Number(activeSlot?.current?.id || activeSlot?.current?.competitor_id || 0) === Number(row.competitor_id || row.id);
+  return `
+    <span class="score-cell public-boulder-score ${hasResult ? "" : "empty"}">
+      <span class="active-light ${isActive ? "on" : ""}" aria-hidden="true"></span>
+      ${hasResult ? `<strong>${Number(detail.score || row.boulders?.[index] || 0).toFixed(1)}</strong><small>Z${detail.zone_attempt || "-"} / T${detail.top_attempt || "-"}</small>` : ""}
+    </span>
+  `;
+}
+
+async function renderPublicCompetitionResults(competition, { silent = false } = {}) {
   const results = $("#competitionPublicResults");
-  results.innerHTML = '<p class="hint">Cargando resultados…</p>';
+  if (!results) return;
+  if (!silent || !results.innerHTML.trim()) results.innerHTML = '<p class="hint">Cargando resultados…</p>';
   try {
-    const params = new URLSearchParams({ competition_id: id, round: "clasificatoria", category: competition.category === "Juveniles" ? "U17" : "mayor", gender: "Mujer" });
-    const rows = await api(`/api/leaderboard?${params}`);
+    const round = "clasificatoria";
+    const category = competition.category === "Juveniles" ? "U17" : "mayor";
+    const gender = "Mujer";
+    const params = new URLSearchParams({ competition_id: competition.id, round, category, gender });
+    const [rows, activeSnapshot] = await Promise.all([
+      api(`/api/leaderboard?${params}`),
+      api(`/api/active-slots?${new URLSearchParams({ competition_id: competition.id, round })}`).catch(() => ({ slots: [] })),
+    ]);
+    const boulderCount = state.rounds[round]?.boulders || rows[0]?.boulders?.length || 1;
     results.innerHTML = `
-      <div class="ranking-head"><span>Puesto</span><span>Atleta</span><span>Club</span><span>Puntaje</span></div>
-      ${rows.slice(0, 15).map((row, index) => `<div class="ranking-row result-row"><strong>#${row.rank || index + 1}</strong><span>${row.first_name} ${row.last_name}<small>N.º ${row.bib_number}</small></span><span>${row.club || "-"}</span><strong>${Number(row.total_score || 0).toFixed(1)}</strong></div>`).join("") || '<p class="ranking-empty">Todavía no hay resultados publicados.</p>'}
+      <div class="public-results-table" style="--boulder-count:${boulderCount}">
+        <div class="public-results-head">
+          <span>Puesto</span><span>Atleta</span><span>Club</span>
+          ${Array.from({ length: boulderCount }, (_, index) => `<span>B${index + 1}</span>`).join("")}
+          <span>Total</span>
+        </div>
+        ${rows.map((row, index) => `
+          <div class="public-results-row">
+            <strong>#${row.rank || index + 1}</strong>
+            <span>${row.first_name} ${row.last_name}<small>Bib ${row.bib_number}</small></span>
+            <span>${row.club || "-"}</span>
+            ${Array.from({ length: boulderCount }, (_, boulderIndex) => `<span>${publicResultCell(row, boulderIndex, activeSnapshot.slots)}</span>`).join("")}
+            <strong>${Number(row.total_score || 0).toFixed(1)}</strong>
+          </div>
+        `).join("") || '<p class="ranking-empty">Todavía no hay resultados publicados.</p>'}
+      </div>
     `;
   } catch (error) {
     results.innerHTML = '<p class="ranking-empty">Todavía no hay resultados publicados.</p>';
@@ -2344,7 +2388,15 @@ function switchPublicView(viewId) {
   document.querySelectorAll(".public-view").forEach((view) => view.classList.toggle("active", view.id === viewId));
   document.querySelectorAll("[data-public-view]").forEach((button) => button.classList.toggle("active", button.dataset.publicView === viewId));
   $("#loginGate").dataset.publicView = viewId;
+  if (viewId !== "competitionDetailView") state.publicCompetitionDetailId = null;
   if (viewId === "athletesView") renderPublicRankings("argentine");
+}
+
+function refreshPublicCompetitionDetail() {
+  if (!state.publicCompetitionDetailId) return;
+  if (!$("#competitionDetailView")?.classList.contains("active")) return;
+  const competition = state.competitions.find((item) => Number(item.id) === Number(state.publicCompetitionDetailId));
+  if (competition) renderPublicCompetitionResults(competition, { silent: true });
 }
 
 async function renderPublicRankings(type = state.publicRankingFilters.type) {
@@ -3561,10 +3613,10 @@ function bindEvents() {
     button.addEventListener("click", () => switchPublicView(button.dataset.publicView));
   });
   $("#backToCalendar").addEventListener("click", () => switchPublicView("calendarView"));
-  $("#calendarYear").addEventListener("click", () => {
+  ["#calendarYear", "#calendarYearMobile"].forEach((selector) => $(selector)?.addEventListener("click", () => {
     state.publicCalendarFilters.month = "";
     renderPublicCalendar();
-  });
+  }));
   document.querySelectorAll("[data-flip-id]").forEach((button) => {
     button.addEventListener("click", () => $("#fasaIdFlip").classList.toggle("flipped"));
   });
@@ -4187,6 +4239,7 @@ async function init() {
   }
   setInterval(loadTimer, 250);
   setInterval(refreshComputed, 5000);
+  setInterval(refreshPublicCompetitionDetail, 5000);
 }
 
 if (timerChannel) {
