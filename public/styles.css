@@ -633,8 +633,11 @@ button:hover,
 }
 
 .calendar-controls-head,
+.athlete-controls-head,
 .calendar-filter-toggle,
-.calendar-filter-backdrop {
+.athlete-filter-toggle,
+.calendar-filter-backdrop,
+.athlete-filter-backdrop {
   display: none;
 }
 
@@ -2295,6 +2298,15 @@ tbody tr:hover {
     width: auto;
   }
 
+  .section-head .athlete-filter-toggle {
+    width: auto;
+  }
+
+  body.calendar-filters-open,
+  body.athlete-filters-open {
+    overflow: hidden;
+  }
+
   h2 {
     font-size: 20px;
     line-height: 1.08;
@@ -2464,7 +2476,8 @@ tbody tr:hover {
     margin-top: 14px;
   }
 
-  .calendar-filter-toggle {
+  .calendar-filter-toggle,
+  .athlete-filter-toggle {
     display: inline-flex;
     min-height: 38px;
     gap: 8px;
@@ -2474,7 +2487,8 @@ tbody tr:hover {
     background: var(--charcoal);
   }
 
-  .calendar-filter-toggle > span:first-child {
+  .calendar-filter-toggle > span:first-child,
+  .athlete-filter-toggle > span:first-child {
     position: relative;
     width: 18px;
     height: 12px;
@@ -2482,7 +2496,8 @@ tbody tr:hover {
     border-bottom: 2px solid currentColor;
   }
 
-  .calendar-filter-toggle > span:first-child::after {
+  .calendar-filter-toggle > span:first-child::after,
+  .athlete-filter-toggle > span:first-child::after {
     content: "";
     position: absolute;
     top: 3px;
@@ -2491,7 +2506,8 @@ tbody tr:hover {
     border-top: 2px solid currentColor;
   }
 
-  .calendar-filter-backdrop {
+  .calendar-filter-backdrop,
+  .athlete-filter-backdrop {
     position: fixed;
     inset: 0;
     z-index: 39;
@@ -2506,16 +2522,17 @@ tbody tr:hover {
     transition: opacity .2s ease;
   }
 
-  .calendar-filters-open .calendar-filter-backdrop {
+  .calendar-filters-open .calendar-filter-backdrop,
+  .athlete-filters-open .athlete-filter-backdrop {
     display: block;
     opacity: 1;
     pointer-events: auto;
   }
 
-  .calendar-controls {
+  .calendar-controls,
+  .athlete-controls {
     position: fixed;
     top: 0;
-    right: 0;
     z-index: 40;
     display: grid;
     align-content: start;
@@ -2525,11 +2542,25 @@ tbody tr:hover {
     padding: 18px;
     color: var(--charcoal);
     background: rgba(255,255,255,.96);
-    box-shadow: -18px 0 42px rgba(8, 27, 43, .28);
     overflow-y: auto;
-    transform: translateX(108%);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     visibility: hidden;
     transition: transform .24s ease;
+  }
+
+  .calendar-controls {
+    right: 0;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    box-shadow: -18px 0 42px rgba(8, 27, 43, .28);
+    transform: translateX(108%);
+  }
+
+  .athlete-controls {
+    left: 0;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    box-shadow: 18px 0 42px rgba(8, 27, 43, .28);
+    transform: translateX(-108%);
   }
 
   .calendar-filters-open .calendar-controls {
@@ -2537,7 +2568,13 @@ tbody tr:hover {
     visibility: visible;
   }
 
-  .calendar-controls-head {
+  .athlete-filters-open .athlete-controls {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .calendar-controls-head,
+  .athlete-controls-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2546,14 +2583,16 @@ tbody tr:hover {
     border-bottom: 1px solid var(--line);
   }
 
-  .calendar-controls-head h3 {
+  .calendar-controls-head h3,
+  .athlete-controls-head h3 {
     margin: 0;
     font-size: 24px;
     line-height: 1;
     text-transform: uppercase;
   }
 
-  .calendar-filter-close {
+  .calendar-filter-close,
+  .athlete-filter-close {
     width: 42px;
     min-height: 42px;
     padding: 0;
@@ -2654,6 +2693,8 @@ tbody tr:hover {
   .ranking-selector {
     display: grid;
     grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0;
   }
 
   .ranking-selector .ranking-button {
@@ -2662,7 +2703,13 @@ tbody tr:hover {
 
   .ranking-filters {
     grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 0;
     padding: 14px;
+  }
+
+  .athlete-controls .ranking-filters {
+    color: white;
   }
 
   .gender-toggle { grid-column: 1; justify-self: stretch; width: 100%; }

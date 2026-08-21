@@ -2033,6 +2033,12 @@ function setCalendarFiltersOpen(open) {
   toggle?.setAttribute("aria-expanded", String(open));
 }
 
+function setAthleteFiltersOpen(open) {
+  const toggle = $("#athleteFilterToggle");
+  document.body.classList.toggle("athlete-filters-open", open);
+  toggle?.setAttribute("aria-expanded", String(open));
+}
+
 async function selectPublicCompetition(id) {
   const competition = state.competitions.find((item) => Number(item.id) === Number(id));
   if (!competition) return;
@@ -3231,8 +3237,14 @@ function bindEvents() {
   $("#calendarFilterToggle")?.addEventListener("click", () => setCalendarFiltersOpen(!document.body.classList.contains("calendar-filters-open")));
   $("#calendarFilterClose")?.addEventListener("click", () => setCalendarFiltersOpen(false));
   $("#calendarFilterBackdrop")?.addEventListener("click", () => setCalendarFiltersOpen(false));
+  $("#athleteFilterToggle")?.addEventListener("click", () => setAthleteFiltersOpen(!document.body.classList.contains("athlete-filters-open")));
+  $("#athleteFilterClose")?.addEventListener("click", () => setAthleteFiltersOpen(false));
+  $("#athleteFilterBackdrop")?.addEventListener("click", () => setAthleteFiltersOpen(false));
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setCalendarFiltersOpen(false);
+    if (event.key === "Escape") {
+      setCalendarFiltersOpen(false);
+      setAthleteFiltersOpen(false);
+    }
   });
 
   function toggleRegionField() {
