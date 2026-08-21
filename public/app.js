@@ -304,6 +304,7 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerCycle") && document.activeElement !== $("#timerCycle")) $("#timerCycle").value = Math.max(1, Number(timer.cycle || 1));
   if ($("#timerGenderWomen")) $("#timerGenderWomen").checked = (timer.genders || []).includes("Mujer");
   if ($("#timerGenderMen")) $("#timerGenderMen").checked = (timer.genders || []).includes("Hombre");
+  updateJudgeHeader();
   updateJudgeConfirmation(timer);
   if (timer.phase === "climb") syncJudgeActiveCompetitor(timer);
   state.lastJudgeTimerSnapshot = { ...timer };
@@ -512,6 +513,24 @@ function selectedBoulder() {
   return Number($("#boulderSelect").value || 1);
 }
 
+function competitorJudgeLabel(competitor) {
+  if (!competitor) return "—";
+  return `#${competitor.bib_number} ${competitor.last_name}, ${competitor.first_name}`;
+}
+
+function judgeActiveOrder(timer = computedLocalTimer()) {
+  const assignedBoulder = selectedBoulder();
+  const cycle = Number(timer?.cycle || 1);
+  return Math.max(1, cycle - 2 * (assignedBoulder - 1));
+}
+
+function updateJudgeHeader() {
+  const round = state.rounds[selectedRound()];
+  const boulder = selectedBoulder();
+  if ($("#judgeBoulderLabel")) $("#judgeBoulderLabel").textContent = `Boulder ${boulder}`;
+  if ($("#judgeRoundLabel")) $("#judgeRoundLabel").textContent = round?.label || selectedRound();
+}
+
 function judgeAssignment(roundKey) {
   if (state.role !== "judge" || !state.user?.assignments) return null;
   return Number(state.user.assignments[roundKey] || 1);
@@ -577,8 +596,7 @@ function renderJudgeAssignments() {
 
 function syncJudgeActiveCompetitor(timer = computedLocalTimer()) {
   if (state.role !== "judge" || !timer || timer.round !== selectedRound() || !state.competitors.length) return;
-  const assignedBoulder = selectedBoulder();
-  const order = Number(timer.cycle || 1) - 2 * (assignedBoulder - 1);
+  const order = judgeActiveOrder(timer);
   if (order < 1) return;
   const competitor = state.competitors[order - 1];
   if (competitor && competitor.id !== state.selectedCompetitorId) {
@@ -645,6 +663,7 @@ function activateView(view, options = {}) {
   document.querySelectorAll(".tab, .view").forEach((element) => element.classList.remove("active"));
   document.querySelectorAll(`.tab[data-view="${safeView}"]`).forEach((element) => element.classList.add("active"));
   $(`#${safeView}`).classList.add("active");
+  document.body.classList.toggle("judge-focus", safeView === "judge");
   renderActiveEventActions(safeView);
   if (safeView === "judge") loadCompetitors();
   if (safeView === "judgePeople") loadJudgePeople();
@@ -929,9 +948,12 @@ function renderScore() {
   $("#attemptCount").textContent = state.attempts;
   $("#zoneAttempt").textContent = state.zoneAttempt ? `Intento ${state.zoneAttempt}` : "-";
   $("#topAttempt").textContent = state.topAttempt ? `Intento ${state.topAttempt}` : "-";
-  $("#scorePreview").textContent = score(state.zoneAttempt, state.topAttempt).toFixed(1);
-  const round = state.rounds[selectedRound()];
-  $("#roundInfo").textContent = `${round?.label || "-"} / B${selectedBoulder()}`;
+  const currentScore = score(state.zoneAttempt, state.topAttempt).toFixed(1);
+  $("#scorePreview").textContent = currentScore;
+  $("#roundInfo").textContent = currentScore;
+  $("#zoneButton")?.classList.toggle("active", Boolean(state.zoneAttempt));
+  $("#topButton")?.classList.toggle("active", Boolean(state.topAttempt));
+  updateJudgeHeader();
 }
 
 function optionsForRounds(selected = "") {
@@ -2519,9 +2541,10 @@ function selectCompetitor(id) {
 
 function updateActiveCompetitorName() {
   const competitor = state.competitors.find((item) => item.id === state.selectedCompetitorId);
-  $("#activeCompetitorName").textContent = competitor
-    ? `#${competitor.bib_number} ${competitor.last_name}, ${competitor.first_name}`
-    : "Seleccioná un atleta";
+  $("#activeCompetitorName").textContent = competitor ? competitorJudgeLabel(competitor) : "Sin atleta activo";
+  const index = competitor ? state.competitors.findIndex((item) => item.id === competitor.id) : judgeActiveOrder() - 1;
+  if ($("#previousCompetitorName")) $("#previousCompetitorName").textContent = `Anterior ${competitorJudgeLabel(state.competitors[index - 1])}`;
+  if ($("#nextCompetitorName")) $("#nextCompetitorName").textContent = `Siguiente ${competitorJudgeLabel(state.competitors[index + 1])}`;
 }
 
 async function loadConfig() {

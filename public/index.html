@@ -764,22 +764,27 @@
 
       <section id="judge" class="view active">
         <aside class="panel setup-panel">
-          <h2>Mesa de juez</h2>
+          <div class="judge-mobile-top">
+            <button class="judge-menu-button" type="button" aria-label="Menu">☰</button>
+            <div>
+              <strong id="judgeBoulderLabel">Boulder 1</strong>
+              <span id="judgeRoundLabel">Clasificatoria</span>
+            </div>
+            <div class="judge-clock">
+              <span id="judgeTimerDisplay">00:00</span>
+              <small id="judgeTimerMeta">Controlado desde Computos</small>
+            </div>
+          </div>
           <div id="judgeAssignmentCards" class="judge-assignment-cards"></div>
-          <label>Juez
+          <label class="judge-config-field">Juez
             <input id="judgeName" autocomplete="name" placeholder="Nombre del juez" />
           </label>
-          <label>Ronda
+          <label class="judge-config-field">Ronda
             <select id="roundSelect"></select>
           </label>
-          <label>Boulder
+          <label class="judge-config-field">Boulder
             <select id="boulderSelect"></select>
           </label>
-          <div class="timer">
-            <span id="judgeTimerDisplay">00:00</span>
-            <p id="judgeTimerMeta" class="hint">Controlado desde Computos</p>
-          </div>
-          <p class="hint">El juez registra intentos, zona y top. El tiempo se inicia y pausa solo desde Computos.</p>
         </aside>
 
         <section class="panel scoring-panel">
@@ -789,9 +794,10 @@
             <button id="confirmJudgeScore" class="primary" type="button">Confirmar y guardar</button>
           </div>
           <div class="section-head">
-            <div>
-              <p class="eyebrow">Atleta actual</p>
+            <div class="judge-athlete-stack">
+              <p id="previousCompetitorName" class="judge-neighbor">Anterior —</p>
               <h2 id="activeCompetitorName">Seleccioná un atleta</h2>
+              <p id="nextCompetitorName" class="judge-neighbor">Siguiente —</p>
             </div>
             <strong id="scorePreview" class="score">0.0</strong>
           </div>
@@ -824,16 +830,10 @@
             </div>
           </div>
 
-          <div class="milestone-grid">
-            <button id="zoneButton" class="milestone zone">Marcar Zona</button>
-            <button id="topButton" class="milestone top">Marcar Top</button>
-            <button id="clearMilestones" class="milestone ghost">Limpiar</button>
-          </div>
-
           <dl class="score-details">
-            <div><dt>Zona</dt><dd id="zoneAttempt">-</dd></div>
-            <div><dt>Top</dt><dd id="topAttempt">-</dd></div>
-            <div><dt>Ronda</dt><dd id="roundInfo">-</dd></div>
+            <div class="judge-result-line"><dt>Zona</dt><dd id="zoneAttempt">-</dd><button id="zoneButton" class="judge-check-button zone" type="button" aria-label="Validar zona">✓</button></div>
+            <div class="judge-result-line"><dt>Top</dt><dd id="topAttempt">-</dd><button id="topButton" class="judge-check-button top" type="button" aria-label="Validar top">✓</button></div>
+            <div class="judge-result-line judge-score-line"><dt>Puntaje</dt><dd id="roundInfo">0.0</dd><button id="clearMilestones" class="judge-clear-button" type="button">Limpiar</button></div>
           </dl>
 
           <label>Notas
