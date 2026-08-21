@@ -541,7 +541,7 @@ function selectedBoulder() {
 
 function competitorJudgeLabel(competitor) {
   if (!competitor) return "—";
-  return `#${competitor.bib_number} ${competitor.last_name}, ${competitor.first_name}`;
+  return `#${competitor.bib || competitor.bib_number || "-"} ${competitor.last_name}, ${competitor.first_name}`;
 }
 
 function judgeActiveOrder(timer = computedLocalTimer()) {
@@ -1072,6 +1072,10 @@ function registrationKey(row) {
   return `${state.currentCompetitionId || row.competition_id}:${row.dni || row.id || row.registration_id}`;
 }
 
+function competitorKey(row) {
+  return String(row?.competitor_id || row?.id || row?.dni || row?.registration_id || row?.bib_number || "");
+}
+
 function mergeStoredRegistrations(rows) {
   const store = readRegistrationStore();
   const deleted = new Set(store.deleted || []);
@@ -1375,13 +1379,13 @@ async function startOrderRows(roundKey, category, gender) {
     if (previous) {
       const boardParams = new URLSearchParams({ competition_id: competitionId, round: previous, category, gender });
       const leaderboardRows = await api(`/api/leaderboard?${boardParams}`);
-      const orderByBib = new Map([...leaderboardRows].reverse().map((row, index) => [Number(row.bib_number), index]));
+      const orderByCompetitor = new Map([...leaderboardRows].reverse().map((row, index) => [competitorKey(row), index]));
       rows = rows.sort((a, b) =>
-        (orderByBib.get(Number(a.bib_number)) ?? 9999) - (orderByBib.get(Number(b.bib_number)) ?? 9999)
+        (orderByCompetitor.get(competitorKey(a)) ?? 9999) - (orderByCompetitor.get(competitorKey(b)) ?? 9999)
       );
     }
   }
-  return rows;
+  return rows.map((row, index) => ({ ...row, start_order: index + 1 }));
 }
 
 async function exportStartOrderPdf(row) {
@@ -2970,26 +2974,27 @@ async function loadLeaderboard() {
   const params = new URLSearchParams({ round, category, gender, competition_id: state.currentCompetitionId || state.user?.competition_id || 1 });
   const rows = await api(`/api/leaderboard?${params}`);
   const orderedCompetitors = await startOrderRows(round, category, gender);
-  const orderMap = new Map(orderedCompetitors.map((row, index) => [Number(row.bib_number), index + 1]));
+  const orderMap = new Map(orderedCompetitors.map((row, index) => [competitorKey(row), index + 1]));
   const timer = computedLocalTimer();
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#leaderboardHead").innerHTML = `
     <tr>
-      <th>Puesto</th><th>Nro.</th><th>Atleta</th><th>Club</th>
+      <th>Puesto</th><th>Orden</th><th>Bib</th><th>Atleta</th><th>Club</th>
       ${Array.from({ length: boulderCount }, (_, index) => `<th>B${index + 1}</th>`).join("")}
       <th>Total</th>
     </tr>
   `;
   $("#leaderboardBody").innerHTML = rows.map((row) => `
-    <tr data-results-row data-order="${orderMap.get(Number(row.bib_number)) || 0}">
+    <tr data-results-row data-order="${orderMap.get(competitorKey(row)) || 0}">
       <td>${row.rank}</td>
-      <td>${row.bib_number}</td>
+      <td>${orderMap.get(competitorKey(row)) || "-"}</td>
+      <td>${orderedCompetitors.find((item) => competitorKey(item) === competitorKey(row))?.bib || "-"}</td>
       <td>${row.last_name}, ${row.first_name}</td>
       <td>${row.club || "-"}</td>
       ${row.boulders.map((value, index) => `
         <td title="${boulderAttemptTooltip(row, index)}">
           <span class="score-cell" title="${boulderAttemptTooltip(row, index)}">
-            <span class="active-light ${activeBoulderForOrder(orderMap.get(Number(row.bib_number)) || 0, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
+            <span class="active-light ${activeBoulderForOrder(orderMap.get(competitorKey(row)) || 0, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
             ${Number(value).toFixed(1)}
           </span>
         </td>
@@ -3066,39 +3071,38 @@ async function loadScores() {
   const params = new URLSearchParams({ round, category, gender, competition_id: state.currentCompetitionId || state.user?.competition_id || 1 });
   const leaderboardRows = await api(`/api/leaderboard?${params}`);
   const orderedCompetitors = await startOrderRows(round, category, gender);
-  const orderMap = new Map(orderedCompetitors.map((row, index) => [Number(row.bib_number), index]));
-  const leaderboardByBib = new Map(leaderboardRows.map((row) => [Number(row.bib_number), row]));
+  const orderMap = new Map(orderedCompetitors.map((row, index) => [competitorKey(row), index]));
+  const leaderboardByCompetitor = new Map(leaderboardRows.map((row) => [competitorKey(row), row]));
   const rows = orderedCompetitors.map((competitor) => ({
     ...competitor,
-    ...(leaderboardByBib.get(Number(competitor.bib_number)) || {}),
-    boulders: leaderboardByBib.get(Number(competitor.bib_number))?.boulders || Array.from({ length: state.rounds[round]?.boulders || 1 }, () => 0),
-    boulder_details: leaderboardByBib.get(Number(competitor.bib_number))?.boulder_details || [],
-    total_score: leaderboardByBib.get(Number(competitor.bib_number))?.total_score || 0,
-    tops: leaderboardByBib.get(Number(competitor.bib_number))?.tops || 0,
-    zones: leaderboardByBib.get(Number(competitor.bib_number))?.zones || 0,
-    attempts: leaderboardByBib.get(Number(competitor.bib_number))?.attempts || 0,
+    ...(leaderboardByCompetitor.get(competitorKey(competitor)) || {}),
+    boulders: leaderboardByCompetitor.get(competitorKey(competitor))?.boulders || Array.from({ length: state.rounds[round]?.boulders || 1 }, () => 0),
+    boulder_details: leaderboardByCompetitor.get(competitorKey(competitor))?.boulder_details || [],
+    total_score: leaderboardByCompetitor.get(competitorKey(competitor))?.total_score || 0,
+    tops: leaderboardByCompetitor.get(competitorKey(competitor))?.tops || 0,
+    zones: leaderboardByCompetitor.get(competitorKey(competitor))?.zones || 0,
+    attempts: leaderboardByCompetitor.get(competitorKey(competitor))?.attempts || 0,
   }));
   const timer = computedLocalTimer();
   const readonly = state.role === "general_admin";
   const boulderCount = state.rounds[round]?.boulders || 1;
   $("#scoresHead").innerHTML = `
     <tr>
-      <th>Orden</th><th>Bib</th><th>Nro.</th><th>Atleta</th><th>Club</th>
+      <th>Orden</th><th>Bib</th><th>Atleta</th><th>Club</th>
       ${Array.from({ length: boulderCount }, (_, index) => `<th>B${index + 1}</th>`).join("")}
       <th>Total</th><th>Tops</th><th>Zonas</th><th>Intentos</th>
     </tr>
   `;
   $("#scoresTable").innerHTML = rows.map((row) => `
-    <tr data-computos-row data-order="${orderMap.get(Number(row.bib_number)) + 1}">
-      <td>${orderMap.has(Number(row.bib_number)) ? orderMap.get(Number(row.bib_number)) + 1 : "-"}</td>
-      <td>${orderedCompetitors.find((item) => Number(item.bib_number) === Number(row.bib_number))?.bib || "-"}</td>
-      <td>${row.bib_number}</td>
+    <tr data-computos-row data-order="${orderMap.get(competitorKey(row)) + 1}">
+      <td>${orderMap.has(competitorKey(row)) ? orderMap.get(competitorKey(row)) + 1 : "-"}</td>
+      <td>${orderedCompetitors.find((item) => competitorKey(item) === competitorKey(row))?.bib || "-"}</td>
       <td>${row.last_name}, ${row.first_name}</td>
       <td>${row.club || "-"}</td>
       ${row.boulders.map((value, index) => `
         <td>
           <button class="score-cell manual-score-trigger" type="button" data-manual-score data-competitor-id="${row.id}" data-boulder="${index + 1}" data-bib="${row.bib_number}" data-name="${row.last_name}, ${row.first_name}" data-score="${Number(value).toFixed(1)}">
-            <span class="active-light ${activeBoulderForOrder(orderMap.get(Number(row.bib_number)) + 1, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
+            <span class="active-light ${activeBoulderForOrder(orderMap.get(competitorKey(row)) + 1, index, timer, gender, round) ? "on" : ""}" data-boulder-index="${index}" aria-hidden="true"></span>
             <strong>${Number(value).toFixed(1)}</strong>
             <small>Editar</small>
           </button>

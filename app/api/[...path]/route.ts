@@ -476,6 +476,8 @@ function leaderboard(url: URL) {
       const boulders = boulderDetails.map((detail) => detail.score);
       return {
         rank: 0,
+        competitor_id: competitor.id,
+        id: competitor.id,
         bib_number: competitor.bib_number,
         first_name: competitor.first_name,
         last_name: competitor.last_name,
