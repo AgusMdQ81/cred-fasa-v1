@@ -7,7 +7,7 @@ export default function Home() {
         border: 0,
         display: "block",
         width: "100vw",
-        height: "100vh",
+        height: "100dvh",
       }}
     />
   );
