@@ -392,6 +392,31 @@ async function saveDirectoryRecords(recordType: string, records: Array<Record<st
   return normalized;
 }
 
+async function loadSharedTimerState() {
+  await ensureDirectoryTable();
+  const row = await env.DB.prepare("SELECT data FROM directory_records WHERE record_type = ? AND record_key = ?")
+    .bind("timer_state", "global")
+    .first<{ data: string }>();
+  if (!row?.data) return timerState;
+  try {
+    timerState = { ...timerState, ...JSON.parse(row.data) };
+  } catch {
+    return timerState;
+  }
+  return timerState;
+}
+
+async function saveSharedTimerState(nextTimer: Record<string, unknown>) {
+  await ensureDirectoryTable();
+  timerState = { ...timerState, ...nextTimer };
+  await env.DB.prepare(`
+    INSERT INTO directory_records (record_type, record_key, data)
+    VALUES (?, ?, ?)
+    ON CONFLICT(record_type, record_key) DO UPDATE SET data = excluded.data
+  `).bind("timer_state", "global", JSON.stringify(timerState)).run();
+  return timerState;
+}
+
 function pathFrom(request: Request) {
   return new URL(request.url).pathname.replace(/^\/api\/?/, "");
 }
@@ -644,7 +669,7 @@ export async function GET(request: Request) {
     return json({ rows: results, valid_count: results.filter((row) => row.valid).length, invalid_count: results.filter((row) => !row.valid).length });
   }
   if (path === "judges") return json(getJudges());
-  if (path === "timer") return json(timerState);
+  if (path === "timer") return json(await loadSharedTimerState());
   if (path === "competitors") {
     const category = url.searchParams.get("category") || "mayor";
     const gender = url.searchParams.get("gender") || "Mujer";
@@ -789,12 +814,13 @@ export async function POST(request: Request) {
   }
   if (path === "timer-authorize") return json({ ok: true, test_mode: true });
   if (path === "timer") {
-    const round = (payload.round || timerState.round) as RoundKey;
+    const currentTimer = await loadSharedTimerState();
+    const round = (payload.round || currentTimer.round) as RoundKey;
     if (payload.state && typeof payload.state === "object") {
       const snapshot = payload.state as Record<string, unknown>;
       const snapshotRound = (snapshot.round || round) as RoundKey;
-      timerState = {
-        ...timerState,
+      const nextTimer = {
+        ...currentTimer,
         ...snapshot,
         round: snapshotRound,
         boulder: Number(snapshot.boulder || 1),
@@ -812,14 +838,14 @@ export async function POST(request: Request) {
         cycle: Math.max(1, Number(snapshot.cycle || 1)),
         updated_at: Date.now(),
       };
-      return json(timerState);
+      return json(await saveSharedTimerState(nextTimer));
     }
-    timerState = {
-      ...timerState,
+    const nextTimer = {
+      ...currentTimer,
       round,
       boulder: Number(payload.boulder || 1),
       timer_schema: 3,
-      phase: payload.action === "start" ? "prep" : timerState.phase,
+      phase: payload.action === "start" ? "prep" : currentTimer.phase,
       prep_seconds: 15,
       duration_seconds: rounds[round].minutes * 60,
       remaining_seconds: rounds[round].minutes * 60,
@@ -827,7 +853,7 @@ export async function POST(request: Request) {
       started_at: payload.action === "start" ? Date.now() : null,
       updated_at: Date.now(),
     };
-    return json(timerState);
+    return json(await saveSharedTimerState(nextTimer));
   }
   if (path === "scores") {
     const isOfficial = payload.official !== false;
