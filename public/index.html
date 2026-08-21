@@ -790,8 +790,11 @@
         <section class="panel scoring-panel">
           <div id="judgeConfirmPanel" class="judge-confirm-panel hidden">
             <strong>Confirmar resultado</strong>
-            <span>El turno terminó. Revisá la carga antes de pasar al siguiente atleta.</span>
-            <button id="confirmJudgeScore" class="primary" type="button">Confirmar y guardar</button>
+            <span id="judgeConfirmMessage">El turno terminó. Revisá la carga antes de pasar al siguiente atleta.</span>
+            <div class="judge-confirm-actions">
+              <button id="confirmJudgeScore" class="primary" type="button">Guardar y pasar</button>
+              <button id="continueJudgeScore" type="button">Seguir cargando</button>
+            </div>
           </div>
           <div class="section-head">
             <div class="judge-athlete-stack">

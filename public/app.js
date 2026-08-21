@@ -37,6 +37,8 @@ const state = {
   manualScoreContext: null,
   judgeAwaitingConfirmation: false,
   judgeActiveSlot: null,
+  judgePendingSlot: null,
+  judgeScoreLocked: false,
   computosActiveContext: null,
 };
 
@@ -569,6 +571,48 @@ function activeSlotCurrent() {
   return state.judgeActiveSlot?.current || null;
 }
 
+function judgeActiveSlotId(slot = state.judgeActiveSlot) {
+  return Number(slot?.current?.id || slot?.current?.competitor_id || 0);
+}
+
+function judgeHasDraft() {
+  return Boolean(state.attempts || state.zoneAttempt || state.topAttempt || $("#scoreNotes")?.value.trim());
+}
+
+function setJudgeScoreLocked(locked) {
+  state.judgeScoreLocked = Boolean(locked);
+  ["#attemptPlus", "#attemptMinus", "#zoneButton", "#topButton", "#clearMilestones"].forEach((selector) => {
+    const button = $(selector);
+    if (button) button.disabled = state.judgeScoreLocked;
+  });
+  $("#scoreNotes")?.toggleAttribute("disabled", state.judgeScoreLocked);
+  renderJudgeSaveButton();
+}
+
+function renderJudgeSaveButton() {
+  const button = $("#saveScore");
+  if (!button) return;
+  button.classList.toggle("saved", state.judgeScoreLocked);
+  if (state.judgeScoreLocked) {
+    button.textContent = "Modificar resultados";
+  } else if (state.judgePendingSlot) {
+    button.textContent = "Guardar y pasar";
+  } else {
+    button.textContent = "Guardar puntaje";
+  }
+}
+
+function switchJudgeToSlot(slot, { reset = true } = {}) {
+  if (!slot?.current) return;
+  state.judgeActiveSlot = slot;
+  state.judgePendingSlot = null;
+  state.judgeAwaitingConfirmation = false;
+  state.selectedCompetitorId = Number(slot.current.id || slot.current.competitor_id);
+  if (reset) resetScoreForm();
+  updateActiveCompetitorName();
+  renderJudgeConfirmation();
+}
+
 function judgeActiveOrder(timer = computedLocalTimer()) {
   const assignedBoulder = selectedBoulder();
   const cycle = Number(timer?.cycle || 1);
@@ -587,6 +631,7 @@ function syncJudgeRoundWithTimer(timer) {
   if (!judgeAssignedRounds().includes(timer.round)) return false;
   $("#roundSelect").value = timer.round;
   state.judgeActiveSlot = null;
+  state.judgePendingSlot = null;
   renderBoulders();
   resetScoreForm();
   loadCompetitors();
@@ -683,12 +728,20 @@ function syncJudgeActiveCompetitor(timer = computedLocalTimer()) {
 }
 
 function updateJudgeConfirmation(timer = computedLocalTimer()) {
+  renderJudgeConfirmation(timer);
+}
+
+function renderJudgeConfirmation(timer = computedLocalTimer()) {
   const panel = $("#judgeConfirmPanel");
   if (!panel || state.role !== "judge") return;
-  const previous = state.lastJudgeTimerSnapshot;
-  const enteredPrepAfterClimb = previous?.phase === "climb" && timer?.phase === "prep" && previous.cycle === timer.cycle;
-  if (enteredPrepAfterClimb && state.selectedCompetitorId) state.judgeAwaitingConfirmation = true;
+  if ($("#judgeConfirmMessage")) {
+    $("#judgeConfirmMessage").textContent = state.judgePendingSlot
+      ? "Ya empezó el siguiente turno. Podés seguir cargando este resultado o guardarlo y pasar al siguiente atleta."
+      : "El turno terminó. Revisá la carga antes de pasar al siguiente atleta.";
+  }
+  if ($("#confirmJudgeScore")) $("#confirmJudgeScore").textContent = state.judgePendingSlot ? "Guardar y pasar" : "Confirmar y guardar";
   panel.classList.toggle("hidden", !state.judgeAwaitingConfirmation);
+  renderJudgeSaveButton();
 }
 
 function allowedViews(role) {
@@ -1021,6 +1074,7 @@ function resetScoreForm() {
   state.zoneAttempt = null;
   state.topAttempt = null;
   $("#scoreNotes").value = "";
+  setJudgeScoreLocked(false);
   renderScore();
 }
 
@@ -1033,6 +1087,7 @@ function renderScore() {
   $("#roundInfo").textContent = currentScore;
   $("#zoneButton")?.classList.toggle("active", Boolean(state.zoneAttempt));
   $("#topButton")?.classList.toggle("active", Boolean(state.topAttempt));
+  renderJudgeSaveButton();
   updateJudgeHeader();
 }
 
@@ -3160,9 +3215,33 @@ async function fetchJudgeActiveSlot(timer = computedLocalTimer(), force = false)
     const snapshot = await api(`/api/active-slots?${params}`);
     const slot = (snapshot.slots || []).find((item) => Number(item.boulder) === selectedBoulder());
     if (!slot) return;
-    state.judgeActiveSlot = { ...slot, round: snapshot.round || round, category: snapshot.category, gender: snapshot.gender };
-    if (slot.current?.id) state.selectedCompetitorId = Number(slot.current.id);
-    updateActiveCompetitorName();
+    const nextSlot = { ...slot, round: snapshot.round || round, category: snapshot.category, gender: snapshot.gender };
+    if (!nextSlot.current) {
+      if (!state.judgeActiveSlot?.current) {
+        state.judgeActiveSlot = nextSlot;
+        updateActiveCompetitorName();
+      }
+      return;
+    }
+    const currentId = judgeActiveSlotId();
+    const nextId = judgeActiveSlotId(nextSlot);
+    if (!currentId || currentId === nextId) {
+      state.judgeActiveSlot = nextSlot;
+      state.selectedCompetitorId = nextId;
+      updateActiveCompetitorName();
+      return;
+    }
+    if (state.judgeScoreLocked || !judgeHasDraft()) {
+      switchJudgeToSlot(nextSlot);
+      return;
+    }
+    if (state.judgePendingSlot && judgeActiveSlotId(state.judgePendingSlot) === nextId) {
+      renderJudgeSaveButton();
+      return;
+    }
+    state.judgePendingSlot = nextSlot;
+    state.judgeAwaitingConfirmation = true;
+    renderJudgeConfirmation(timer);
   } catch {
     state.judgeActiveSlot = null;
   }
@@ -3378,6 +3457,11 @@ async function refreshAll() {
 }
 
 async function saveCurrentJudgeScore({ advance = true } = {}) {
+  if (state.judgeScoreLocked) {
+    setJudgeScoreLocked(false);
+    $("#saveStatus").textContent = "Edición habilitada.";
+    return false;
+  }
   const slotCompetitor = activeSlotCurrent();
   const competitorId = Number(slotCompetitor?.id || state.selectedCompetitorId || 0);
   if (!competitorId) {
@@ -3387,7 +3471,7 @@ async function saveCurrentJudgeScore({ advance = true } = {}) {
   const payload = {
     competition_id: state.currentCompetitionId || state.user?.competition_id || 1,
     competitor_id: competitorId,
-    round: selectedRound(),
+    round: state.judgeActiveSlot?.round || selectedRound(),
     boulder: selectedBoulder(),
     attempts: state.attempts,
     zone_attempt: state.zoneAttempt,
@@ -3395,8 +3479,8 @@ async function saveCurrentJudgeScore({ advance = true } = {}) {
     judge_name: $("#judgeName").value,
     judge_username: state.user?.username || $("#judgeName").value,
     judge_fasa_id: state.user?.fasa_id || "",
-    judge_role: judgeRole(selectedRound()),
-    official: judgeRole(selectedRound()) === "principal",
+    judge_role: judgeRole(state.judgeActiveSlot?.round || selectedRound()),
+    official: judgeRole(state.judgeActiveSlot?.round || selectedRound()) === "principal",
     notes: $("#scoreNotes").value,
     bib_number: slotCompetitor?.bib_number || slotCompetitor?.bib || "",
     first_name: slotCompetitor?.first_name || "",
@@ -3404,12 +3488,19 @@ async function saveCurrentJudgeScore({ advance = true } = {}) {
   };
   try {
     await api("/api/scores", { method: "POST", body: JSON.stringify(payload) });
-    $("#saveStatus").textContent = judgeRole(selectedRound()) === "principal"
+    $("#saveStatus").textContent = judgeRole(state.judgeActiveSlot?.round || selectedRound()) === "principal"
       ? "Puntaje oficial guardado."
       : "Puntaje backup guardado para control.";
     state.judgeAwaitingConfirmation = false;
     updateJudgeConfirmation();
     await refreshComputed();
+    if (state.judgePendingSlot) {
+      const pendingSlot = state.judgePendingSlot;
+      switchJudgeToSlot(pendingSlot);
+      $("#saveStatus").textContent = "Listo. Nuevo atleta activo.";
+      return true;
+    }
+    setJudgeScoreLocked(true);
     if (advance && !slotCompetitor) {
       const index = state.competitors.findIndex((item) => item.id === state.selectedCompetitorId);
       const next = state.competitors[index + 1];
@@ -3872,27 +3963,32 @@ function bindEvents() {
   $("#refreshScores").addEventListener("click", refreshComputed);
 
   $("#attemptPlus").addEventListener("click", () => {
+    if (state.judgeScoreLocked) return;
     state.attempts += 1;
     renderScore();
   });
   $("#attemptMinus").addEventListener("click", () => {
+    if (state.judgeScoreLocked) return;
     state.attempts = Math.max(0, state.attempts - 1);
     if (state.zoneAttempt && state.zoneAttempt > state.attempts) state.zoneAttempt = null;
     if (state.topAttempt && state.topAttempt > state.attempts) state.topAttempt = null;
     renderScore();
   });
   $("#zoneButton").addEventListener("click", () => {
+    if (state.judgeScoreLocked) return;
     if (state.attempts === 0) state.attempts = 1;
     state.zoneAttempt = state.attempts;
     renderScore();
   });
   $("#topButton").addEventListener("click", () => {
+    if (state.judgeScoreLocked) return;
     if (state.attempts === 0) state.attempts = 1;
     state.topAttempt = state.attempts;
     if (!state.zoneAttempt || state.zoneAttempt > state.topAttempt) state.zoneAttempt = state.topAttempt;
     renderScore();
   });
   $("#clearMilestones").addEventListener("click", () => {
+    if (state.judgeScoreLocked) return;
     state.zoneAttempt = null;
     state.topAttempt = null;
     renderScore();
@@ -3900,6 +3996,11 @@ function bindEvents() {
 
   $("#saveScore").addEventListener("click", () => saveCurrentJudgeScore({ advance: true }));
   $("#confirmJudgeScore").addEventListener("click", () => saveCurrentJudgeScore({ advance: true }));
+  $("#continueJudgeScore").addEventListener("click", () => {
+    state.judgeAwaitingConfirmation = false;
+    $("#saveStatus").textContent = "Seguís cargando el atleta anterior.";
+    renderJudgeConfirmation();
+  });
   ["#manualAttempts", "#manualZoneAttempt", "#manualTopAttempt"].forEach((selector) => {
     $(selector).addEventListener("input", updateManualScorePreview);
   });
