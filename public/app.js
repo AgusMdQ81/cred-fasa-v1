@@ -48,6 +48,7 @@ const REGISTRATION_STORAGE_KEY = "credFasaRegistrationState";
 const ROUND_SCHEDULE_STORAGE_KEY = "credFasaRoundSchedules";
 const START_ORDER_STORAGE_KEY = "credFasaStartOrders";
 const ROUND_COMPLETION_STORAGE_KEY = "credFasaRoundCompletion";
+const SESSION_STORAGE_KEY = "credFasaEventSession";
 const timerChannel = "BroadcastChannel" in window ? new BroadcastChannel(TIMER_CHANNEL_NAME) : null;
 let timerAudioContext = null;
 const timerAlarmMarks = new Set();
@@ -196,6 +197,30 @@ function shouldReadRemoteTimer() {
   return !roleControlsTimer();
 }
 
+function persistEventSession() {
+  if (state.role !== "judge" || !state.eventRoleActive || !state.user) return;
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+    role: state.role,
+    roles: state.roles || [],
+    user: state.user,
+    currentCompetitionId: state.currentCompetitionId,
+    eventRoleActive: state.eventRoleActive,
+    competitorFilters: state.competitorFilters,
+  }));
+}
+
+function readEventSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function clearEventSession() {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
 function publishTimerSnapshot(timer, force = false) {
   if (!roleControlsTimer() || !timer) return;
   const now = Date.now();
@@ -304,9 +329,10 @@ function renderTimer(timer = computedLocalTimer()) {
   if ($("#timerCycle") && document.activeElement !== $("#timerCycle")) $("#timerCycle").value = Math.max(1, Number(timer.cycle || 1));
   if ($("#timerGenderWomen")) $("#timerGenderWomen").checked = (timer.genders || []).includes("Mujer");
   if ($("#timerGenderMen")) $("#timerGenderMen").checked = (timer.genders || []).includes("Hombre");
+  syncJudgeRoundWithTimer(timer);
   updateJudgeHeader();
   updateJudgeConfirmation(timer);
-  if (timer.phase === "climb") syncJudgeActiveCompetitor(timer);
+  syncJudgeActiveCompetitor(timer);
   state.lastJudgeTimerSnapshot = { ...timer };
 }
 
@@ -531,6 +557,16 @@ function updateJudgeHeader() {
   if ($("#judgeRoundLabel")) $("#judgeRoundLabel").textContent = round?.label || selectedRound();
 }
 
+function syncJudgeRoundWithTimer(timer) {
+  if (state.role !== "judge" || !timer?.round || timer.round === selectedRound()) return false;
+  if (!judgeAssignedRounds().includes(timer.round)) return false;
+  $("#roundSelect").value = timer.round;
+  renderBoulders();
+  resetScoreForm();
+  loadCompetitors();
+  return true;
+}
+
 function judgeAssignment(roundKey) {
   if (state.role !== "judge" || !state.user?.assignments) return null;
   return Number(state.user.assignments[roundKey] || 1);
@@ -665,7 +701,10 @@ function activateView(view, options = {}) {
   $(`#${safeView}`).classList.add("active");
   document.body.classList.toggle("judge-focus", safeView === "judge");
   renderActiveEventActions(safeView);
-  if (safeView === "judge") loadCompetitors();
+  if (safeView === "judge") {
+    loadTimer(true);
+    loadCompetitors();
+  }
   if (safeView === "judgePeople") loadJudgePeople();
   if (safeView === "competitions") {
     loadRouteSetterPeople();
@@ -812,6 +851,7 @@ function enterAssignedCompetition(competitionId) {
   if (state.user) state.user.competition_id = state.currentCompetitionId;
   applyRole(state.role, { openRole: true, eventSelected: true, view: roleEventHome(state.role) });
   loadJudges();
+  persistEventSession();
 }
 
 function renderActiveEventContext() {
@@ -912,6 +952,7 @@ function logout() {
   state.competitorPortal = null;
   state.competitorCredentials = null;
   localStorage.removeItem("credFasaRole");
+  clearEventSession();
   document.querySelectorAll(".tab[data-view]").forEach((button) => {
     button.hidden = true;
     button.classList.add("role-hidden");
@@ -2281,6 +2322,7 @@ function renderJudgePortal() {
       applyRole(requestedRole, { openRole: true, eventSelected: true, view: requestedRole === "judge" ? "judge" : "computos" });
       await loadJudges();
       await loadCompetitors();
+      persistEventSession();
     });
   });
 }
@@ -2709,6 +2751,15 @@ async function loadCompetitions() {
 
 async function loadCompetitors() {
   applyCompetitorCategoryRules(currentCompetition());
+  const category = state.competitorFilters.category || "mayor";
+  const gender = state.competitorFilters.gender || "Mujer";
+  if (state.role === "judge") {
+    state.competitors = await startOrderRows(selectedRound(), category, gender);
+    renderCompetitors();
+    syncJudgeActiveCompetitor();
+    renderJudgeAssignments();
+    return;
+  }
   const params = new URLSearchParams({
     ...state.competitorFilters,
     competition_id: state.currentCompetitionId || state.user?.competition_id || "",
@@ -3162,15 +3213,17 @@ function closeComputosRound() {
   loadScores();
 }
 
-async function loadTimer() {
-  let timer = computedLocalTimer();
+async function loadTimer(forceRemote = false) {
+  let timer = roleControlsTimer() ? computedLocalTimer() : null;
   if (shouldReadRemoteTimer()) {
-    const remoteTimer = await fetchRemoteTimerSnapshot();
+    const remoteTimer = await fetchRemoteTimerSnapshot(forceRemote);
     if (remoteTimer) {
       timer = computedLocalTimer(remoteTimer);
       state.timer = timer;
+      writeLocalTimer(timer, false);
     }
   }
+  if (!timer) timer = computedLocalTimer();
   if (!timer) {
     const serverTimer = await api("/api/timer");
     timer = normalizeTimerSnapshot(serverTimer) || writeLocalTimer(newLocalTimer(serverTimer.round, 1), false);
@@ -3671,6 +3724,10 @@ function bindEvents() {
     renderBoulders();
     runTimerAction("select");
   });
+  $(".judge-menu-button")?.addEventListener("click", () => {
+    document.body.classList.remove("judge-focus");
+    activateView("officialAssignments");
+  });
   $("#timerMode").addEventListener("change", () => runTimerAction("select"));
   $("#timerCycle").addEventListener("change", () => runTimerAction("select"));
   $("#timerGenderWomen").addEventListener("change", () => runTimerAction("select"));
@@ -3879,7 +3936,15 @@ async function init() {
   await loadCompetitions();
   bindEvents();
   await refreshAll();
-  localStorage.removeItem("credFasaRole");
+  const savedSession = readEventSession();
+  if (savedSession?.role === "judge" && savedSession.user && savedSession.currentCompetitionId) {
+    state.user = savedSession.user;
+    state.roles = savedSession.roles?.length ? savedSession.roles : ["judge"];
+    state.currentCompetitionId = Number(savedSession.currentCompetitionId);
+    state.eventRoleActive = true;
+    state.competitorFilters = savedSession.competitorFilters || state.competitorFilters;
+    applyRole("judge", { openRole: true, eventSelected: true, view: "judge" });
+  }
   setInterval(loadTimer, 250);
   setInterval(refreshComputed, 5000);
 }
