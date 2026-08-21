@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@500;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=20260820-mobile-layout" />
+    <link rel="stylesheet" href="/styles.css?v=20260820-mobile-filter-drawer" />
   </head>
   <body>
     <section id="loginGate" class="login-gate public-home">
@@ -26,6 +26,16 @@
               <p class="eyebrow">Calendario</p>
               <h2>Eventos programados</h2>
             </div>
+            <button id="calendarFilterToggle" class="calendar-filter-toggle" type="button" aria-controls="calendarControls" aria-expanded="false" aria-label="Abrir filtros del calendario">
+              <span aria-hidden="true"></span>
+              <span>Filtros</span>
+            </button>
+          </div>
+          <button id="calendarFilterBackdrop" class="calendar-filter-backdrop" type="button" tabindex="-1" aria-label="Cerrar filtros"></button>
+          <div id="calendarControls" class="calendar-controls" aria-label="Filtros del calendario">
+          <div class="calendar-controls-head">
+            <div><p class="eyebrow">Calendario</p><h3>Filtros</h3></div>
+            <button id="calendarFilterClose" class="calendar-filter-close" type="button" aria-label="Cerrar filtros">×</button>
           </div>
           <div class="calendar-filters">
             <label>Categoria
@@ -63,11 +73,12 @@
               </select>
             </label>
           </div>
+          <aside class="month-rail" aria-label="Filtrar por mes">
+            <button id="calendarYear" class="month-year active" type="button">2026</button>
+            <div id="calendarMonthRail" class="month-list"></div>
+          </aside>
+          </div>
           <div class="calendar-layout">
-            <aside class="month-rail" aria-label="Filtrar por mes">
-              <button id="calendarYear" class="month-year active" type="button">2026</button>
-              <div id="calendarMonthRail" class="month-list"></div>
-            </aside>
             <div id="publicCompetitionCalendar" class="calendar-list"></div>
           </div>
         </section>
@@ -1097,6 +1108,6 @@
       <article class="public-athlete-card"><button id="closePublicAthlete" class="dialog-close" type="button" aria-label="Cerrar">×</button><div id="publicAthletePhoto" class="public-athlete-photo">Foto</div><div><p class="eyebrow">Perfil público</p><h2 id="publicAthleteName">Atleta FASA</h2><div class="athlete-card-tags"><strong id="publicAthleteCategory">MAYOR</strong><strong id="publicAthleteGender">—</strong></div><dl class="public-athlete-meta"><div><dt>Club</dt><dd id="publicAthleteClub">—</dd></div><div><dt>Región</dt><dd id="publicAthleteRegion">—</dd></div></dl><p id="publicAthleteInstagram" class="instagram-line"><img src="/assets/instagram-logo-transparent.png" alt="Instagram" /> @usuario</p></div></article>
     </dialog>
 
-    <script src="/app.js?v=20260820-mobile-layout"></script>
+    <script src="/app.js?v=20260820-mobile-filter-drawer"></script>
   </body>
 </html>

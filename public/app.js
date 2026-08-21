@@ -2023,7 +2023,14 @@ function renderMonthRail() {
   rail.querySelectorAll("[data-month]").forEach((button) => button.addEventListener("click", () => {
     state.publicCalendarFilters.month = button.dataset.month;
     renderPublicCalendar();
+    setCalendarFiltersOpen(false);
   }));
+}
+
+function setCalendarFiltersOpen(open) {
+  const toggle = $("#calendarFilterToggle");
+  document.body.classList.toggle("calendar-filters-open", open);
+  toggle?.setAttribute("aria-expanded", String(open));
 }
 
 async function selectPublicCompetition(id) {
@@ -3218,7 +3225,14 @@ function bindEvents() {
     control.addEventListener("change", () => {
       state.publicCalendarFilters[key] = control.value;
       renderPublicCalendar();
+      setCalendarFiltersOpen(false);
     });
+  });
+  $("#calendarFilterToggle")?.addEventListener("click", () => setCalendarFiltersOpen(!document.body.classList.contains("calendar-filters-open")));
+  $("#calendarFilterClose")?.addEventListener("click", () => setCalendarFiltersOpen(false));
+  $("#calendarFilterBackdrop")?.addEventListener("click", () => setCalendarFiltersOpen(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setCalendarFiltersOpen(false);
   });
 
   function toggleRegionField() {
